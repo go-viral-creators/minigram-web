@@ -1,8 +1,8 @@
 
 {
   "rewrites": [
-    { "source": "/c/:handle", "destination": "/redirect.html?type=channel&handle=:handle" },
-    { "source": "/u/:handle", "destination": "/redirect.html?type=user&handle=:handle"   }
+    { "source": "/c/:handle", "destination": "/index.html?type=channel&handle=:handle" },
+    { "source": "/u/:handle", "destination": "/index.html?type=user&handle=:handle"   }
   ],
   "headers": [
     {
