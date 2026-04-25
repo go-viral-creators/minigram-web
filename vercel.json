@@ -1,12 +1,6 @@
 {
   "routes": [
-    {
-      "src": "/c/(.*)",
-      "dest": "/index.html?type=channel&handle=$1"
-    },
-    {
-      "src": "/u/(.*)",
-      "dest": "/index.html?type=user&handle=$1"
-    }
+    { "src": "/c/(.*)", "dest": "/index.html?type=channel&handle=$1" },
+    { "src": "/u/(.*)", "dest": "/index.html?type=user&handle=$1" }
   ]
 }
