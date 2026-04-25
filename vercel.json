@@ -1,14 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/c/:handle", "destination": "/redirect.html?type=channel&handle=:handle" },
-    { "source": "/u/:handle", "destination": "/redirect.html?type=user&handle=:handle"   }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    }
+  "routes": [
+    { "src": "/c/(.*)", "dest": "/redirect.html?type=channel&handle=$1" },
+    { "src": "/u/(.*)", "dest": "/redirect.html?type=user&handle=$1" }
   ]
 }
