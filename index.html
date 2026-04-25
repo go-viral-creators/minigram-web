@@ -2,13 +2,16 @@
 <html>
 <head>
   <script>
-    // forward everything to redirect.html
     const path = window.location.pathname;
 
-    if (path.startsWith("/c/") || path.startsWith("/u/")) {
-      window.location.replace("/redirect.html" + window.location.search);
+    if (path.startsWith('/c/')) {
+      const handle = path.slice(3);
+      location.replace('/redirect.html?type=channel&handle=' + encodeURIComponent(handle));
+    } else if (path.startsWith('/u/')) {
+      const handle = path.slice(3);
+      location.replace('/redirect.html?type=user&handle=' + encodeURIComponent(handle));
     } else {
-      window.location.replace("/redirect.html");
+      location.replace('/redirect.html');
     }
   </script>
 </head>
