@@ -112,53 +112,50 @@
 </div>
 
 <script>
-  (function () {
-    // ── Parse query params set by vercel.json rewrite ─────────────────
-    var params = new URLSearchParams(window.location.search);
-    var type   = params.get('type');    // "channel" | "user"
-    var handle = params.get('handle');  // the @handle value
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  var type   = params.get('type');
+  var handle = params.get('handle');
 
-    if (!handle || !type) {
-      document.getElementById('title').textContent   = 'Invalid Link';
-      document.getElementById('desc').textContent    = 'This link appears to be broken.';
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('btnOpen').style.display  = 'none';
-      document.getElementById('btnStore').style.display = 'none';
-      return;
+  // ✅ FALLBACK (IMPORTANT FIX)
+  if (!handle || !type) {
+    var path = window.location.pathname;
+
+    if (path.startsWith("/c/")) {
+      handle = path.replace("/c/", "");
+      type = "channel";
+    } else if (path.startsWith("/u/")) {
+      handle = path.replace("/u/", "");
+      type = "user";
     }
+  }
 
-    // ── Update UI ─────────────────────────────────────────────────────
-    var isChannel = type === 'channel';
-    document.getElementById('title').textContent = isChannel
-      ? 'Open Channel'
-      : 'Open Chat';
-    document.getElementById('handleDisplay').textContent = '@' + handle;
-    document.getElementById('desc').textContent = isChannel
-      ? 'This link will open the channel in the Minigram app.'
-      : 'This link will open a chat in the Minigram app.';
+  // ❌ STILL INVALID
+  if (!handle || !type) {
+    document.getElementById('title').textContent = 'Invalid Link';
+    document.getElementById('desc').textContent = 'This link appears to be broken.';
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('btnOpen').style.display = 'none';
+    document.getElementById('btnStore').style.display = 'none';
+    return;
+  }
 
-    // ── Build deep link ───────────────────────────────────────────────
-    // Vercel → minigram://channel/{handle}  |  minigram://user/{handle}
-    var deepLink = isChannel
-      ? 'minigram://channel/' + handle
-      : 'minigram://user/'   + handle;
+  var isChannel = type === 'channel';
 
-    // Update manual "Open" button
-    document.getElementById('btnOpen').href = deepLink;
+  document.getElementById('title').textContent = isChannel ? 'Open Channel' : 'Open Chat';
+  document.getElementById('handleDisplay').textContent = '@' + handle;
 
-    // ── Auto-redirect after 600 ms ────────────────────────────────────
-    setTimeout(function () {
-      window.location.href = deepLink;
+  var deepLink = isChannel
+    ? 'minigram://channel/' + handle
+    : 'minigram://user/' + handle;
 
-      // If app not installed — browser will stay here
-      // Show fallback UI after 2.5 s
-      setTimeout(function () {
-        document.getElementById('spinner').style.display  = 'none';
-        document.getElementById('status').textContent =
-          "Didn't open? Tap the button above or install the app below.";
-      }, 2500);
-    }, 600);
-  })();
+  document.getElementById('btnOpen').href = deepLink;
+
+  setTimeout(function () {
+    window.location.href = deepLink;
+  }, 600);
+
+})();
 </script>
 </body>
 </html>
