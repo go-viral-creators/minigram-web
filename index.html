@@ -1,32 +1,133 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Opening Minigram...</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <script>
-    function openApp() {
-      const path = window.location.pathname;
+<title>Opening Minigram</title>
 
-      let handle = "";
+<style>
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
 
-      if (path.startsWith("/c/")) {
-        handle = path.replace("/c/", "");
-        window.location = "minigram://channel/" + handle;
+  .card {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    padding: 30px 25px;
+    border-radius: 18px;
+    text-align: center;
+    width: 90%;
+    max-width: 340px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
 
-      } else if (path.startsWith("/u/")) {
-        handle = path.replace("/u/", "");
-        window.location = "minigram://user/" + handle;
-      }
+  .logo {
+    width: 70px;
+    height: 70px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    font-weight: bold;
+    margin: 0 auto 15px;
+  }
 
-      setTimeout(() => {
-        window.location = "https://play.google.com/store/apps/details?id=com.ddcstudio.minigram";
-      }, 2000);
-    }
-  </script>
+  h2 {
+    margin: 10px 0 5px;
+    font-size: 20px;
+  }
+
+  p {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-bottom: 20px;
+  }
+
+  .btn {
+    display: block;
+    background: #4f46e5;
+    padding: 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #fff;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .btn.secondary {
+    background: rgba(255,255,255,0.1);
+  }
+
+  .loader {
+    margin: 15px auto;
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(255,255,255,0.2);
+    border-top: 3px solid #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<script>
+function openApp() {
+  const path = window.location.pathname;
+
+  let handle = "";
+  let type = "";
+
+  if (path.startsWith("/c/")) {
+    handle = path.replace("/c/", "");
+    type = "channel";
+    window.location = "minigram://channel/" + handle;
+
+  } else if (path.startsWith("/u/")) {
+    handle = path.replace("/u/", "");
+    type = "user";
+    window.location = "minigram://user/" + handle;
+  }
+
+  // fallback after delay
+  setTimeout(() => {
+    document.getElementById("fallback").style.display = "block";
+  }, 1800);
+}
+</script>
 </head>
 
 <body onload="openApp()">
-  <h2>Opening in app...</h2>
+
+<div class="card">
+  
+  <div class="logo">M</div>
+
+  <h2>Opening in Minigram</h2>
+  <p>Redirecting you to the app...</p>
+
+  <div class="loader"></div>
+
+  <div id="fallback" style="display:none;">
+    <a class="btn" href="minigram://">Open App</a>
+    <a class="btn secondary" href="https://play.google.com/store/apps/details?id=com.ddcstudio.minigram">
+      Install App
+    </a>
+  </div>
+
+</div>
+
 </body>
 </html>
