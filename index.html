@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Opening Minigram...</title>
+
+  <script>
+    function openApp() {
+      const path = window.location.pathname;
+
+      let handle = "";
+
+      if (path.startsWith("/c/")) {
+        handle = path.replace("/c/", "");
+        window.location = "minigram://channel/" + handle;
+
+      } else if (path.startsWith("/u/")) {
+        handle = path.replace("/u/", "");
+        window.location = "minigram://user/" + handle;
+      }
+
+      setTimeout(() => {
+        window.location = "https://play.google.com/store/apps/details?id=com.ddcstudio.minigram";
+      }, 2000);
+    }
+  </script>
+</head>
+
+<body onload="openApp()">
+  <h2>Opening in app...</h2>
+</body>
+</html>
