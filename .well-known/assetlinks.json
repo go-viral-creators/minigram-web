@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.silu.minigram",
+      "sha256_cert_fingerprints": [
+        "99:A3:07:9C:0A:10:6C:7B:B7:60:1B:1B:55:09:4E:9F:24:C2:4E:D5:29:19:AB:05:DC:17:05:DC:DC:5B:AD:F7"
+      ]
+    }
+  }
+]
