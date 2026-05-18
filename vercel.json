@@ -1,5 +1,13 @@
 {
   "routes": [
+    {
+      "src": "/.well-known/assetlinks.json",
+      "dest": "/.well-known/assetlinks.json",
+      "headers": {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache"
+      }
+    },
     { "src": "/c/(.*)", "dest": "/redirect.html?type=channel&handle=$1" },
     { "src": "/u/(.*)", "dest": "/redirect.html?type=user&handle=$1" }
   ]
