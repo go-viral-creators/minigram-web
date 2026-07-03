@@ -1,16 +1,25 @@
-// /api/upload-media.js
+// /api/send-notification.js
 //
-// Uploads a base64 file (e.g. a voice note recording) to a GitHub repo
-// using the GitHub REST API, then returns a free jsDelivr CDN URL that
-// serves the file instantly worldwide — no Firebase Storage, no card needed.
+// Sends an FCM push notification using firebase-admin.
+// The service account key lives ONLY in Vercel's environment variables —
+// it is NEVER shipped inside the Android APK anymore.
 //
-// Required Vercel Environment Variables:
-//   GITHUB_TOKEN     -> a GitHub Personal Access Token (fine-grained,
-//                       scoped to ONLY the "Contents: Read and write"
-//                       permission on ONE repo — see setup notes below)
-//   GITHUB_REPO      -> e.g. "yourusername/minigram-media"
-//   GITHUB_BRANCH    -> e.g. "main"
-//   APP_SECRET       -> same shared secret used by send-notification.js
+// Required Vercel Environment Variables (set in Vercel dashboard):
+//   FIREBASE_SERVICE_ACCOUNT  -> paste the FULL contents of service_account.json
+//   APP_SECRET                -> any random string you choose, e.g. a UUID.
+//                                Must match APP_SECRET in FCMNotificationSender.java
+
+const admin = require('firebase-admin');
+
+let app;
+function getAdminApp() {
+  if (app) return app;
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  app = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+  return app;
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -18,6 +27,12 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // ── Simple shared-secret check ──────────────────────────────────────────
+  // Not as strong as verifying a Firebase Auth ID token, but it stops random
+  // internet bots from hitting this endpoint. Worst case if this string
+  // leaks: someone can send junk notifications through YOUR sender —
+  // they can NOT read/write your database or steal user data, unlike the
+  // old approach where the full service account key was exposed.
   const secret = req.headers['x-app-secret'];
   if (!secret || secret !== process.env.APP_SECRET) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -25,43 +40,34 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { base64Data, fileName, folder } = req.body || {};
-    if (!base64Data || !fileName) {
-      res.status(400).json({ error: 'base64Data and fileName are required' });
+    const { topic, token, title, body, image, type, extra, channel_name } = req.body || {};
+
+    if (!topic && !token) {
+      res.status(400).json({ error: 'topic or token is required' });
       return;
     }
 
-    const repo   = process.env.GITHUB_REPO;
-    const branch = process.env.GITHUB_BRANCH || 'main';
-    const path   = `${folder ? folder.replace(/^\/|\/$/g, '') + '/' : 'media/'}${Date.now()}_${fileName}`;
-
-    const ghRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/vnd.github+json',
+    const message = {
+      data: {
+        title: title || '',
+        body: body || '',
+        image: image || '',
+        type: type || '',
+        extra: extra || '',
+        channel_name: channel_name || '',
       },
-      body: JSON.stringify({
-        message: `upload: ${path}`,
-        content: base64Data,   // raw base64, no data: prefix
-        branch,
-      }),
-    });
+      android: { priority: 'high' },
+    };
 
-    const ghJson = await ghRes.json();
-    if (!ghRes.ok) {
-      console.error('GitHub upload failed:', ghJson);
-      res.status(500).json({ error: ghJson.message || 'GitHub upload failed' });
-      return;
-    }
+    if (topic) message.topic = topic;
+    else message.token = token;
 
-    // jsDelivr free CDN — serves any public GitHub repo file, cached globally.
-    const cdnUrl = `https://cdn.jsdelivr.net/gh/${repo}@${branch}/${path}`;
+    const admin_ = getAdminApp();
+    const messageId = await admin_.messaging().send(message);
 
-    res.status(200).json({ success: true, url: cdnUrl });
+    res.status(200).json({ success: true, messageId });
   } catch (err) {
-    console.error('upload-media error:', err);
+    console.error('send-notification error:', err);
     res.status(500).json({ error: err.message || 'Internal error' });
   }
 };
