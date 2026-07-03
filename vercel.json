@@ -8,6 +8,7 @@
         "Cache-Control": "no-cache"
       }
     },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/c/(.*)", "dest": "/redirect.html?type=channel&handle=$1" },
     { "src": "/u/(.*)", "dest": "/redirect.html?type=user&handle=$1" }
   ]
