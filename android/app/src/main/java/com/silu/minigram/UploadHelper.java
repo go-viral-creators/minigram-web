@@ -62,6 +62,27 @@ public class UploadHelper {
         }).start();
     }
 
+    public interface EncCallback { void onSuccess(String url, String keyB64); void onError(String errorMessage); }
+
+    /** Same as {@link #uploadImage} but the bytes are encrypted on-device first; the key never leaves the phone except inside the E2EE message. */
+    public static void uploadImageEncrypted(Context context, Uri imageUri, EncCallback callback) {
+        if (imageUri == null) { mainThread(() -> callback.onError("No image selected")); return; }
+        new Thread(() -> {
+            try {
+                byte[] imageBytes = readAndCompress(context, imageUri);
+                if (imageBytes == null || imageBytes.length == 0) throw new IOException("Could not read image file");
+                String uid = FirebaseAuth.getInstance().getUid();
+                if (uid == null) throw new IOException("Not signed in");
+                com.silu.minigram.e2ee.E2ee.SealedMedia sealed = com.silu.minigram.e2ee.E2ee.sealMedia(imageBytes);
+                String url = MediaStorage.upload(uid, "image", sealed.data, "application/octet-stream", "bin");
+                mainThread(() -> callback.onSuccess(url, sealed.keyB64));
+            } catch (Exception e) {
+                final String msg = e.getMessage() != null ? e.getMessage() : "Unknown upload error";
+                mainThread(() -> callback.onError(msg));
+            }
+        }).start();
+    }
+
     // ── Helper: read + compress image (unchanged from the imgbb version) ───────
 
     private static byte[] readAndCompress(Context context, Uri uri) {

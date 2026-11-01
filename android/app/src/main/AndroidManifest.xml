@@ -171,6 +171,11 @@
 			android:exported="false" />
 
 		<activity
+			android:name=".VerifyEncryptionActivity"
+			android:exported="false"
+			android:screenOrientation="portrait" />
+
+		<activity
 			android:name=".DebugActivity"
 			android:screenOrientation="portrait"
 			android:theme="@style/AppTheme.DebugActivity" />

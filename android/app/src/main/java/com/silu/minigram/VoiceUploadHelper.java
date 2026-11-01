@@ -55,6 +55,29 @@ public class VoiceUploadHelper {
         }).start();
     }
 
+    public interface EncCallback { void onSuccess(String url, String keyB64); void onError(String errorMessage); }
+
+    /** Encrypts the recording on-device before upload; see UploadHelper.uploadImageEncrypted. */
+    public static void uploadVoiceEncrypted(File audioFile, EncCallback callback) {
+        if (audioFile == null || !audioFile.exists() || audioFile.length() == 0) {
+            mainThread(() -> callback.onError("Recording file not found"));
+            return;
+        }
+        new Thread(() -> {
+            try {
+                byte[] bytes = readFile(audioFile);
+                String uid = FirebaseAuth.getInstance().getUid();
+                if (uid == null) throw new IOException("Not signed in");
+                com.silu.minigram.e2ee.E2ee.SealedMedia sealed = com.silu.minigram.e2ee.E2ee.sealMedia(bytes);
+                String url = MediaStorage.upload(uid, "voice", sealed.data, "application/octet-stream", "bin");
+                mainThread(() -> callback.onSuccess(url, sealed.keyB64));
+            } catch (Exception e) {
+                final String msg = e.getMessage() != null ? e.getMessage() : "Unknown upload error";
+                mainThread(() -> callback.onError(msg));
+            }
+        }).start();
+    }
+
     private static byte[] readFile(File f) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (FileInputStream fis = new FileInputStream(f)) {

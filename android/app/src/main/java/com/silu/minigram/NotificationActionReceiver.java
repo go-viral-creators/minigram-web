@@ -153,16 +153,36 @@ public class NotificationActionReceiver extends BroadcastReceiver {
         msg.put("is_deleted_for_all", false);
         msg.put("is_deleted_for_me",  false);
 
+        final com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(ctx, myUid);
+        final Map<String, Object> plainMsg = msg;
+        e2.prepareOutgoing(chatId, peerUid, msgId, plainMsg, new com.silu.minigram.e2ee.E2ee.OutCb() {
+            @Override public void ready(Map<String, Object> toStore) {
+                e2.setLocalPreview(chatId, text, ts);
+                writeReply(chatId, myUid, peerUid, msgId, toStore,
+                        com.silu.minigram.e2ee.E2ee.GENERIC_PREVIEW, com.silu.minigram.e2ee.E2ee.GENERIC_PUSH, ts, pr);
+            }
+            @Override public void plainFallback() {
+                writeReply(chatId, myUid, peerUid, msgId, plainMsg, text, text, ts, pr);
+            }
+            @Override public void error(String message) { Log.e(TAG, "quick reply not sent: " + message); finish(pr); }
+        });
+    }
+
+    /** The atomic write + push for a (possibly encrypted) quick reply. */
+    private void writeReply(final String chatId, final String myUid, final String peerUid, final String msgId,
+                            final Map<String, Object> msg, final String listPreview, final String pushBody,
+                            final long ts, final PendingResult pr) {
+        DatabaseReference root = FirebaseDatabase.getInstance().getReference();
         // One atomic multi-path update instead of five independent writes:
         // either the whole reply lands or none of it does, and it survives a
         // process death mid-way far better than sequential setValue() calls.
         Map<String, Object> updates = new HashMap<>();
         updates.put("/chats/" + chatId + "/" + msgId, msg);
         updates.put("/user_chats/" + myUid   + "/" + chatId + "/peer_uid",  peerUid);
-        updates.put("/user_chats/" + myUid   + "/" + chatId + "/last_msg",  text);
+        updates.put("/user_chats/" + myUid   + "/" + chatId + "/last_msg",  listPreview);
         updates.put("/user_chats/" + myUid   + "/" + chatId + "/last_time", ts);
         updates.put("/user_chats/" + peerUid + "/" + chatId + "/peer_uid",  myUid);
-        updates.put("/user_chats/" + peerUid + "/" + chatId + "/last_msg",  text);
+        updates.put("/user_chats/" + peerUid + "/" + chatId + "/last_msg",  listPreview);
         updates.put("/user_chats/" + peerUid + "/" + chatId + "/last_time", ts);
         // Was missing entirely — the peer's unread badge never moved.
         updates.put("/user_chats/" + peerUid + "/" + chatId + "/unread",
@@ -175,7 +195,7 @@ public class NotificationActionReceiver extends BroadcastReceiver {
                 return;
             }
             // Now push it, so the peer actually gets notified.
-            pushReplyNotification(chatId, myUid, peerUid, text, pr);
+            pushReplyNotification(chatId, myUid, peerUid, pushBody, pr);
         });
     }
 

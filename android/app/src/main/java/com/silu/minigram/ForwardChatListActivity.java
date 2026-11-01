@@ -509,24 +509,47 @@ public class ForwardChatListActivity extends AppCompatActivity {
      * preview update on both sides, unread increment for the recipient, and
      * a push notification. The old dialog did none of this.
      */
-    private void _forwardToChat(Row target) {
+    private void _forwardToChat(final Row target) {
+        final com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(getApplicationContext(), myUid);
+        if (target.peerUid.isEmpty()) { _forwardToChatNow(target, false); return; }
+        e2.refreshPeer(target.targetId, target.peerUid,
+            ok -> _forwardToChatNow(target, ok || e2.isEncrypted(target.targetId)));
+    }
+
+    private void _forwardToChatNow(final Row target, final boolean enc) {
+        final com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(getApplicationContext(), myUid);
         DatabaseReference tRef = database.getReference("chats").child(target.targetId);
         for (HashMap<String, Object> om : messagesToForward) {
-            HashMap<String, Object> copy = ForwardHelper.buildForwardedCopy(om, myUid, false);
-            String nId = tRef.push().getKey();
+            final HashMap<String, Object> copy = ForwardHelper.buildForwardedCopy(om, myUid, false);
+            final String nId = tRef.push().getKey();
             if (nId == null) continue;
-            tRef.child(nId).setValue(copy);
-
-            ContentTrackingHelper.trackSent(myUid,
-                (String) copy.get("type"),
-                (String) copy.get("text"),
-                (String) copy.get("image_url"),
-                (String) copy.get("voice_url"),
-                "chat", target.targetId, nId);
+            final DatabaseReference nRef = tRef.child(nId);
+            if (enc) {
+                if (om.get("e2ee_media_url") != null) {      // media that is already an encrypted blob: re-wrap the same pointer + key
+                    String t = String.valueOf(om.get("type"));
+                    copy.put("voice".equals(t) ? "voice_url" : "image_url", om.get("e2ee_media_url"));
+                    copy.put("e2ee_media_key", om.get("e2ee_media_key"));
+                }
+                e2.prepareOutgoing(target.targetId, target.peerUid, nId, copy, new com.silu.minigram.e2ee.E2ee.OutCb() {
+                    @Override public void ready(java.util.Map<String, Object> toStore) { nRef.setValue(toStore); }
+                    @Override public void plainFallback() { nRef.setValue(copy); }
+                    @Override public void error(String m) { }
+                });
+            } else {
+                nRef.setValue(copy);
+                ContentTrackingHelper.trackSent(myUid,
+                    (String) copy.get("type"),
+                    (String) copy.get("text"),
+                    (String) copy.get("image_url"),
+                    (String) copy.get("voice_url"),
+                    "chat", target.targetId, nId);
+            }
         }
 
-        String preview = ForwardHelper.previewFor(messagesToForward);
+        final String realPreview = ForwardHelper.previewFor(messagesToForward);
+        String preview = enc ? com.silu.minigram.e2ee.E2ee.GENERIC_PREVIEW : realPreview;
         long ts = System.currentTimeMillis();
+        if (enc) e2.setLocalPreview(target.targetId, realPreview, ts);
 
         DatabaseReference userChatsRef = database.getReference("user_chats");
         HashMap<String, Object> myMeta = new HashMap<>();
@@ -548,7 +571,7 @@ public class ForwardChatListActivity extends AppCompatActivity {
             {
                 HashMap<String, Object> data = new HashMap<>();
                 data.put("title",      myName);
-                data.put("body",       preview);
+                data.put("body",       enc ? com.silu.minigram.e2ee.E2ee.GENERIC_PUSH : preview);
                 data.put("image",      "");
                 data.put("type",       "chat");
                 data.put("extra",      target.targetId);

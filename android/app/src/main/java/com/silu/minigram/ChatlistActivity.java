@@ -1197,6 +1197,16 @@ public class ChatlistActivity extends AppCompatActivity {
 			
 			((TextView) cv.findViewById(R.id.txt_name))
 			.setText(name != null && !name.isEmpty() ? name : "User");
+			String cid = (String) chat.get("chatId");
+			boolean enc = false;
+			if (cid != null && myUid != null) {
+				com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(getApplicationContext(), myUid);
+				enc = e2.isEncrypted(cid);
+				String local = e2.localPreview(cid);
+				if (local != null && com.silu.minigram.e2ee.E2ee.GENERIC_PREVIEW.equals(lastMsg)) lastMsg = local;
+			}
+			View lock = cv.findViewById(R.id.txt_lock);
+			if (lock != null) lock.setVisibility(enc ? View.VISIBLE : View.GONE);
 			((TextView) cv.findViewById(R.id.txt_last_msg))
 			.setText(lastMsg != null ? lastMsg : "");
 			ImageView imgBadge = cv.findViewById(R.id.img_verified_badge);

@@ -133,7 +133,7 @@
 				android:layout_height="wrap_content"
 				android:layout_marginStart="12dp"
 				android:layout_weight="1"
-				android:text="Messages are end-to-end encrypted. Keys never leave this phone."
+				android:text="Chats with updated contacts are end-to-end encrypted. Keys stay on this phone."
 				android:textColor="@color/ink_text_2"
 				android:textSize="13sp" />
 		</LinearLayout>

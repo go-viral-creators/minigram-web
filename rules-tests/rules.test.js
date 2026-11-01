@@ -117,3 +117,16 @@ test('server-only nodes', async () => {
   await assertFails(get(ref(db(A), 'channel_reports')));
   await assertSucceeds(push(ref(db(A), 'channel_reports'), { reason: 'spam' }));
 });
+
+test('e2ee key bundles: public read, owner-only write, ciphertext messages validated', async () => {
+  const bundle = { ik: 'a'.repeat(44), sik: 'b'.repeat(44), spk: 'c'.repeat(44), spk_sig: 'd'.repeat(88), spk_id: 1, ts: now() };
+  await assertSucceeds(set(ref(db(A), 'e2ee_keys/alice'), bundle));
+  await assertFails(set(ref(db(B), 'e2ee_keys/alice'), bundle));                 // cannot replace someone's keys
+  await assertSucceeds(get(ref(db(B), 'e2ee_keys/alice')));                      // peers can fetch them
+  await assertFails(set(ref(db(A), 'e2ee_keys/alice'), { ik: 'only' }));         // incomplete bundle rejected
+  const enc = { sender_uid: A, type: 'text', text: '', timestamp: now(), status: 'sent', e2ee: 1, ct: 'x'.repeat(200), x_ik: 'k'.repeat(44), x_ek: 'k'.repeat(44), x_spk: 1 };
+  await assertSucceeds(set(ref(db(A), `chats/${chatAB}/e1`), enc));
+  await assertFails(set(ref(db(A), `chats/${chatAB}/e2`), { ...enc, ct: 'x'.repeat(50000) }));
+  await assertFails(set(ref(db(C), `chats/${chatAB}/e3`), enc));                 // outsider cannot inject ciphertext
+  await assertSucceeds(update(ref(db(A), `chats/${chatAB}/e1`), { ct: 'y'.repeat(100), is_edited: true })); // edit re-encrypts
+});

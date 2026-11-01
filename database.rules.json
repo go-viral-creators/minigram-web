@@ -96,6 +96,18 @@
           },
           "reply_preview": {
             ".validate": "newData.isString() && newData.val().length <= 600"
+          },
+          "ct": {
+            ".validate": "newData.isString() && newData.val().length <= 40000"
+          },
+          "x_ik": {
+            ".validate": "newData.isString() && newData.val().length <= 64"
+          },
+          "x_ek": {
+            ".validate": "newData.isString() && newData.val().length <= 64"
+          },
+          "x_spk": {
+            ".validate": "newData.isNumber()"
           }
         }
       }
@@ -244,6 +256,16 @@
     "app_update": {
       ".read": "auth != null",
       ".write": false
+    },
+    "e2ee_keys": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['ik','sik','spk','spk_sig'])",
+        "$f": {
+          ".validate": "(newData.isString() && newData.val().length <= 120) || newData.isNumber()"
+        }
+      }
     }
   }
 }

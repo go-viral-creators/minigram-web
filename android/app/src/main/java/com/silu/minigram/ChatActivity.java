@@ -48,6 +48,9 @@ public class ChatActivity extends AppCompatActivity {
 
     // accessToken / projectId fields removed — no longer needed client-side.
     private String  peerFcmToken = "";
+    /** Peer has published E2EE keys (or this chat is already encrypted): media is encrypted before upload. */
+    private boolean useE2ee = false;
+    private String  pendingMediaKey = null;
     private ValueEventListener peerTokenListener = null;
     private boolean isMuted      = false;
     private boolean isFirstLoad  = true;
@@ -380,6 +383,23 @@ public class ChatActivity extends AppCompatActivity {
 
     private void _doUpload(String tempId, Uri uri, String caption,
                              String replyId, String replyPrev, String replySender) {
+        if (useE2ee) {
+            UploadHelper.uploadImageEncrypted(this, uri, new UploadHelper.EncCallback() {
+                @Override public void onSuccess(String url, String keyB64) {
+                    runOnUiThread(() -> {
+                        retryQueue.onSuccess(tempId);
+                        _removeTempMsg(tempId);
+                        pendingRetryUris.remove(tempId);
+                        pendingMediaKey = keyB64;
+                        _pushImageToFirebase(url, caption, replyId, replyPrev, replySender);
+                    });
+                }
+                @Override public void onError(String err) {
+                    runOnUiThread(() -> _setTempMsgState(tempId, "failed"));
+                }
+            });
+            return;
+        }
         UploadHelper.uploadImage(this, uri, new UploadHelper.UploadCallback() {
             @Override
             public void onSuccess(String url) {
@@ -503,23 +523,7 @@ public class ChatActivity extends AppCompatActivity {
             }
         }
         final int fDuration = durationSec;
-        VoiceUploadHelper.uploadVoice(audioFile, new VoiceUploadHelper.UploadCallback() {
-            @Override public void onSuccess(String fileUrl) {
-                runOnUiThread(() -> {
-                    retryQueue.onSuccess(tempId);
-                    _removeTempMsg(tempId);
-                    pendingRetryVoiceFiles.remove(tempId);
-                    _sendMessage("voice", "", fileUrl, "", false, fDuration);
-                    audioFile.delete();
-                });
-            }
-            @Override public void onError(String errorMessage) {
-                runOnUiThread(() -> {
-                    _setTempMsgState(tempId, "failed");
-                    Toast.makeText(ChatActivity.this, "Voice upload failed: " + errorMessage, Toast.LENGTH_LONG).show();
-                });
-            }
-        });
+        _uploadVoice(tempId, audioFile, fDuration);
     }
 
     private void _retryUpload(String tempId) {
@@ -578,10 +582,7 @@ public class ChatActivity extends AppCompatActivity {
         // Same fix as _sendMessage(): don't pre-register the id in
         // knownMsgIds, or the confirmed message reads as already-seen and
         // the scroll-to-my-new-message branch never fires.
-        messagesRef.child(msgId).setValue(msg);
-
-        _updateUserChats("\uD83D\uDCF7 Photo", ts);
-        _sendPeerNotification("\uD83D\uDCF7 Photo", imageUrl);
+        _commitMessage(msgId, msg, "\uD83D\uDCF7 Photo", ts, imageUrl);
     }
 
     private void _createNewMsgBubble() {
@@ -707,7 +708,9 @@ public class ChatActivity extends AppCompatActivity {
         popup.getMenu().add(0, 1, 0, "View Profile");
         popup.getMenu().add(0, 3, 0, isMuted ? "\uD83D\uDD14 Unmute" : "\uD83D\uDD15 Mute");
         popup.getMenu().add(0, 2, 0, "Export Chat");
+        popup.getMenu().add(0, 4, 0, "\uD83D\uDD12 Verify encryption");
         popup.setOnMenuItemClickListener(item -> {
+            if (item.getItemId() == 4) { _openVerify(); return true; }
             if      (item.getItemId() == 1) _showPeerProfile();
             else if (item.getItemId() == 3) _toggleMute();
             else if (item.getItemId() == 2) showExportDialog();
@@ -854,6 +857,7 @@ public class ChatActivity extends AppCompatActivity {
 
         messagesRef  = database.getReference("chats").child(chatId);
         userChatsRef = database.getReference("user_chats");
+        _initEncryption();
         // NOTE: keepSynced(true) was removed here on purpose — it ignores
         // ANY query (including our limitToLast pagination below) and forces
         // Firebase to keep the ENTIRE chat history synced in the background
@@ -1141,6 +1145,18 @@ public class ChatActivity extends AppCompatActivity {
             msg.put("link_preview_desc",  child.child("link_preview_desc").getValue(String.class));
             msg.put("link_preview_image", child.child("link_preview_image").getValue(String.class));
             msg.put("link_preview_site",  child.child("link_preview_site").getValue(String.class));
+            {   // end-to-end encryption: replace the ciphertext envelope with the decrypted content
+                HashMap<String, Object> raw = new HashMap<>();
+                raw.put("ct",         child.child("ct").getValue(String.class));
+                raw.put("x_ik",       child.child("x_ik").getValue(String.class));
+                raw.put("x_ek",       child.child("x_ek").getValue(String.class));
+                raw.put("x_spk",      child.child("x_spk").getValue(Long.class));
+                raw.put("sender_uid", sUid);
+                raw.put("timestamp",  child.child("timestamp").getValue(Long.class));
+                com.silu.minigram.e2ee.E2ee.get(this, myUid).decryptInto(chatId, peerUid, mId, raw, msg);
+                com.silu.minigram.e2ee.E2eeMedia.attach(this, msg,
+                    () -> { if (!isFinishing() && !isDestroyed() && adapter != null) adapter.refreshWithoutScroll(); });
+            }
 
             // Reactions: { uid: emoji } → count per emoji + whether I reacted
             HashMap<String, Integer> reactionCounts = new HashMap<>();
@@ -1322,15 +1338,57 @@ public class ChatActivity extends AppCompatActivity {
             });
     }
 
+    private String lastStatus = "offline";
+
+    /** Header sub-line shows a lock once the conversation is end-to-end encrypted. */
+    private void _showEncryptionState() {
+        _updateStatusUI(lastStatus);
+    }
+
+    private void _initEncryption() {
+        final com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(this, myUid);
+        e2.ensureIdentity();
+        useE2ee = e2.isEncrypted(chatId);
+        if (peerUid == null || peerUid.isEmpty()) return;
+        e2.refreshPeer(chatId, peerUid, ok -> {
+            if (isFinishing() || isDestroyed()) return;
+            useE2ee = ok || e2.isEncrypted(chatId);
+            _showEncryptionState();
+            if (e2.hasKeyChange(chatId)) _warnKeyChange();
+        });
+    }
+
+    private boolean keyWarningShown = false;
+    private void _warnKeyChange() {
+        if (keyWarningShown) return;
+        keyWarningShown = true;
+        new AlertDialog.Builder(this)
+            .setTitle("Security code changed")
+            .setMessage((peerName != null ? peerName : "Your contact") + " may have reinstalled Minigram or switched phones. "
+                + "New messages stay hidden until you review the new code. Verify it with them in person or over a call if you can.")
+            .setPositiveButton("Review", (d, w) -> _openVerify())
+            .setNegativeButton("Later", null).show();
+    }
+
+    private void _openVerify() {
+        Intent i = new Intent(this, VerifyEncryptionActivity.class);
+        i.putExtra("chat_id", chatId);
+        i.putExtra("peer_uid", peerUid);
+        i.putExtra("peer_name", peerName);
+        startActivity(i);
+    }
+
     private void _updateStatusUI(String status) {
         if (txt_status == null) return;
+        lastStatus = status == null ? "offline" : status;
         boolean online = "online".equals(status);
+        String lock = useE2ee ? " \u00b7 \uD83D\uDD12 E2EE" : "";
         if (online) {
-            txt_status.setText("online");
+            txt_status.setText("online" + lock);
             txt_status.setTextColor(Ink.c("#4CAF50"));
             return;
         }
-        txt_status.setText("offline");
+        txt_status.setText("offline" + lock);
         txt_status.setTextColor(Ink.c("#9E9E9E"));
         if (peerUid == null || database == null) return;
         database.getReference("users").child(peerUid).child("last_active_ts")
@@ -1338,8 +1396,8 @@ public class ChatActivity extends AppCompatActivity {
                 @Override public void onDataChange(@NonNull DataSnapshot snap) {
                     Long ts = snap.getValue(Long.class);
                     if (ts == null || txt_status == null) return;
-                    if ("online".equals(txt_status.getText().toString())) return;
-                    txt_status.setText("last seen " + _formatLastSeen(ts));
+                    if (txt_status.getText().toString().startsWith("online")) return;
+                    txt_status.setText("last seen " + _formatLastSeen(ts) + (useE2ee ? " \u00b7 \uD83D\uDD12 E2EE" : ""));
                 }
                 @Override public void onCancelled(@NonNull DatabaseError e) {}
             });
@@ -1498,13 +1556,39 @@ public class ChatActivity extends AppCompatActivity {
         listview1.post(() -> listview1.scrollToPosition(adapter.getItemCount() - 1));
         isAtBottom = true;
 
+        _uploadVoice(tempId, audioFile, (int) durationSec);
+    }
+
+    /** Uploads a recorded voice note (encrypted on-device when the chat is end-to-end encrypted) then sends it. */
+    private void _uploadVoice(final String tempId, final File audioFile, final int durationSec) {
+        if (useE2ee) {
+            VoiceUploadHelper.uploadVoiceEncrypted(audioFile, new VoiceUploadHelper.EncCallback() {
+                @Override public void onSuccess(String fileUrl, String keyB64) {
+                    runOnUiThread(() -> {
+                        retryQueue.onSuccess(tempId);
+                        _removeTempMsg(tempId);
+                        pendingRetryVoiceFiles.remove(tempId);
+                        pendingMediaKey = keyB64;
+                        _sendMessage("voice", "", fileUrl, "", false, durationSec);
+                        audioFile.delete();
+                    });
+                }
+                @Override public void onError(String errorMessage) {
+                    runOnUiThread(() -> {
+                        _setTempMsgState(tempId, "failed");
+                        Toast.makeText(ChatActivity.this, "Voice upload failed: " + errorMessage, Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
+            return;
+        }
         VoiceUploadHelper.uploadVoice(audioFile, new VoiceUploadHelper.UploadCallback() {
             @Override public void onSuccess(String fileUrl) {
                 runOnUiThread(() -> {
                     retryQueue.onSuccess(tempId);
                     _removeTempMsg(tempId);
                     pendingRetryVoiceFiles.remove(tempId);
-                    _sendMessage("voice", "", fileUrl, "", false, (int) durationSec);
+                    _sendMessage("voice", "", fileUrl, "", false, durationSec);
                     audioFile.delete();
                 });
             }
@@ -1772,11 +1856,10 @@ public class ChatActivity extends AppCompatActivity {
         // Removing the pre-add is safe: a message can never be mistaken for
         // an incoming peer message, because that branch matches on
         // sender_uid (peerUid.equals(sUid)), not on this set.
-        messagesRef.child(msgId).setValue(msg);
-        ContentTrackingHelper.trackSent(myUid, type, text,
-            "image".equals(type) ? imageUrl : null,
-            "voice".equals(type) ? imageUrl : null,
-            "chat", chatId, msgId);
+        String preview = "image".equals(type) ? "\uD83D\uDCF7 Photo"
+                        : "voice".equals(type) ? "\uD83C\uDFA4 Voice message"
+                        : text;
+        _commitMessage(msgId, msg, preview, ts, "voice".equals(type) ? "" : imageUrl);
         edit_msg.setText("");
         if (chatId != null)
             getSharedPreferences(DRAFT_PREFS, MODE_PRIVATE).edit().remove(chatId).apply();
@@ -1789,11 +1872,46 @@ public class ChatActivity extends AppCompatActivity {
         _hideBubble();
         isAtBottom = true;
 
-        String preview = "image".equals(type) ? "\uD83D\uDCF7 Photo"
-                        : "voice".equals(type) ? "\uD83C\uDFA4 Voice message"
-                        : text;
-        _updateUserChats(preview, ts);
-        _sendPeerNotification(preview, "voice".equals(type) ? "" : imageUrl);
+    }
+
+    /**
+     * Single place where an outgoing chat message leaves the phone. In an end-to-end encrypted
+     * chat the message is encrypted first; the server only ever stores ciphertext, a generic
+     * list preview and a generic push text.
+     */
+    private void _commitMessage(final String msgId, final HashMap<String, Object> msg,
+                                final String preview, final long ts, final String pushImageUrl) {
+        final String type = String.valueOf(msg.get("type"));
+        if (pendingMediaKey != null) { msg.put("e2ee_media_key", pendingMediaKey); pendingMediaKey = null; }
+        final String plainText = String.valueOf(msg.get("text"));
+        com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(this, myUid);
+        e2.prepareOutgoing(chatId, peerUid, msgId, msg, new com.silu.minigram.e2ee.E2ee.OutCb() {
+            @Override public void ready(java.util.Map<String, Object> toStore) {
+                messagesRef.child(msgId).setValue(toStore);
+                e2.setLocalPreview(chatId, preview, ts);
+                useE2ee = true;
+                _showEncryptionState();
+                _updateUserChats(com.silu.minigram.e2ee.E2ee.GENERIC_PREVIEW, ts);
+                _sendPeerNotification(com.silu.minigram.e2ee.E2ee.GENERIC_PUSH, "");
+            }
+            @Override public void plainFallback() {
+                if (msg.containsKey("e2ee_media_key")) {
+                    Toast.makeText(ChatActivity.this, "Contact can't receive encrypted media yet", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                messagesRef.child(msgId).setValue(msg);
+                ContentTrackingHelper.trackSent(myUid, type, plainText,
+                    "image".equals(type) ? String.valueOf(msg.get("image_url")) : null,
+                    "voice".equals(type) ? String.valueOf(msg.get("voice_url")) : null,
+                    "chat", chatId, msgId);
+                _updateUserChats(preview, ts);
+                _sendPeerNotification(preview, pushImageUrl);
+            }
+            @Override public void error(String message) {
+                Toast.makeText(ChatActivity.this, message, Toast.LENGTH_LONG).show();
+                _showEncryptionState();
+            }
+        });
     }
 
     private void _updateUserChats(String preview, long ts) {
@@ -1988,6 +2106,36 @@ public class ChatActivity extends AppCompatActivity {
         sheet.show(getSupportFragmentManager(), "msg_action");
     }
 
+    /** Edits in an encrypted chat: the new text is encrypted and replaces the ciphertext. */
+    private void _editEncrypted(final String msgId, final String newText) {
+        HashMap<String, Object> cur = null;
+        for (HashMap<String, Object> m : messageList) if (msgId.equals(m.get("msgId"))) { cur = m; break; }
+        if (cur == null) return;
+        HashMap<String, Object> msg = new HashMap<>();
+        String type = String.valueOf(cur.get("type"));
+        msg.put("type", type); msg.put("sender_uid", myUid); msg.put("timestamp", cur.get("timestamp"));
+        if ("text".equals(type)) { msg.put("text", newText); msg.put("caption", ""); }
+        else { msg.put("text", ""); msg.put("caption", newText); }
+        for (String k : new String[]{"reply_preview", "reply_sender", "link_preview_url", "link_preview_title",
+                "link_preview_desc", "link_preview_image", "link_preview_site"})
+            if (cur.get(k) != null) msg.put(k, cur.get(k));
+        if (cur.get("e2ee_media_url") != null) {
+            msg.put("e2ee_media_key", cur.get("e2ee_media_key"));
+            msg.put("voice".equals(type) ? "voice_url" : "image_url", cur.get("e2ee_media_url"));
+        }
+        final com.silu.minigram.e2ee.E2ee e2 = com.silu.minigram.e2ee.E2ee.get(this, myUid);
+        e2.prepareOutgoing(chatId, peerUid, msgId, msg, new com.silu.minigram.e2ee.E2ee.OutCb() {
+            @Override public void ready(java.util.Map<String, Object> toStore) {
+                HashMap<String, Object> upd = new HashMap<>();
+                upd.put("ct", toStore.get("ct")); upd.put("e2ee", 1); upd.put("is_edited", true);
+                if (toStore.get("x_ik") != null) { upd.put("x_ik", toStore.get("x_ik")); upd.put("x_ek", toStore.get("x_ek")); upd.put("x_spk", toStore.get("x_spk")); }
+                messagesRef.child(msgId).updateChildren(upd);
+            }
+            @Override public void plainFallback() { Toast.makeText(ChatActivity.this, "Can't edit right now", Toast.LENGTH_SHORT).show(); }
+            @Override public void error(String m) { Toast.makeText(ChatActivity.this, m, Toast.LENGTH_LONG).show(); }
+        });
+    }
+
     private void _showEditDialog(String msgId, String currentText, String msgType) {
         EditText input = new EditText(this);
         input.setText(currentText);
@@ -1997,6 +2145,7 @@ public class ChatActivity extends AppCompatActivity {
             .setPositiveButton("Save", (d, w) -> {
                 String nt = input.getText().toString().trim();
                 if (!nt.isEmpty()) {
+                    if (useE2ee) { _editEncrypted(msgId, nt); return; }
                     HashMap<String, Object> upd = new HashMap<>();
                     upd.put("text", nt); upd.put("caption", nt); upd.put("is_edited", true);
                     messagesRef.child(msgId).updateChildren(upd);

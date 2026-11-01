@@ -396,6 +396,10 @@ public class PrivacySecurityActivity extends AppCompatActivity {
         root.child("user_chats").child(uid).removeValue();
         root.child("blocked_users").child(uid).removeValue();
         root.child("user_media").child(uid).removeValue();
+        root.child("e2ee_keys").child(uid).removeValue();
+        root.child("fcm_tokens").child(uid).removeValue();
+        root.child("user_private").child(uid).removeValue();
+        try { com.silu.minigram.e2ee.E2ee.get(this, uid).wipe(); } catch (Exception ignored) { }
         root.child("user_links").child(uid).removeValue();
         if (handle != null && !handle.isEmpty()) root.child("handles").child(handle).removeValue();
         try { getSharedPreferences("minigram_drafts", 0).edit().clear().apply(); } catch (Exception ignored) {}
