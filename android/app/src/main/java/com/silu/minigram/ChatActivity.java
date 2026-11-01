@@ -1539,6 +1539,13 @@ public class ChatActivity extends AppCompatActivity {
 
     // ── VOICE MESSAGE RECORDING ─────────────────────────────────────────────
 
+    // ----------------------------------------------------------------- voice notes (live recorder + pipeline)
+    private com.silu.minigram.voice.LiveRecorder liveRecorder;
+    private File rawVoiceFile;
+    private View voiceCard;
+    private com.silu.minigram.voice.WaveformView voiceWave;
+    private TextView voiceTimer, voicePauseBtn;
+
     private void _startVoiceRecording() {
         if (isRecording) return;
 
@@ -1552,38 +1559,36 @@ public class ChatActivity extends AppCompatActivity {
         try {
             File outDir = new File(getCacheDir(), "voice_notes");
             if (!outDir.exists()) outDir.mkdirs();
-            File outFile = new File(outDir, "voice_" + System.currentTimeMillis() + ".m4a");
-            voiceFilePath = outFile.getAbsolutePath();
+            rawVoiceFile = new File(outDir, "raw_" + System.currentTimeMillis() + ".pcm");
+            voiceFilePath = rawVoiceFile.getAbsolutePath();
 
-            mediaRecorder = new android.media.MediaRecorder();
-            mediaRecorder.setAudioSource(android.media.MediaRecorder.AudioSource.MIC);
-            mediaRecorder.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4);
-            mediaRecorder.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC);
-            mediaRecorder.setAudioEncodingBitRate(64000);
-            mediaRecorder.setAudioSamplingRate(44100);
-            mediaRecorder.setOutputFile(voiceFilePath);
-            mediaRecorder.prepare();
-            mediaRecorder.start();
+            _showVoiceCard();
+            liveRecorder = new com.silu.minigram.voice.LiveRecorder(rawVoiceFile, new com.silu.minigram.voice.LiveRecorder.Listener() {
+                @Override public void onLevel(float level) { if (voiceWave != null) voiceWave.push(level); }
+                @Override public void onError(Exception e) {
+                    Log.e("VoiceRecord", "capture failed", e);
+                    if (isRecording) _stopVoiceRecording(true);
+                    Toast.makeText(ChatActivity.this, "Recording failed", Toast.LENGTH_SHORT).show();
+                }
+            });
+            liveRecorder.start();
 
             isRecording = true;
             recordingCancelled = false;
             recordingStartTime = System.currentTimeMillis();
-
             if (btn_send_icon != null) btn_send_icon.setText("send");
-            if (btn_attach_icon != null) btn_attach_icon.setVisibility(View.GONE);
-            if (linear18 != null) linear18.setVisibility(View.GONE);
-            if (layout_recording_bar != null) layout_recording_bar.setVisibility(View.VISIBLE);
-            _startPulseAnimation();
+
+            TextView status = voiceCard.findViewById(R.id.txt_rec_status);
+            status.setText(liveRecorder.nsActive || liveRecorder.agcActive
+                    ? "\u2726 Cleaning up background noise and levelling your voice"
+                    : "\u2726 Your voice is levelled and cleaned after you stop");
 
             recordingTimerRunnable = new Runnable() {
                 @Override public void run() {
                     if (!isRecording) return;
-                    long secs = (System.currentTimeMillis() - recordingStartTime) / 1000;
-                    if (txt_recording_timer != null) {
-                        txt_recording_timer.setText(String.format(java.util.Locale.US,
-                            "%d:%02d", secs / 60, secs % 60));
-                    }
-                    recordingTimerHandler.postDelayed(this, 500);
+                    long secs = liveRecorder != null ? liveRecorder.samples() / com.silu.minigram.voice.LiveRecorder.SAMPLE_RATE : 0;
+                    if (voiceTimer != null) voiceTimer.setText(String.format(java.util.Locale.US, "%d:%02d", secs / 60, secs % 60));
+                    recordingTimerHandler.postDelayed(this, 250);
                 }
             };
             recordingTimerHandler.post(recordingTimerRunnable);
@@ -1591,39 +1596,67 @@ public class ChatActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e("VoiceRecord", "Failed to start recording", e);
             Toast.makeText(this, "Could not start recording", Toast.LENGTH_SHORT).show();
+            _hideVoiceCard();
             _resetRecordingUI();
         }
+    }
+
+    private void _showVoiceCard() {
+        if (voiceCard == null) {
+            voiceCard = getLayoutInflater().inflate(R.layout.view_voice_card, null);
+            voiceWave = voiceCard.findViewById(R.id.wave_live);
+            voiceTimer = voiceCard.findViewById(R.id.txt_rec_timer);
+            voicePauseBtn = voiceCard.findViewById(R.id.btn_rec_pause);
+            voiceCard.findViewById(R.id.btn_rec_delete).setOnClickListener(v -> _stopVoiceRecording(true));
+            voiceCard.findViewById(R.id.btn_rec_send).setOnClickListener(v -> _stopVoiceRecording(false));
+            voicePauseBtn.setOnClickListener(v -> {
+                if (liveRecorder == null) return;
+                boolean p = !liveRecorder.isPaused();
+                liveRecorder.setPaused(p);
+                voicePauseBtn.setText(p ? "mic" : "pause");
+                voicePauseBtn.setContentDescription(p ? "Resume recording" : "Pause recording");
+            });
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-1, -2, android.view.Gravity.BOTTOM);
+            ((android.widget.FrameLayout) findViewById(android.R.id.content)).addView(voiceCard, lp);
+        }
+        voiceCard.findViewById(R.id.pill_encrypted).setVisibility(useE2ee ? View.VISIBLE : View.GONE);
+        voiceWave.reset();
+        voiceTimer.setText("0:00");
+        voicePauseBtn.setText("pause");
+        voiceCard.setAlpha(0f);
+        voiceCard.setVisibility(View.VISIBLE);
+        voiceCard.animate().alpha(1f).translationY(0f).setDuration(180).start();
+    }
+
+    private void _hideVoiceCard() {
+        if (voiceCard != null) voiceCard.setVisibility(View.GONE);
     }
 
     private void _stopVoiceRecording(boolean cancelled) {
         if (!isRecording) return;
         recordingCancelled = cancelled;
-        long durationSec = (System.currentTimeMillis() - recordingStartTime) / 1000;
         isRecording = false;
+        long samples = 0;
+        if (liveRecorder != null) { samples = liveRecorder.stop(); }
+        final int platformFx = liveRecorder != null && (liveRecorder.nsActive || liveRecorder.agcActive || liveRecorder.aecActive) ? 1 : 0;
+        liveRecorder = null;
+        final long durationSec = samples / com.silu.minigram.voice.LiveRecorder.SAMPLE_RATE;
 
-        try {
-            mediaRecorder.stop();
-        } catch (Exception e) {
-            // stop() throws if recording was too short (<1s) — treat as cancel
-            recordingCancelled = true;
-        } finally {
-            mediaRecorder.release();
-            mediaRecorder = null;
-        }
-
+        _hideVoiceCard();
         _resetRecordingUI();
 
         if (recordingCancelled || durationSec < 1) {
-            if (voiceFilePath != null) new File(voiceFilePath).delete();
-            voiceFilePath = null;
+            if (rawVoiceFile != null) rawVoiceFile.delete();
+            rawVoiceFile = null; voiceFilePath = null;
             if (cancelled) Toast.makeText(this, "Recording cancelled", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        File audioFile = new File(voiceFilePath);
+        final File raw = rawVoiceFile;
+        rawVoiceFile = null; voiceFilePath = null;
 
-        // ── Optimistic placeholder — shows immediately, like images do ─────
-        String tempId = "temp_" + System.currentTimeMillis();
+        // Optimistic placeholder - shows immediately, like images do
+        final String tempId = "temp_" + System.currentTimeMillis();
         HashMap<String, Object> tempMsg = new HashMap<>();
         tempMsg.put("msgId",              tempId);
         tempMsg.put("sender_uid",         myUid);
@@ -1639,14 +1672,26 @@ public class ChatActivity extends AppCompatActivity {
         tempMsg.put("is_deleted_for_all", false);
         tempMsg.put("status",             "pending");
         tempMsg.put("upload_state",       "uploading");
-        pendingRetryVoiceFiles.put(tempId, audioFile);
-
         messageList.add(tempMsg);
         adapter.refreshWithoutScroll();
         listview1.post(() -> listview1.scrollToPosition(adapter.getItemCount() - 1));
         isAtBottom = true;
 
-        _uploadVoice(tempId, audioFile, (int) durationSec);
+        // Denoise/level/encode off the UI thread, then upload (encrypted on-device in E2EE chats)
+        com.silu.minigram.voice.VoicePipeline.processAsync(this, raw, platformFx, new com.silu.minigram.voice.VoicePipeline.Callback() {
+            @Override public void onDone(com.silu.minigram.voice.VoiceEncoder.Result r, int dur, String stages) {
+                Log.d("VoiceRecord", "pipeline: " + stages);
+                if (isFinishing() || isDestroyed()) return;
+                pendingRetryVoiceFiles.put(tempId, r.file);
+                _uploadVoice(tempId, r.file, dur > 0 ? dur : (int) durationSec);
+            }
+            @Override public void onError(Exception e) {
+                Log.e("VoiceRecord", "pipeline failed", e);
+                if (isFinishing() || isDestroyed()) return;
+                _setTempMsgState(tempId, "failed");
+                Toast.makeText(ChatActivity.this, "Could not process the recording", Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     /** Uploads a recorded voice note (encrypted on-device when the chat is end-to-end encrypted) then sends it. */

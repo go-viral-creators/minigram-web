@@ -43,7 +43,8 @@ public class VoiceUploadHelper {
                 String uid = FirebaseAuth.getInstance().getUid();
                 if (uid == null) throw new IOException("Not signed in");
 
-                String url = MediaStorage.upload(uid, "voice", bytes, "audio/mp4", "m4a");
+                boolean ogg = audioFile.getName().endsWith(".ogg");
+                String url = MediaStorage.upload(uid, "voice", bytes, ogg ? "audio/ogg" : "audio/mp4", ogg ? "ogg" : "m4a");
 
                 mainThread(() -> callback.onSuccess(url));
 
