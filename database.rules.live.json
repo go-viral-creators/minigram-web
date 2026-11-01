@@ -1,0 +1,101 @@
+{
+  "rules": {
+    "app_update": { ".read": "auth != null", ".write": "false" },
+    "channel_reports": { ".read": "false", ".write": "auth != null" },
+    "user_media": { "$uid": { ".read": "auth != null", ".write": "auth != null && auth.uid === $uid", ".indexOn": ["timestamp"] } },
+    "user_links": { "$uid": { ".read": "auth != null", ".write": "auth != null && auth.uid === $uid", ".indexOn": ["timestamp"] } },
+    "updates_feed": { ".read": "auth != null", ".write": "false", ".indexOn": ["timestamp"] },
+    "users": {
+      ".read": "auth != null",
+      ".indexOn": ["handle", "fullname_lower"],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['fullname'])",
+        "is_banned": { ".write": "false" }
+      }
+    },
+    "handles": {
+      ".read": "auth != null",
+      "$handle": {
+        ".write": "auth != null && (!data.exists() || data.child('id').val() === auth.uid || root.child('channels').child(data.child('id').val()).child('owner_uid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['type', 'id'])"
+      }
+    },
+    "usernames": { "$username": { ".read": "auth != null", ".write": "auth != null && (!data.exists() || data.val() === auth.uid)" } },
+    "phone_index": { "$phoneKey": { ".read": "auth != null", ".write": "auth != null && (!data.exists() || data.val() === auth.uid)" } },
+    "blocked_users": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
+    "chats": {
+      "$chatId": {
+        ".indexOn": ["timestamp", "sender_uid"],
+        ".read": "auth != null && root.child('user_chats').child(auth.uid).child($chatId).exists()",
+        "$msgId": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('user_chats').child(auth.uid).child($chatId).exists() || newData.child('sender_uid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['sender_uid', 'timestamp', 'type'])",
+          "reactions": { "$uid": { ".write": "auth != null && auth.uid === $uid" } }
+        }
+      }
+    },
+    "user_chats": { "$uid": { ".indexOn": ["last_time"], ".read": "auth != null && auth.uid === $uid", ".write": "auth != null" } },
+    "channel_presence": {
+      "$channelId": {
+        ".read": "auth != null && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public' || root.child('channels').child($channelId).child('owner_uid').val() === auth.uid)",
+        "$uid": { ".write": "auth != null && auth.uid === $uid" }
+      }
+    },
+    "channels": {
+      ".read": "auth != null",
+      ".indexOn": ["handle", "name_lower", "owner_uid"],
+      "$channelId": {
+        ".write": "auth != null && (!data.exists() || data.child('owner_uid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['name', 'owner_uid', 'privacy'])"
+      }
+    },
+    "channel_admins": {
+      "$channelId": {
+        ".read": "auth != null && (root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_subscribers').child($channelId).child(auth.uid).exists())",
+        "$uid": { ".write": "auth != null && (root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($channelId).child(auth.uid).exists())" }
+      }
+    },
+    "channel_posts": {
+      "$channelId": {
+        ".indexOn": ["timestamp", "is_pinned"],
+        ".read": "auth != null && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')",
+        "$postId": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($channelId).child(auth.uid).exists())",
+          "reactions": { "$uid": { ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')" } },
+          "likes": { "$uid": { ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')" } },
+          "reply_count": { ".write": "auth != null && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')" },
+          "view_count": { ".write": "auth != null && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')" }
+        }
+      }
+    },
+    "channel_post_views": { "$channelId": { "$postId": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } } } },
+    "channel_subscribers": {
+      "$channelId": {
+        ".read": "auth != null && (root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($channelId).child(auth.uid).exists())",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && (auth.uid === $uid || root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($channelId).child(auth.uid).exists())"
+        }
+      }
+    },
+    "channel_replies": {
+      "$channelId": {
+        "$postId": {
+          ".read": "auth != null && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')",
+          "$replyId": {
+            ".write": "auth != null && root.child('users').child(auth.uid).child('is_banned').val() !== true && (root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($channelId).child(auth.uid).exists() || (root.child('channels').child($channelId).child('allow_replies').val() !== false && (root.child('channel_subscribers').child($channelId).child(auth.uid).exists() || root.child('channels').child($channelId).child('privacy').val() === 'public')))",
+            ".validate": "newData.hasChildren(['sender_uid', 'text', 'timestamp'])"
+          }
+        }
+      }
+    },
+    "user_channels": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
+        "$channelId": { ".write": "auth != null && (auth.uid === $uid || root.child('channels').child($channelId).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($channelId).child(auth.uid).exists())" }
+      }
+    }
+  }
+}
