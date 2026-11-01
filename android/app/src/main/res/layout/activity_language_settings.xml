@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ink_bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="28dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/btn_back"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="Back"
+                android:fontFamily="@font/material_icons"
+                android:gravity="center"
+                android:text="arrow_back"
+                android:textColor="@color/ink_text"
+                android:textSize="24sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:accessibilityHeading="true"
+                android:text="Language &amp; Translation"
+                android:textAppearance="@style/TextAppearance.Ink.Title" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/row_my_language"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal"
+                android:padding="16dp">
+                <TextView style="@style/Ink.RowIcon" android:text="people_outline" />
+                <LinearLayout
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="14dp"
+                    android:layout_weight="1" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="My language" android:textColor="@color/ink_text" android:textSize="17sp" android:textStyle="bold" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="All messages are shown in this language" android:textColor="@color/ink_text_2" android:textSize="14sp" />
+                </LinearLayout>
+                <TextView android:id="@+id/txt_my_language" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/ink_text" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="chevron_right" android:textColor="@color/ink_text_2" android:textSize="22sp" />
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
+
+            <LinearLayout style="@style/Ink.SwitchRow">
+                <TextView style="@style/Ink.RowIcon" android:text="translate" />
+                <LinearLayout style="@style/Ink.RowText">
+                    <TextView style="@style/Ink.RowTitle" android:text="Auto-translate chats" />
+                    <TextView style="@style/Ink.RowSub" android:text="Incoming messages are translated automatically" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/sw_auto" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:contentDescription="Auto-translate chats" />
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
+
+            <LinearLayout style="@style/Ink.SwitchRow">
+                <TextView style="@style/Ink.RowIcon" android:text="visibility" />
+                <LinearLayout style="@style/Ink.RowText">
+                    <TextView style="@style/Ink.RowTitle" android:text="Show original text" />
+                    <TextView style="@style/Ink.RowSub" android:text="Keep the original below the translation" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/sw_original" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:contentDescription="Show original text" />
+            </LinearLayout>
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
+
+            <LinearLayout style="@style/Ink.SwitchRow">
+                <TextView style="@style/Ink.RowIcon" android:text="graphic_eq" />
+                <LinearLayout style="@style/Ink.RowText">
+                    <TextView style="@style/Ink.RowTitle" android:text="Translate voice transcripts" />
+                    <TextView style="@style/Ink.RowSub" android:text="Voice text is translated too" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/sw_transcripts" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:contentDescription="Translate voice transcripts" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="8dp" android:text="Offline language packs" />
+
+        <LinearLayout
+            android:id="@+id/list_packs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/txt_hinglish_note"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Hinglish (Hindi in English letters) is detected automatically. Because spelling isn't standard, it is shown as-is with a tap-to-translate (approximate) option. Needs the Hindi pack."
+            android:textColor="@color/ink_text_2"
+            android:textSize="13sp" />
+
+        <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="8dp" android:text="Voice clean-up" />
+
+        <LinearLayout
+            android:id="@+id/card_voice_cleanup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/card_bg"
+            android:gravity="center_vertical"
+            android:minHeight="72dp"
+            android:orientation="horizontal"
+            android:padding="16dp">
+            <TextView style="@style/Ink.RowIcon" android:text="auto_awesome" />
+            <LinearLayout style="@style/Ink.RowText">
+                <TextView style="@style/Ink.RowTitle" android:text="Noise removal + clarity" />
+                <TextView android:id="@+id/txt_voice_model" style="@style/Ink.RowSub" />
+            </LinearLayout>
+            <TextView android:id="@+id/pill_voice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:background="@drawable/pill_ok" android:paddingStart="10dp" android:paddingTop="4dp" android:paddingEnd="10dp" android:paddingBottom="4dp" android:text="Built in" android:textColor="@color/ink_ok" android:textSize="13sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/pill_ok_block"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="14dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="memory" android:textColor="@color/ink_ok" android:textSize="22sp" />
+            <TextView
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_weight="1"
+                android:text="Translation and noise removal run on this phone. Your text and audio are never sent to a translation server — only the language packs are downloaded once."
+                android:textColor="@color/ink_ok" android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

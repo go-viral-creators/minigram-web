@@ -1,0 +1,25 @@
+package com.silu.minigram.translate;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import java.util.Locale;
+
+/** Language & Translation settings (stored locally, never sent anywhere). */
+public final class LangPrefs {
+    private static final String P = "lang_prefs";
+    public static final String MY_LANG = "my_lang", AUTO = "auto_translate", SHOW_ORIGINAL = "show_original", TRANSCRIPTS = "translate_transcripts";
+    private LangPrefs() {}
+
+    private static SharedPreferences sp(Context c) { return c.getSharedPreferences(P, Context.MODE_PRIVATE); }
+
+    public static String myLang(Context c) {
+        String v = sp(c).getString(MY_LANG, null);
+        return v != null ? v : Locale.getDefault().getLanguage();
+    }
+    public static void setMyLang(Context c, String code) { sp(c).edit().putString(MY_LANG, code).apply(); }
+    public static boolean auto(Context c) { return sp(c).getBoolean(AUTO, true); }
+    public static boolean showOriginal(Context c) { return sp(c).getBoolean(SHOW_ORIGINAL, true); }
+    public static boolean transcripts(Context c) { return sp(c).getBoolean(TRANSCRIPTS, true); }
+    public static void set(Context c, String key, boolean v) { sp(c).edit().putBoolean(key, v).apply(); }
+}

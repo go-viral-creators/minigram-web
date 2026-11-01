@@ -122,4 +122,42 @@
 <style name="AppModalStyle" parent="Widget.Design.BottomSheet.Modal">
     <item name="android:background">@android:color/transparent</item>
 </style>
+    <style name="Ink.RowIcon" parent="">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:background">@drawable/circle_icon_soft</item>
+        <item name="android:fontFamily">@font/material_icons</item>
+        <item name="android:gravity">center</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:textColor">@color/ink_accent</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+    <style name="Ink.RowText" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">14dp</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+    <style name="Ink.RowTitle" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/ink_text</item>
+        <item name="android:textSize">17sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+    <style name="Ink.RowSub" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/ink_text_2</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+    <style name="Ink.SwitchRow" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">72dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:padding">16dp</item>
+    </style>
 </resources>

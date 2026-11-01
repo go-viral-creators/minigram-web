@@ -948,6 +948,7 @@ public class ChatActivity extends AppCompatActivity {
 
         adapter = new ChatMessageRecyclerAdapter(this, messageList, myUid, peerName, peerPhoto,
             listview1, selectedMsgs);
+        _bindTranslateListener();
         adapter.setListener(new ChatMessageRecyclerAdapter.AdapterListener() {
             @Override public void onReplyClick(String msgId) { scrollToMessage(msgId); }
 
@@ -1157,6 +1158,7 @@ public class ChatActivity extends AppCompatActivity {
                 com.silu.minigram.e2ee.E2eeMedia.attach(this, msg,
                     () -> { if (!isFinishing() && !isDestroyed() && adapter != null) adapter.refreshWithoutScroll(); });
             }
+            _applyTranslation(msg, mId, sUid, false);
 
             // Reactions: { uid: emoji } → count per emoji + whether I reacted
             HashMap<String, Integer> reactionCounts = new HashMap<>();
@@ -1338,11 +1340,99 @@ public class ChatActivity extends AppCompatActivity {
             });
     }
 
+    // ----------------------------------------------------------------- auto-translate (on-device, after decrypt)
+    private final java.util.Set<String> hinglishRequested = new java.util.HashSet<>();
+    private TextView translateChip;
+
+    /** Applies a cached translation to an incoming text message, or starts one in the background. */
+    private void _applyTranslation(HashMap<String, Object> msg, String mId, String sUid, boolean forceHinglish) {
+        if (peerUid == null || !peerUid.equals(sUid) || msg.containsKey("original_text")) return;
+        if (!"text".equals(msg.get("type")) || msg.containsKey("e2ee_unreadable")) return;
+        if (!com.silu.minigram.translate.LangPrefs.auto(this)) return;
+        final String text = msg.get("text") instanceof String ? (String) msg.get("text") : "";
+        if (text.trim().length() < 2 || text.startsWith("\uD83D\uDD12") || text.startsWith("\u26A0")) return;
+        final String mine = com.silu.minigram.translate.LangPrefs.myLang(this);
+        final String key = mId + ":" + text.hashCode() + ":" + mine;
+        final com.silu.minigram.translate.TranslationManager tm = com.silu.minigram.translate.TranslationManager.get(this);
+        com.silu.minigram.translate.TranslationManager.Outcome o = tm.cached(key);
+        if (o == null || (forceHinglish && o.translated == null && o.approximate)) {
+            final boolean manual = forceHinglish || hinglishRequested.contains(mId);
+            if (o != null) tm.clearCache();
+            tm.translate(key, text, mine, manual, r -> {
+                if (isFinishing() || isDestroyed() || adapter == null) return;
+                for (HashMap<String, Object> m : messageList) {
+                    if (mId.equals(m.get("msgId"))) { _applyOutcome(m, text, r); break; }
+                }
+                adapter.refreshWithoutScroll();
+            });
+            return;
+        }
+        _applyOutcome(msg, text, o);
+    }
+
+    private void _applyOutcome(HashMap<String, Object> msg, String original, com.silu.minigram.translate.TranslationManager.Outcome o) {
+        if (msg.containsKey("original_text")) return;
+        if (o.translated != null && !o.translated.isEmpty() && !o.translated.equals(original)) {
+            msg.put("original_text", original);
+            msg.put("text", o.translated);
+            msg.put("translated_from", o.sourceLang);
+            msg.put("translation_approx", o.approximate);
+            _showTranslateChip(o.sourceLang);
+        } else if (o.approximate && o.translated == null) {
+            msg.put("hinglish_offer", true);
+        } else if (o.needsPack) {
+            msg.put("translate_pack", o.packLang);
+        }
+    }
+
+    /** Small "Hindi → English" pill in the header, like the design. */
+    private void _showTranslateChip(String srcLang) {
+        try {
+            String mine = com.silu.minigram.translate.LangPrefs.myLang(this);
+            String s = "hi-Latn".equalsIgnoreCase(srcLang) ? "Hinglish"
+                : com.silu.minigram.translate.TranslationManager.displayName(srcLang.split("-")[0], java.util.Locale.getDefault());
+            String label = s + " \u2192 " + mine.toUpperCase(java.util.Locale.ROOT);
+            if (translateChip == null && toolbar != null && more_options != null && more_options.getParent() == toolbar) {
+                translateChip = new TextView(this);
+                translateChip.setBackgroundResource(R.drawable.btn_pill_outline);
+                translateChip.setPadding(dp(12), 0, dp(12), 0);
+                translateChip.setMinHeight(dp(48));
+                translateChip.setGravity(android.view.Gravity.CENTER);
+                translateChip.setTextSize(13);
+                translateChip.setTextColor(Ink.res(R.color.ink_text));
+                translateChip.setOnClickListener(v -> startActivity(new Intent(this, LanguageSettingsActivity.class)));
+                toolbar.addView(translateChip, toolbar.indexOfChild(more_options));
+            }
+            if (translateChip != null) {
+                translateChip.setText(label);
+                translateChip.setContentDescription("Translating " + label + ". Open language settings");
+            }
+        } catch (Throwable ignored) { }
+    }
+
     private String lastStatus = "offline";
 
     /** Header sub-line shows a lock once the conversation is end-to-end encrypted. */
     private void _showEncryptionState() {
         _updateStatusUI(lastStatus);
+    }
+
+    private void _bindTranslateListener() {
+        adapter.setTranslateListener(new ChatMessageRecyclerAdapter.TranslateListener() {
+            @Override public void onTranslateHinglish(String msgId) {
+                hinglishRequested.add(msgId);
+                for (HashMap<String, Object> m : messageList) {
+                    if (msgId.equals(m.get("msgId"))) {
+                        m.remove("hinglish_offer");
+                        _applyTranslation(m, msgId, peerUid, true);
+                        break;
+                    }
+                }
+            }
+            @Override public void onNeedPack(String lang) {
+                startActivity(new Intent(ChatActivity.this, LanguageSettingsActivity.class));
+            }
+        });
     }
 
     private void _initEncryption() {

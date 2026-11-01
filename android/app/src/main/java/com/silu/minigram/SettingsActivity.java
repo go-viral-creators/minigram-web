@@ -43,6 +43,10 @@ public class SettingsActivity extends AppCompatActivity {
                 () -> startActivity(new Intent(this, PrivacySecurityActivity.class)));
         row(b.rowNotifications, "notifications_none", "Notifications", "Sounds, previews, channels",
                 this::openSystemNotificationSettings);
+        row(b.rowLanguage, "translate", "Language & Translation", languageSummary(),
+                () -> startActivity(new Intent(this, LanguageSettingsActivity.class)));
+        row(b.rowModels, "memory", "Offline AI models", "Translation packs, voice clean-up",
+                () -> startActivity(new Intent(this, LanguageSettingsActivity.class)));
         row(b.btnDataStorage, "data_usage", "Data & Storage", "Auto-download, clear cache",
                 () -> new DataStorageSheet().show(getSupportFragmentManager(), "data_storage"));
         row(b.btnAbout, "info_outline", "About Minigram", "Version, support, licences",
@@ -74,6 +78,12 @@ public class SettingsActivity extends AppCompatActivity {
         r.rowSubtitle.setText(sub);
         r.getRoot().setContentDescription(title + ", " + sub);
         r.getRoot().setOnClickListener(v -> action.run());
+    }
+
+    private String languageSummary() {
+        return "Auto-translate: " + (com.silu.minigram.translate.LangPrefs.auto(this) ? "ON" : "OFF") + " \u00b7 "
+            + com.silu.minigram.translate.TranslationManager.displayName(
+                com.silu.minigram.translate.LangPrefs.myLang(this), java.util.Locale.getDefault());
     }
 
     private void openSystemNotificationSettings() {
@@ -110,7 +120,11 @@ public class SettingsActivity extends AppCompatActivity {
         catch (Exception e) { return "0.0"; }
     }
 
-    @Override protected void onResume() { super.onResume(); if (bannerAd != null) bannerAd.resume(); }
+    @Override protected void onResume() {
+        super.onResume();
+        b.rowLanguage.rowSubtitle.setText(languageSummary());
+        if (bannerAd != null) bannerAd.resume();
+    }
     @Override protected void onPause()  { super.onPause();  if (bannerAd != null) bannerAd.pause(); }
 
     @Override protected void onDestroy() {

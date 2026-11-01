@@ -349,11 +349,14 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         final LinearLayout replyBar, layoutVoiceMsg, layoutLinkPreview;
         final SeekBar      seekVoice;
         final View         bubbleView;
+        final TextView     txtOriginal, txtTranslateTag;
 
         MsgVH(View v, int viewType) {
             super(v);
             this.viewType   = viewType;
             txtMsg          = v.findViewById(R.id.txt_msg);
+            txtOriginal     = v.findViewById(R.id.txt_original);
+            txtTranslateTag = v.findViewById(R.id.txt_translate_tag);
             imgMsg          = v.findViewById(R.id.img_msg);
             imgLoading      = v.findViewById(R.id.img_loading);
             btnDownloadImage= v.findViewById(R.id.btn_download_image);
@@ -404,6 +407,47 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             return;
         }
         bindMessage((MsgVH) holder, position);
+        _applyTranslationUi((MsgVH) holder, position);
+    }
+
+    /** Called when the user taps "Translate (approximate)" under a Hinglish message. */
+    public interface TranslateListener { void onTranslateHinglish(String msgId); void onNeedPack(String lang); }
+    private TranslateListener translateListener;
+    public void setTranslateListener(TranslateListener l) { this.translateListener = l; }
+
+    /** Shows the original text + "translated" tag under auto-translated incoming messages (design 03). */
+    @SuppressWarnings("unchecked")
+    private void _applyTranslationUi(MsgVH h, int pos) {
+        if (h.txtOriginal == null) return;
+        h.txtOriginal.setVisibility(View.GONE);
+        h.txtTranslateTag.setVisibility(View.GONE);
+        Object o = displayList.get(pos);
+        if (!(o instanceof HashMap)) return;
+        final HashMap<String, Object> m = (HashMap<String, Object>) o;
+        final String id = (String) m.get("msgId");
+        Context c = h.itemView.getContext();
+        String orig = (String) m.get("original_text");
+        if (orig != null) {
+            if (com.silu.minigram.translate.LangPrefs.showOriginal(c)) {
+                h.txtOriginal.setText(orig);
+                h.txtOriginal.setVisibility(View.VISIBLE);
+            }
+            String from = com.silu.minigram.translate.TranslationManager.displayName(
+                    String.valueOf(m.get("translated_from")).split("-")[0], java.util.Locale.getDefault());
+            boolean approx = Boolean.TRUE.equals(m.get("translation_approx"));
+            h.txtTranslateTag.setText("\uD83C\uDF10 translated from " + from + (approx ? " (approximate)" : ""));
+            h.txtTranslateTag.setOnClickListener(null);
+            h.txtTranslateTag.setVisibility(View.VISIBLE);
+        } else if (Boolean.TRUE.equals(m.get("hinglish_offer"))) {
+            h.txtTranslateTag.setText("\uD83C\uDF10 Hinglish \u00b7 tap to translate (approximate)");
+            h.txtTranslateTag.setOnClickListener(v -> { if (translateListener != null) translateListener.onTranslateHinglish(id); });
+            h.txtTranslateTag.setVisibility(View.VISIBLE);
+        } else if (m.get("translate_pack") != null) {
+            final String lang = String.valueOf(m.get("translate_pack"));
+            h.txtTranslateTag.setText("\uD83C\uDF10 Download " + com.silu.minigram.translate.TranslationManager.displayName(lang, java.util.Locale.getDefault()) + " pack to translate");
+            h.txtTranslateTag.setOnClickListener(v -> { if (translateListener != null) translateListener.onNeedPack(lang); });
+            h.txtTranslateTag.setVisibility(View.VISIBLE);
+        }
     }
 
     private void bindMessage(MsgVH h, int pos) {

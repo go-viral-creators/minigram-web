@@ -186,6 +186,31 @@
 			android:textColor="@color/ink_text"
 			android:clickable="false"
 			android:focusable="false" />
+		<TextView
+			android:id="@+id/txt_original"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginLeft="6dp"
+			android:layout_marginTop="6dp"
+			android:layout_marginRight="6dp"
+			android:background="@drawable/dashed_top"
+			android:paddingLeft="4dp"
+			android:paddingTop="6dp"
+			android:paddingRight="4dp"
+			android:textColor="@color/ink_text_2"
+			android:textSize="13sp"
+			android:visibility="gone" />
+		<TextView
+			android:id="@+id/txt_translate_tag"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginLeft="10dp"
+			android:layout_marginTop="2dp"
+			android:minHeight="32dp"
+			android:gravity="center_vertical"
+			android:textColor="@color/ink_accent"
+			android:textSize="12sp"
+			android:visibility="gone" />
 		<LinearLayout
 			android:id="@+id/layout_link_preview"
 			android:layout_width="match_parent"
