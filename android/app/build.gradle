@@ -5,6 +5,15 @@ plugins {
 android {
 	compileSdk 36
 	
+	splits {
+		abi {
+			enable true
+			reset()
+			include 'arm64-v8a', 'armeabi-v7a'
+			universalApk true
+		}
+	}
+
 	lint {
 		checkReleaseBuilds false
 		abortOnError false

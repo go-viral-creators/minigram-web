@@ -8,3 +8,4 @@ android/**/*.jks
 *.log
 .rules.copy.json
 *.hprof
+android/dist/
