@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:gravity="top">
+
+    <!-- Avatar: Glide loads photo here, OR programmatic bitmap if no photo -->
+    <ImageView
+        android:id="@+id/img_avatar"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:scaleType="centerCrop"
+        android:layout_marginEnd="10dp"
+        android:visibility="visible" />
+
+    <!-- Content column -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Name row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/txt_sender_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="#000000"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"/>
+
+            <TextView
+                android:id="@+id/txt_reply_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textColor="#000000"
+                android:textSize="11sp"/>
+
+            <TextView
+                android:id="@+id/btn_delete_reply"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="4dp"
+                android:gravity="center"
+                android:text="delete"
+                android:textSize="16sp"
+                android:textColor="#212121"
+                android:fontFamily="@font/material_icons"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+
+        <!-- Reply text -->
+        <TextView
+            android:id="@+id/txt_reply_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="#424242"
+            android:textSize="14sp"
+            android:lineSpacingMultiplier="1.3"/>
+
+    </LinearLayout>
+
+</LinearLayout>

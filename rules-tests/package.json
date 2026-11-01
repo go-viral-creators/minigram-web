@@ -1,0 +1,6 @@
+{
+  "name": "minigram-rules-tests",
+  "private": true,
+  "scripts": { "test": "./run.sh" },
+  "devDependencies": { "@firebase/rules-unit-testing": "^4.0.0", "firebase": "^11.0.0", "firebase-tools": "^13.0.0" }
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    gradient_top_scrim.xml
+    Top gradient: solid #CC000000 → transparent
+    Makes close/share buttons readable over any image.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="270"
+        android:startColor="#CC000000"
+        android:endColor="#00000000" />
+</shape>

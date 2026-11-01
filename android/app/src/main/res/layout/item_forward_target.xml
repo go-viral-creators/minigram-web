@@ -1,0 +1,81 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:paddingLeft="20dp"
+	android:paddingRight="20dp"
+	android:paddingTop="10dp"
+	android:paddingBottom="10dp"
+	android:gravity="center_vertical"
+	android:background="?attr/selectableItemBackground"
+	android:orientation="horizontal">
+
+	<!-- Avatar + Telegram-style checkmark badge (no separate CheckBox — the
+	     whole row is the tap target, selection state shows on the avatar
+	     itself, matching Telegram/WhatsApp forward pickers). -->
+	<FrameLayout
+		android:layout_width="46dp"
+		android:layout_height="46dp">
+
+		<ImageView
+			android:id="@+id/img_forward_avatar"
+			android:layout_width="46dp"
+			android:layout_height="46dp"
+			android:scaleType="centerCrop"
+			android:background="@drawable/circle_grey_bg" />
+
+		<!-- Dims the avatar slightly when selected, Telegram-style. -->
+		<View
+			android:id="@+id/view_forward_selected_dim"
+			android:layout_width="46dp"
+			android:layout_height="46dp"
+			android:background="@drawable/circle_bg"
+			android:backgroundTint="#66000000"
+			android:visibility="gone" />
+
+		<TextView
+			android:id="@+id/txt_forward_check"
+			android:layout_width="18dp"
+			android:layout_height="18dp"
+			android:layout_gravity="bottom|right"
+			android:background="@drawable/circle_primary_bg"
+			android:text="check"
+			android:textSize="12sp"
+			android:textColor="#FFFFFF"
+			android:gravity="center"
+			android:fontFamily="@font/material_icons"
+			android:visibility="gone" />
+
+	</FrameLayout>
+
+	<LinearLayout
+		android:layout_width="0dp"
+		android:layout_height="wrap_content"
+		android:layout_weight="1"
+		android:layout_marginLeft="14dp"
+		android:orientation="vertical">
+
+		<TextView
+			android:id="@+id/txt_forward_name"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="User"
+			android:textSize="16sp"
+			android:textColor="#212121"
+			android:singleLine="true"
+			android:ellipsize="end" />
+
+		<TextView
+			android:id="@+id/txt_forward_subtitle"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text=""
+			android:textSize="12.5sp"
+			android:textColor="#9E9E9E"
+			android:singleLine="true"
+			android:ellipsize="end"
+			android:visibility="gone" />
+
+	</LinearLayout>
+
+</LinearLayout>

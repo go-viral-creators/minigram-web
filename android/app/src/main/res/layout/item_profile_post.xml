@@ -1,0 +1,42 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_marginBottom="8dp"
+	android:orientation="vertical"
+	android:background="@drawable/plan_card_bg"
+	android:foreground="?attr/selectableItemBackground"
+	android:clickable="true"
+	android:focusable="true"
+	android:padding="12dp">
+
+	<TextView
+		android:id="@+id/txt_post_channel"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:text=""
+		android:textSize="12sp"
+		android:textStyle="bold"
+		android:textColor="#229ED9" />
+
+	<TextView
+		android:id="@+id/txt_post_text"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="4dp"
+		android:text=""
+		android:textSize="14sp"
+		android:maxLines="3"
+		android:ellipsize="end"
+		android:textColor="#424242" />
+
+	<TextView
+		android:id="@+id/txt_post_time"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="6dp"
+		android:text=""
+		android:textSize="11sp"
+		android:textColor="#9E9E9E" />
+
+</LinearLayout>

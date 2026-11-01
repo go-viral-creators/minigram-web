@@ -1,0 +1,52 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:gravity="center"
+	android:padding="32dp"
+	android:background="#FFFFFF">
+
+	<TextView
+		android:layout_width="96dp"
+		android:layout_height="96dp"
+		android:gravity="center"
+		android:text="block"
+		android:textSize="52sp"
+		android:textColor="#E53935"
+		android:background="@drawable/circle_bg_light"
+		android:fontFamily="@font/material_icons" />
+
+	<TextView
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="24dp"
+		android:text="Account Banned"
+		android:textSize="22sp"
+		android:textStyle="bold"
+		android:textColor="#212121" />
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="10dp"
+		android:gravity="center"
+		android:text="Your account has been banned for violating Minigram's terms of use. If you believe this is a mistake, please contact support."
+		android:textSize="14sp"
+		android:textColor="#757575" />
+
+	<TextView
+		android:id="@+id/btn_exit_app"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="32dp"
+		android:gravity="center"
+		android:paddingTop="14dp"
+		android:paddingBottom="14dp"
+		android:text="Exit App"
+		android:textSize="15sp"
+		android:textStyle="bold"
+		android:textColor="#FFFFFF"
+		android:background="@drawable/btn_pro_bg" />
+
+</LinearLayout>

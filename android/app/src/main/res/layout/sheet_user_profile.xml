@@ -1,0 +1,169 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/badge_bg" />
+
+    <TextView
+        android:id="@+id/btn_close"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="4dp"
+        android:text="close"
+        android:textSize="22sp"
+        android:textColor="#9E9E9E"
+        android:fontFamily="@font/material_icons"
+        android:padding="8dp"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <ImageView
+        android:id="@+id/img_avatar"
+        android:layout_width="84dp"
+        android:layout_height="84dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:src="@drawable/ic_person"
+        android:scaleType="centerCrop"
+        android:background="@drawable/circle_bg_light" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/txt_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Full Name"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#111111" />
+        <ImageView
+            android:id="@+id/img_verified_badge"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginLeft="5dp"
+            android:src="@drawable/ic_verified_badge"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/txt_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="2dp"
+        android:text="● Offline"
+        android:textSize="12sp"
+        android:textColor="#9E9E9E" />
+
+    <TextView
+        android:id="@+id/txt_username"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:text="@username"
+        android:textSize="14sp"
+        android:textColor="#2196F3" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginLeft="24dp"
+        android:layout_marginRight="24dp"
+        android:layout_marginTop="16dp"
+        android:background="#F0F0F0" />
+
+    <TextView
+        android:id="@+id/txt_bio"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="28dp"
+        android:layout_marginRight="28dp"
+        android:layout_marginTop="14dp"
+        android:text="No bio"
+        android:textSize="14sp"
+        android:lineSpacingExtra="4dp"
+        android:textColor="#424242"
+        android:gravity="center" />
+
+    <LinearLayout
+        android:id="@+id/btn_message"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginLeft="28dp"
+        android:layout_marginRight="28dp"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/btn_primary_bg"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackgroundBorderless">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="send"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:text="Send Message"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/btn_share"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginLeft="28dp"
+        android:layout_marginRight="28dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/btn_primary_bg"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackgroundBorderless">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="share"
+            android:textSize="18sp"
+            android:textColor="#FFFFFF"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:text="Share Profile"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+</LinearLayout>

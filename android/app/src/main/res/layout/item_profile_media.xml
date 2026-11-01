@@ -1,0 +1,55 @@
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:layout_margin="6dp"
+	android:background="@drawable/bg_media_thumb"
+	android:clipToOutline="true"
+	android:foreground="?attr/selectableItemBackground"
+	android:clickable="true"
+	android:focusable="true">
+
+	<ImageView
+		android:id="@+id/img_media_thumb"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:scaleType="centerCrop"
+		android:background="@drawable/bg_media_thumb" />
+
+	<TextView
+		android:id="@+id/txt_media_voice_icon"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:gravity="center"
+		android:text="mic"
+		android:textSize="28sp"
+		android:textColor="#9E9E9E"
+		android:background="#EEEEEE"
+		android:fontFamily="@font/material_icons"
+		android:visibility="gone" />
+
+	<!-- Selection scrim + checkmark badge — gone unless selection mode is
+	     active and this item is checked (Telegram gallery-style). -->
+	<View
+		android:id="@+id/view_media_selected_dim"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:background="#66000000"
+		android:visibility="gone" />
+
+	<TextView
+		android:id="@+id/txt_media_check"
+		android:layout_width="22dp"
+		android:layout_height="22dp"
+		android:layout_gravity="top|end"
+		android:layout_margin="4dp"
+		android:gravity="center"
+		android:text="check_circle"
+		android:textSize="18sp"
+		android:textColor="#229ED9"
+		android:background="@drawable/circle_bg"
+		android:backgroundTint="#FFFFFF"
+		android:fontFamily="@font/material_icons"
+		android:visibility="gone" />
+
+</FrameLayout>

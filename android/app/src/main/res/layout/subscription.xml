@@ -1,0 +1,320 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:background="#FFFFFF">
+
+	<!-- Toolbar -->
+	<LinearLayout
+		android:id="@+id/toolbar"
+		android:layout_width="match_parent"
+		android:layout_height="56dp"
+		android:gravity="center_vertical"
+		android:paddingLeft="4dp"
+		android:paddingRight="16dp"
+		android:background="#FFFFFF"
+		android:elevation="2dp">
+		<TextView
+			android:id="@+id/btn_back"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:gravity="center"
+			android:text="arrow_back"
+			android:textSize="24sp"
+			android:textColor="#212121"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginLeft="8dp"
+			android:text="Minigram Pro"
+			android:textSize="18sp"
+			android:textStyle="bold"
+			android:textColor="#212121" />
+	</LinearLayout>
+
+	<ScrollView
+		android:scrollbars="none"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1"
+		android:fillViewport="true">
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical"
+			android:paddingBottom="24dp">
+
+			<!-- Hero -->
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:gravity="center_horizontal"
+				android:paddingTop="24dp"
+				android:paddingBottom="20dp"
+				android:paddingLeft="24dp"
+				android:paddingRight="24dp"
+				android:background="#0D229ED9">
+				<TextView
+					android:layout_width="72dp"
+					android:layout_height="72dp"
+					android:gravity="center"
+					android:text="workspace_premium"
+					android:textSize="40sp"
+					android:textColor="#229ED9"
+					android:background="@drawable/circle_bg_light"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="14dp"
+					android:text="Upgrade to Minigram Pro"
+					android:textSize="20sp"
+					android:textStyle="bold"
+					android:textColor="#212121" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="4dp"
+					android:gravity="center"
+					android:text="No ads, a blue tick on your profile, and every feature unlocked."
+					android:textSize="13sp"
+					android:textColor="#757575" />
+			</LinearLayout>
+
+			<!-- Feature list -->
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:paddingLeft="24dp"
+				android:paddingRight="24dp"
+				android:paddingTop="20dp"
+				android:paddingBottom="8dp">
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:gravity="center_vertical"
+					android:paddingBottom="14dp">
+					<TextView
+						android:layout_width="32dp"
+						android:layout_height="32dp"
+						android:gravity="center"
+						android:text="block"
+						android:textSize="18sp"
+						android:textColor="#229ED9"
+						android:fontFamily="@font/material_icons" />
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginLeft="12dp"
+						android:text="No Ads — anywhere in the app"
+						android:textSize="14sp"
+						android:textColor="#212121" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:gravity="center_vertical"
+					android:paddingBottom="14dp">
+					<TextView
+						android:layout_width="32dp"
+						android:layout_height="32dp"
+						android:gravity="center"
+						android:text="verified"
+						android:textSize="18sp"
+						android:textColor="#229ED9"
+						android:fontFamily="@font/material_icons" />
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginLeft="12dp"
+						android:text="Blue tick on your profile"
+						android:textSize="14sp"
+						android:textColor="#212121" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:gravity="center_vertical"
+					android:paddingBottom="4dp">
+					<TextView
+						android:layout_width="32dp"
+						android:layout_height="32dp"
+						android:gravity="center"
+						android:text="lock_open"
+						android:textSize="18sp"
+						android:textColor="#229ED9"
+						android:fontFamily="@font/material_icons" />
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginLeft="12dp"
+						android:text="All Pro features unlocked"
+						android:textSize="14sp"
+						android:textColor="#212121" />
+				</LinearLayout>
+			</LinearLayout>
+
+			<!-- Plans -->
+			<LinearLayout
+				android:id="@+id/layout_plans"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:paddingLeft="20dp"
+				android:paddingRight="20dp"
+				android:paddingTop="12dp">
+
+				<!-- Yearly (best value) -->
+				<LinearLayout
+					android:id="@+id/card_yearly"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:orientation="vertical"
+					android:padding="16dp"
+					android:layout_marginBottom="12dp"
+					android:background="@drawable/plan_card_highlight_bg">
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="BEST VALUE"
+						android:textSize="10sp"
+						android:textStyle="bold"
+						android:textColor="#FFFFFF"
+						android:background="@drawable/badge_pill_bg"
+						android:paddingLeft="8dp"
+						android:paddingRight="8dp"
+						android:paddingTop="2dp"
+						android:paddingBottom="2dp"
+						android:layout_marginBottom="8dp" />
+					<LinearLayout
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:gravity="center_vertical">
+						<LinearLayout
+							android:layout_width="0dp"
+							android:layout_height="wrap_content"
+							android:layout_weight="1"
+							android:orientation="vertical">
+							<TextView
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:text="Yearly"
+								android:textSize="16sp"
+								android:textStyle="bold"
+								android:textColor="#212121" />
+							<TextView
+								android:id="@+id/txt_price_yearly"
+								android:layout_width="wrap_content"
+								android:layout_height="wrap_content"
+								android:layout_marginTop="2dp"
+								android:text="…"
+								android:textSize="13sp"
+								android:textColor="#616161" />
+						</LinearLayout>
+						<TextView
+							android:id="@+id/btn_subscribe_yearly"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Subscribe"
+							android:textSize="13sp"
+							android:textStyle="bold"
+							android:textColor="#FFFFFF"
+							android:background="@drawable/btn_pro_bg"
+							android:paddingLeft="20dp"
+							android:paddingRight="20dp"
+							android:paddingTop="10dp"
+							android:paddingBottom="10dp" />
+					</LinearLayout>
+				</LinearLayout>
+
+				<!-- Monthly -->
+				<LinearLayout
+					android:id="@+id/card_monthly"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:orientation="horizontal"
+					android:gravity="center_vertical"
+					android:padding="16dp"
+					android:background="@drawable/plan_card_bg">
+					<LinearLayout
+						android:layout_width="0dp"
+						android:layout_height="wrap_content"
+						android:layout_weight="1"
+						android:orientation="vertical">
+						<TextView
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="Monthly"
+							android:textSize="16sp"
+							android:textStyle="bold"
+							android:textColor="#212121" />
+						<TextView
+							android:id="@+id/txt_price_monthly"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="2dp"
+							android:text="…"
+							android:textSize="13sp"
+							android:textColor="#616161" />
+					</LinearLayout>
+					<TextView
+						android:id="@+id/btn_subscribe_monthly"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="Subscribe"
+						android:textSize="13sp"
+						android:textStyle="bold"
+						android:textColor="#229ED9"
+						android:background="@drawable/btn_pro_outline_bg"
+						android:paddingLeft="20dp"
+						android:paddingRight="20dp"
+						android:paddingTop="10dp"
+						android:paddingBottom="10dp" />
+				</LinearLayout>
+			</LinearLayout>
+
+			<TextView
+				android:id="@+id/txt_current_status"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="16dp"
+				android:paddingLeft="24dp"
+				android:paddingRight="24dp"
+				android:gravity="center"
+				android:text=""
+				android:textSize="13sp"
+				android:textColor="#229ED9"
+				android:visibility="gone" />
+
+			<TextView
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="20dp"
+				android:paddingLeft="24dp"
+				android:paddingRight="24dp"
+				android:gravity="center"
+				android:text="Cancel anytime from Google Play → Subscriptions. Auto-renews until cancelled."
+				android:textSize="11sp"
+				android:textColor="#9E9E9E" />
+
+			<ProgressBar
+				android:id="@+id/progress_loading"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="20dp"
+				android:layout_gravity="center_horizontal"
+				android:indeterminate="true"
+				android:visibility="gone" />
+		</LinearLayout>
+	</ScrollView>
+</LinearLayout>

@@ -1,0 +1,156 @@
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="#FFFFFF">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:orientation="vertical">
+
+		<!-- Toolbar -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="56dp"
+			android:paddingLeft="4dp"
+			android:paddingRight="16dp"
+			android:gravity="center_vertical"
+			android:background="#FFFFFF"
+			android:elevation="4dp"
+			android:orientation="horizontal">
+
+			<TextView
+				android:id="@+id/btn_forward_close"
+				android:layout_width="48dp"
+				android:layout_height="48dp"
+				android:text="close"
+				android:textSize="24sp"
+				android:textColor="#212121"
+				android:gravity="center"
+				android:fontFamily="@font/material_icons"
+				android:background="?attr/selectableItemBackgroundBorderless" />
+
+			<TextView
+				android:id="@+id/txt_forward_title"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:layout_marginLeft="8dp"
+				android:text="Forward to..."
+				android:textSize="18sp"
+				android:textStyle="bold"
+				android:textColor="#212121"
+				android:singleLine="true"
+				android:ellipsize="end" />
+
+		</LinearLayout>
+
+		<!-- Search bar -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingLeft="16dp"
+			android:paddingRight="16dp"
+			android:paddingTop="4dp"
+			android:paddingBottom="10dp"
+			android:background="#FFFFFF">
+
+			<EditText
+				android:id="@+id/et_forward_search"
+				android:layout_width="match_parent"
+				android:layout_height="40dp"
+				android:background="@drawable/search_bar_bg"
+				android:paddingLeft="16dp"
+				android:paddingRight="16dp"
+				android:hint="Search chats and channels"
+				android:textSize="15sp"
+				android:textColor="#212121"
+				android:textColorHint="#9E9E9E"
+				android:singleLine="true"
+				android:imeOptions="actionSearch"
+				android:inputType="text" />
+
+		</LinearLayout>
+
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:background="#F0F0F0" />
+
+		<!-- Empty state: no chats/channels at all -->
+		<LinearLayout
+			android:id="@+id/layout_forward_empty"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="60dp"
+			android:gravity="center"
+			android:orientation="vertical"
+			android:visibility="gone">
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="No chats or channels to forward to"
+				android:textSize="15sp"
+				android:textColor="#9E9E9E" />
+
+		</LinearLayout>
+
+		<!-- No search results -->
+		<TextView
+			android:id="@+id/txt_forward_no_results"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="40dp"
+			android:text="No matches found"
+			android:textSize="15sp"
+			android:textColor="#9E9E9E"
+			android:gravity="center"
+			android:visibility="gone" />
+
+		<ListView
+			android:id="@+id/lv_forward_targets"
+			android:layout_width="match_parent"
+			android:layout_height="0dp"
+			android:layout_weight="1"
+			android:divider="@null"
+			android:dividerHeight="0dp"
+			android:scrollbars="none"
+			android:paddingBottom="72dp"
+			android:clipToPadding="false" />
+
+	</LinearLayout>
+
+	<!-- Floating "Forward (N)" confirm bar — only visible once ≥1 target picked -->
+	<LinearLayout
+		android:id="@+id/layout_forward_confirm"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_gravity="bottom"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:background="#FFFFFF"
+		android:elevation="8dp"
+		android:paddingLeft="16dp"
+		android:paddingRight="16dp"
+		android:paddingTop="10dp"
+		android:paddingBottom="10dp"
+		android:visibility="gone">
+
+		<TextView
+			android:id="@+id/btn_forward_confirm"
+			android:layout_width="match_parent"
+			android:layout_height="48dp"
+			android:background="@drawable/btn_primary_bg"
+			android:text="Forward"
+			android:textAllCaps="false"
+			android:textSize="16sp"
+			android:textStyle="bold"
+			android:textColor="#FFFFFF"
+			android:gravity="center" />
+
+	</LinearLayout>
+
+</FrameLayout>

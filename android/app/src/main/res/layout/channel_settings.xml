@@ -1,0 +1,589 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/linear146"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:paddingLeft="12dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="arrow_back"
+            android:textSize="24sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/textview139"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="16dp"
+            android:text="Channel Info"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000" />
+
+    </LinearLayout>
+
+    <ScrollView
+    	android:scrollbars="none"
+        android:id="@+id/vscroll10"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:id="@+id/linear147"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- ── Channel photo + name + bio header ──────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/linear148"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="24dp"
+                android:paddingRight="24dp"
+                android:paddingTop="28dp"
+                android:paddingBottom="20dp"
+                android:background="#F8F9FA"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <!-- Channel photo with edit overlay -->
+                <FrameLayout
+                    android:id="@+id/frame_layout149"
+                    android:layout_width="96dp"
+                    android:layout_height="96dp">
+
+                    <ImageView
+                        android:id="@+id/img_channel_dp"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/circle_bg_light"
+                        android:src="@drawable/ic_channel"
+                        android:scaleType="centerCrop" />
+
+                    <!-- Edit pencil badge -->
+                    <TextView
+                        android:id="@+id/textview140"
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:background="@drawable/circle_primary_bg"
+                        android:gravity="center"
+                        android:text="edit"
+                        android:textSize="16sp"
+                        android:textColor="#FFFFFF"
+                        android:layout_gravity="right|bottom"
+                        android:fontFamily="@font/material_icons" />
+
+                </FrameLayout>
+
+                <!-- Channel name -->
+                <TextView
+                    android:id="@+id/txt_channel_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="Channel Name"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:gravity="center" />
+
+                <!-- Bio — visible only when description is set -->
+                <TextView
+                    android:id="@+id/txt_channel_bio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text=""
+                    android:textSize="13sp"
+                    android:textColor="#616161"
+                    android:gravity="center"
+                    android:maxLines="3"
+                    android:ellipsize="end"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- ── Settings list ────────────────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/linear150"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:orientation="vertical">
+
+                <!-- Edit Channel Info -->
+                <LinearLayout
+                    android:id="@+id/item_edit_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/textview141"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="edit"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textview142"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Edit Channel Info"
+                            android:textSize="16sp"
+                            android:textColor="#000000" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Name, bio, handle"
+                            android:textSize="12sp"
+                            android:textColor="#9E9E9E" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/textview143"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="chevron_right"
+                        android:textSize="28sp"
+                        android:textColor="#BDBDBD"
+                        android:fontFamily="@font/material_icons" />
+
+                </LinearLayout>
+
+                <!-- Subscribers -->
+                <LinearLayout
+                    android:id="@+id/item_subscribers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/textview144"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="group"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <TextView
+                        android:id="@+id/textview145"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:text="Subscribers"
+                        android:textSize="16sp"
+                        android:textColor="#000000" />
+
+                    <TextView
+                        android:id="@+id/txt_sub_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="#2196F3" />
+
+                </LinearLayout>
+
+                <!-- Channel Type (Public / Private) -->
+                <LinearLayout
+                    android:id="@+id/item_privacy"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/textview146"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="lock"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <LinearLayout
+                        android:id="@+id/linear151"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textview147"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Channel Type"
+                            android:textSize="16sp"
+                            android:textColor="#000000" />
+
+                        <TextView
+                            android:id="@+id/textview148"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Public · Anyone can find"
+                            android:textSize="12sp"
+                            android:textColor="#9E9E9E" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/textview149"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="chevron_right"
+                        android:textSize="28sp"
+                        android:textColor="#BDBDBD"
+                        android:fontFamily="@font/material_icons" />
+
+                </LinearLayout>
+
+                <!-- Restrict Forwarding — owner-only toggle. Requirement 5:
+                     when ON, subscribers/viewers can no longer forward this
+                     channel's posts (enforced in ChannelActivity + MsgActionSheet,
+                     with an independent re-check in ForwardChatListActivity). -->
+                <LinearLayout
+                    android:id="@+id/item_restrict_forward"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:gravity="center_vertical"
+                    android:background="?attr/selectableItemBackground"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="block"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Restrict Forwarding"
+                            android:textSize="16sp"
+                            android:textColor="#000000" />
+
+                        <TextView
+                            android:id="@+id/txt_restrict_forward_sub"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Subscribers can forward posts"
+                            android:textSize="12sp"
+                            android:textColor="#9E9E9E" />
+
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/sw_restrict_forward"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+
+                </LinearLayout>
+
+                <!-- Allow Subscriber Messages — owner-only toggle. Phase 2,
+                     Requirement 2: when OFF, subscribers/viewers can no
+                     longer reply to posts (enforced in ChannelActivity's
+                     _openReplies(), with an independent re-check in
+                     ChannelReplyActivity._sendReply()). -->
+                <LinearLayout
+                    android:id="@+id/item_allow_replies"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:gravity="center_vertical"
+                    android:background="?attr/selectableItemBackground"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="forum"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Allow Subscriber Messages"
+                            android:textSize="16sp"
+                            android:textColor="#000000" />
+
+                        <TextView
+                            android:id="@+id/txt_allow_replies_sub"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Subscribers can reply to posts"
+                            android:textSize="12sp"
+                            android:textColor="#9E9E9E" />
+
+                    </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/sw_allow_replies"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:focusable="false"
+                        android:clickable="false" />
+
+                </LinearLayout>
+
+                <!-- Channel Admins — opens ChannelAdminsActivity where the
+                     owner grants/revokes posting rights per subscriber. -->
+                <LinearLayout
+                    android:id="@+id/item_channel_admins"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:gravity="center_vertical"
+                    android:background="?attr/selectableItemBackground"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="admin_panel_settings"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:text="Channel Admins"
+                        android:textSize="16sp"
+                        android:textColor="#000000" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="chevron_right"
+                        android:textSize="22sp"
+                        android:textColor="#BDBDBD"
+                        android:fontFamily="@font/material_icons" />
+
+                </LinearLayout>
+
+                <!-- Share Channel Link -->
+                <LinearLayout
+                    android:id="@+id/item_share_link"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/textview_share_icon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="share"
+                        android:textSize="22sp"
+                        android:textColor="#757575"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <TextView
+                        android:id="@+id/textview_share_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:text="Share Channel Link"
+                        android:textSize="16sp"
+                        android:textColor="#000000" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="chevron_right"
+                        android:textSize="28sp"
+                        android:textColor="#BDBDBD"
+                        android:fontFamily="@font/material_icons" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/item_verify_channel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="verified"
+                        android:textSize="22sp"
+                        android:textColor="#229ED9"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <TextView
+                        android:id="@+id/txt_verify_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:layout_weight="1"
+                        android:text="Verify Channel (Blue Tick)"
+                        android:textSize="16sp"
+                        android:textColor="#000000" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="chevron_right"
+                        android:textSize="28sp"
+                        android:textColor="#BDBDBD"
+                        android:fontFamily="@font/material_icons" />
+
+                </LinearLayout>
+
+                <!-- Divider -->
+                <View
+                    android:id="@+id/view152"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginRight="20dp"
+                    android:background="#EEEEEE" />
+
+                <!-- Delete Channel -->
+                <LinearLayout
+                    android:id="@+id/btn_delete_channel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="14dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/textview150"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:text="delete_forever"
+                        android:textSize="22sp"
+                        android:textColor="#F44336"
+                        android:gravity="center"
+                        android:fontFamily="@font/material_icons" />
+
+                    <TextView
+                        android:id="@+id/textview151"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="18dp"
+                        android:text="Delete Channel"
+                        android:textSize="16sp"
+                        android:textColor="#F44336" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Selected-row background: the blue wash plus a thin bottom rule, so two
+     adjacent selected rows read as two rows instead of merging into one
+     solid block of colour. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#662196F3" />
+        </shape>
+    </item>
+    <item android:gravity="bottom" android:height="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#33000000" />
+        </shape>
+    </item>
+</layer-list>

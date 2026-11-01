@@ -1,0 +1,91 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:layout_marginLeft="12dp"
+	android:layout_marginRight="12dp"
+	android:layout_marginBottom="10dp"
+	android:orientation="vertical"
+	android:background="@drawable/plan_card_bg"
+	android:foreground="?attr/selectableItemBackground"
+	android:clickable="true"
+	android:focusable="true"
+	android:elevation="1dp">
+
+	<ImageView
+		android:id="@+id/img_update"
+		android:layout_width="match_parent"
+		android:layout_height="160dp"
+		android:scaleType="centerCrop"
+		android:visibility="gone" />
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:padding="16dp">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center_vertical"
+			android:orientation="horizontal">
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="campaign"
+				android:textSize="16sp"
+				android:textColor="#229ED9"
+				android:fontFamily="@font/material_icons" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginLeft="6dp"
+				android:text="Minigram"
+				android:textSize="12sp"
+				android:textStyle="bold"
+				android:textColor="#229ED9" />
+			<TextView
+				android:id="@+id/txt_update_time"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:gravity="right"
+				android:text=""
+				android:textSize="11sp"
+				android:textColor="#9E9E9E" />
+		</LinearLayout>
+
+		<TextView
+			android:id="@+id/txt_update_title"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:text=""
+			android:textSize="16sp"
+			android:textStyle="bold"
+			android:textColor="#212121" />
+
+		<TextView
+			android:id="@+id/txt_update_body"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="4dp"
+			android:text=""
+			android:textSize="14sp"
+			android:lineSpacingExtra="2dp"
+			android:textColor="#616161" />
+
+		<TextView
+			android:id="@+id/txt_update_link"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="10dp"
+			android:text="Learn more  →"
+			android:textSize="13sp"
+			android:textStyle="bold"
+			android:textColor="#229ED9"
+			android:visibility="gone" />
+
+	</LinearLayout>
+</LinearLayout>

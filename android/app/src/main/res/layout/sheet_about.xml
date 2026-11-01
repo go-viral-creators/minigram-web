@@ -1,0 +1,389 @@
+<ScrollView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/scroll_root"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:scrollbars="none"
+	android:fillViewport="false">
+	<LinearLayout
+		android:id="@+id/linear57"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingLeft="20dp"
+		android:paddingTop="8dp"
+		android:paddingRight="20dp"
+		android:paddingBottom="36dp"
+		android:background="#FFFFFF"
+		android:orientation="vertical">
+		<LinearLayout
+			android:id="@+id/linear58"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="10dp"
+			android:paddingBottom="4dp"
+			android:gravity="center_horizontal|center_vertical">
+			<View
+				android:id="@+id/drag_handle"
+				android:layout_width="40dp"
+				android:layout_height="4dp"
+				android:background="#2E3248" />
+		</LinearLayout>
+		<LinearLayout
+			android:id="@+id/linear59"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="16dp"
+			android:gravity="center_horizontal|center_vertical"
+			android:orientation="vertical">
+			<LinearLayout
+				android:id="@+id/logo_circle"
+				android:layout_width="72dp"
+				android:layout_height="72dp"
+				android:gravity="center_horizontal|center_vertical"
+				android:layout_gravity="center_horizontal|center_vertical">
+				<ImageView
+					android:id="@+id/icon_logo"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:src="@drawable/ic_app_logo"
+					android:scaleType="centerCrop"
+					android:focusable="false" />
+			</LinearLayout>
+			<TextView
+				android:id="@+id/textview57"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="14dp"
+				android:gravity="center_horizontal|center_vertical"
+				android:text="Minigram"
+				android:textSize="24sp"
+				android:textStyle="bold"
+				android:textColor="#000000"
+				android:focusable="false" />
+			<TextView
+				android:id="@+id/textview58"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="4dp"
+				android:gravity="center_horizontal|center_vertical"
+				android:text="Fast · Private · Open"
+				android:textSize="13sp"
+				android:textColor="#000000"
+				android:focusable="false" />
+		</LinearLayout>
+		<View
+			android:id="@+id/view60"
+			android:layout_width="match_parent"
+			android:layout_height="24dp" />
+		<TextView
+			android:id="@+id/textview59"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="APP INFO"
+			android:textSize="11sp"
+			android:textStyle="bold"
+			android:textColor="#424242"
+			android:focusable="false"
+			android:letterSpacing="0.12" />
+		<View
+			android:id="@+id/view61"
+			android:layout_width="match_parent"
+			android:layout_height="8dp" />
+		<LinearLayout
+			android:id="@+id/card_info"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical">
+			<LinearLayout
+				android:id="@+id/row_version"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:paddingLeft="16dp"
+				android:paddingTop="14dp"
+				android:paddingRight="16dp"
+				android:paddingBottom="14dp"
+				android:gravity="center_vertical">
+				<TextView
+					android:id="@+id/icon_version"
+					android:layout_width="36dp"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="@color/colorPrimary"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:id="@+id/textview60"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:text="Version"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:layout_weight="1"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/txt_version"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="—"
+					android:textSize="14sp"
+					android:textColor="#7986CB"
+					android:gravity="end"
+					android:focusable="false" />
+			</LinearLayout>
+			<View
+				android:id="@+id/view62"
+				android:layout_width="match_parent"
+				android:layout_height="1dp"
+				android:layout_marginLeft="52dp"
+				android:background="#2E3248" />
+			<LinearLayout
+				android:id="@+id/linear63"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:paddingLeft="16dp"
+				android:paddingTop="14dp"
+				android:paddingRight="16dp"
+				android:paddingBottom="14dp"
+				android:gravity="center_vertical">
+				<TextView
+					android:id="@+id/icon_dev"
+					android:layout_width="36dp"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="@color/colorPrimary"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:id="@+id/textview61"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:text="Developer"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:layout_weight="1"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/textview62"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="DDC Studio"
+					android:textSize="14sp"
+					android:textColor="@color/colorPrimaryDark"
+					android:gravity="end"
+					android:focusable="false" />
+			</LinearLayout>
+			<View
+				android:id="@+id/view64"
+				android:layout_width="match_parent"
+				android:layout_height="1dp"
+				android:layout_marginLeft="52dp"
+				android:background="#2E3248" />
+			<LinearLayout
+				android:id="@+id/row_contact"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:paddingLeft="16dp"
+				android:paddingTop="14dp"
+				android:paddingRight="16dp"
+				android:paddingBottom="14dp"
+				android:gravity="center_vertical"
+				android:focusable="true">
+				<TextView
+					android:id="@+id/icon_contact"
+					android:layout_width="36dp"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="@color/colorPrimary"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:id="@+id/textview63"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:text="Contact"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:layout_weight="1"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/textview64"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="minigram783\@gmail.Com"
+					android:textSize="13sp"
+					android:textColor="@color/colorPrimaryDark"
+					android:gravity="end"
+					android:focusable="false" />
+			</LinearLayout>
+		</LinearLayout>
+		<View
+			android:id="@+id/view65"
+			android:layout_width="match_parent"
+			android:layout_height="20dp" />
+		<TextView
+			android:id="@+id/textview65"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="LINKS"
+			android:textSize="11sp"
+			android:textStyle="bold"
+			android:textColor="#424242"
+			android:focusable="false"
+			android:letterSpacing="0.12" />
+		<View
+			android:id="@+id/view66"
+			android:layout_width="match_parent"
+			android:layout_height="8dp" />
+		<LinearLayout
+			android:id="@+id/card_links"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical">
+			<LinearLayout
+				android:id="@+id/row_rate"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:paddingLeft="16dp"
+				android:paddingTop="14dp"
+				android:paddingRight="16dp"
+				android:paddingBottom="14dp"
+				android:gravity="center_vertical"
+				android:focusable="true">
+				<TextView
+					android:id="@+id/icon_rate"
+					android:layout_width="36dp"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="@color/colorPrimary"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:id="@+id/textview66"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:text="Rate on Play Store"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:layout_weight="1"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/chev_rate"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="#2E3248"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+			</LinearLayout>
+			<View
+				android:id="@+id/view67"
+				android:layout_width="match_parent"
+				android:layout_height="1dp"
+				android:layout_marginLeft="52dp"
+				android:background="#2E3248" />
+			<LinearLayout
+				android:id="@+id/row_share"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:paddingLeft="16dp"
+				android:paddingTop="14dp"
+				android:paddingRight="16dp"
+				android:paddingBottom="14dp"
+				android:gravity="center_vertical"
+				android:focusable="true">
+				<TextView
+					android:id="@+id/icon_share"
+					android:layout_width="36dp"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="@color/colorPrimary"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:id="@+id/textview67"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:text="Share Minigram"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:layout_weight="1"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/chev_share"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="#2E3248"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+			</LinearLayout>
+			<View
+				android:id="@+id/view68"
+				android:layout_width="match_parent"
+				android:layout_height="1dp"
+				android:layout_marginLeft="52dp"
+				android:background="#2E3248" />
+			<LinearLayout
+				android:id="@+id/row_terms"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:paddingLeft="16dp"
+				android:paddingTop="14dp"
+				android:paddingRight="16dp"
+				android:paddingBottom="14dp"
+				android:gravity="center_vertical"
+				android:focusable="true">
+				<TextView
+					android:id="@+id/icon_terms"
+					android:layout_width="36dp"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="@color/colorPrimary"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:id="@+id/textview69"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:text="Terms &amp; Conditions"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:layout_weight="1"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/chev_terms"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text=""
+					android:textSize="20sp"
+					android:textColor="#2E3248"
+					android:focusable="false"
+					android:fontFamily="@font/material_icons" />
+			</LinearLayout>
+		</LinearLayout>
+		<View
+			android:id="@+id/view70"
+			android:layout_width="match_parent"
+			android:layout_height="28dp" />
+		<TextView
+			android:id="@+id/textview70"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="Made with ♥ in India\n© 2025 DDC Studio"
+			android:textSize="12sp"
+			android:textColor="#000000"
+			android:focusable="false"
+			android:lineSpacingExtra="4dp" />
+	</LinearLayout>
+</ScrollView>

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:paddingLeft="4dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="arrow_back"
+            android:textSize="24sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/material_icons" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="8dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Subscribers"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000" />
+            <TextView
+                android:id="@+id/txt_sub_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="#757575" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ── Search bar ───────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:gravity="center_vertical"
+        android:background="#F5F5F7"
+        android:orientation="horizontal">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="search"
+            android:textSize="18sp"
+            android:textColor="#9E9E9E"
+            android:layout_marginRight="8dp"
+            android:fontFamily="@font/material_icons" />
+        <EditText
+            android:id="@+id/edit_search"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="Search subscribers"
+            android:textSize="15sp"
+            android:textColor="#000000"
+            android:inputType="text"
+            android:maxLines="1" />
+    </LinearLayout>
+
+    <!-- ── Add Subscribers ──────────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/row_add_subscribers"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="14dp"
+        android:gravity="center_vertical"
+        android:background="?attr/selectableItemBackground"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <TextView
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="person_add"
+            android:textSize="20sp"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/circle_bg"
+            android:backgroundTint="#229ED9"
+            android:fontFamily="@font/material_icons" />
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="14dp"
+            android:text="Add Subscribers"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#229ED9" />
+    </LinearLayout>
+    <View android:layout_width="match_parent" android:layout_height="8dp" android:background="#F5F5F7" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_subscribers"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/txt_empty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="Loading…"
+            android:textSize="14sp"
+            android:textColor="#9E9E9E"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+</LinearLayout>

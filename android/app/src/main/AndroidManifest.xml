@@ -1,0 +1,376 @@
+<manifest
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	package="com.silu.minigram">
+
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.READ_CONTACTS" />
+	<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+	<uses-permission android:name="android.permission.USE_BIOMETRIC" />
+	<uses-permission android:name="android.permission.WAKE_LOCK" />
+	<uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+	<uses-permission android:name="android.permission.CAMERA" />
+	<uses-permission android:name="android.permission.RECORD_AUDIO" />
+	<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+	<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+	<uses-permission android:name="com.android.vending.BILLING" />
+	<uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
+	<queries>
+		<package android:name="com.android.vending" />
+		<package android:name="com.android.chrome" />
+		<intent>
+			<action android:name="android.intent.action.VIEW" />
+			<data android:scheme="market" />
+		</intent>
+		<intent>
+			<action android:name="android.intent.action.VIEW" />
+			<data android:scheme="https" />
+		</intent>
+	</queries>
+
+	<application
+		android:allowBackup="false"
+		android:fullBackupContent="false"
+		android:dataExtractionRules="@xml/data_extraction_rules"
+		android:usesCleartextTraffic="false"
+		android:networkSecurityConfig="@xml/network_security_config"
+		android:icon="@mipmap/ic_launcher"
+		android:label="@string/app_name"
+		android:name=".SketchApplication"
+		android:theme="@style/AppTheme">
+
+		<meta-data
+			android:name="com.google.android.gms.ads.APPLICATION_ID"
+			android:value="ca-app-pub-5237566165900598~1784792283" />
+
+		<meta-data
+			android:name="com.google.android.play.billingclient.version"
+			android:value="8.3.0" />
+
+		<meta-data
+			android:name="com.google.firebase.messaging.default_notification_icon"
+			android:resource="@drawable/ic_notification" />
+		<meta-data
+			android:name="com.google.firebase.messaging.default_notification_color"
+			android:resource="@color/colorPrimary" />
+
+		<activity
+			android:name="com.google.android.gms.ads.AdActivity"
+			android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+			android:theme="@android:style/Theme.Translucent"
+			android:exported="false" />
+
+		<activity
+			android:name=".SubscriptionActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:windowSoftInputMode="adjustResize" />
+
+		<activity
+			android:name=".BannedActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
+
+		<activity
+			android:name=".CompleteProfileActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:windowSoftInputMode="adjustResize" />
+
+		<activity
+			android:name=".MyProfileActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout" />
+
+		<activity
+			android:name=".MainActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:supportsPictureInPicture="true"
+			android:screenOrientation="portrait"
+			android:windowSoftInputMode="stateHidden"
+			android:exported="true">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+
+		<activity
+			android:name="com.silu.minigram.ChannelReplyActivity"
+			android:windowSoftInputMode="adjustResize"
+			android:exported="false" />
+
+		<activity
+			android:name=".LoginActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".ChatActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".ChatlistActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".CreateChannelActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".ChannelSettingsActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:supportsPictureInPicture="true"
+			android:windowSoftInputMode="stateHidden" />
+
+		<activity
+			android:name=".ChannelActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".EditProfileActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".ImageViewActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".SettingsActivity"
+			android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+			android:hardwareAccelerated="true"
+			android:supportsPictureInPicture="true" />
+
+		<activity
+			android:name=".NewMessageActivity"
+			android:exported="false" />
+
+		<activity
+			android:name=".AboutActivity"
+			android:exported="false" />
+
+		<activity
+			android:name=".DebugActivity"
+			android:screenOrientation="portrait"
+			android:theme="@style/AppTheme.DebugActivity" />
+
+		<activity
+			android:name=".ImageCaptionActivity"
+			android:configChanges="orientation|screenSize" />
+
+		<activity
+			android:name=".UserSearchActivity"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:configChanges="orientation|screenSize" />
+
+		<!-- New dedicated Forward screen — replaces the old in-place
+		     AlertDialog in ChatActivity/ChannelActivity. Same shape as
+		     UserSearchActivity above (search bar + list), so it gets the
+		     same soft-input handling. -->
+		<activity
+			android:name=".ForwardChatListActivity"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:configChanges="orientation|screenSize" />
+
+		<!-- Requirement 1 — replaces the old PrivacySecuritySheet BottomSheet. -->
+		<activity
+			android:name=".PrivacySecurityActivity"
+			android:configChanges="orientation|screenSize" />
+
+		<!-- App Lock enforcement screen — launched both from
+		     PrivacySecurityActivity (MODE_SETUP) and MainActivity
+		     (MODE_VERIFY, the actual gate on app entry). -->
+		<activity
+			android:name=".PinLockActivity"
+			android:configChanges="orientation|screenSize"
+			android:launchMode="singleTask" />
+
+		<!-- Requirement 2 — "who can post" admin management screen. -->
+		<activity
+			android:name=".ChannelAdminsActivity"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:configChanges="orientation|screenSize" />
+
+		<!-- Requirement 4 — replaces the old bare AlertDialog subscriber menu. -->
+		<activity
+			android:name=".ChannelProfileActivity"
+			android:configChanges="orientation|screenSize" />
+
+		<!-- Requirement 4 follow-up — Telegram-style subscriber list with
+		     role badges, direct chat, and owner/admin management actions.
+		     Replaces ChannelSettingsActivity's old plain names-only dialog. -->
+		<activity
+			android:name=".ChannelSubscribersActivity"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:configChanges="orientation|screenSize" />
+
+		<activity
+			android:name=".AddChannelSubscribersActivity"
+			android:windowSoftInputMode="adjustResize|stateHidden"
+			android:configChanges="orientation|screenSize" />
+
+		<activity
+			android:name="com.yalantis.ucrop.UCropActivity"
+			android:screenOrientation="portrait"
+			android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
+		<activity
+			android:name=".DeepLinkActivity"
+			android:theme="@style/Theme.Transparent"
+			android:exported="true"
+			android:launchMode="singleTask">
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data android:scheme="minigram" android:host="user" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data android:scheme="minigram" android:host="channel" />
+			</intent-filter>
+			<!-- FIX: pathPrefix ab "/admin/u/" hai, pehle "/c/" tha.
+			     Wajah: /u/ aur /c/ domain ke ROOT par the, jiske liye ek alag
+			     root-level .htaccess chahiye tha. "/admin/u/" aur "/admin/c/"
+			     karne se rewrite rule /admin/.htaccess ke andar hi rehti hai —
+			     poora share-link backend ab ek hi folder mein consolidated hai.
+			     assetlinks.json is se ALAG hai — wo Android ka fixed requirement
+			     hai (hamesha domain ROOT par hi check hota hai), use yahan se
+			     move nahi kiya ja sakta chahe URL structure kuch bhi ho. -->
+			<intent-filter android:autoVerify="true">
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data
+					android:scheme="https"
+					android:host="minigram.fireclashpro.com"
+					android:pathPrefix="/admin/u/" />
+			</intent-filter>
+			<intent-filter android:autoVerify="true">
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data
+					android:scheme="https"
+					android:host="minigram.fireclashpro.com"
+					android:pathPrefix="/admin/c/" />
+			</intent-filter>
+			<intent-filter android:autoVerify="false">
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data
+					android:scheme="https"
+					android:host="minigram-messaging.vercel.app"
+					android:pathPrefix="/u/" />
+			</intent-filter>
+			<intent-filter android:autoVerify="false">
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data
+					android:scheme="https"
+					android:host="minigram-messaging.vercel.app"
+					android:pathPrefix="/c/" />
+			</intent-filter>
+		</activity>
+
+		<provider
+			android:name="androidx.startup.InitializationProvider"
+			android:authorities="com.silu.minigram.androidx-startup"
+			android:exported="false">
+			<meta-data
+				android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+				android:value="androidx.startup" />
+			<meta-data
+				android:name="androidx.emoji2.text.EmojiCompatInitializer"
+				android:value="androidx.startup" />
+		</provider>
+
+		<meta-data
+			android:name="com.google.android.gms.version"
+			android:value="@integer/google_play_services_version" />
+
+		<!-- ⚠️ FirebaseInitProvider JAAN-BOOJH KAR YAHAN NAHI HAI.
+
+		     Ye ContentProvider Application.onCreate() se PEHLE chalta hai aur
+		     FirebaseApp.initializeApp() khud-ba-khud call karta hai — jo neeche
+		     ke ComponentDiscoveryService ke saare registrars ko reflection se
+		     load karta hai. Agar kisi registrar ki koi bhi transitive dependency
+		     class missing ho, crash WAHIN hota hai — SketchApplication.onCreate()
+		     chalne se bhi pehle, matlab tumhara custom crash-handler set hone se
+		     pehle. Isi wajah se DebugActivity kabhi dikhta nahi tha.
+
+		     Iski jagah SketchApplication.onCreate() ab Firebase ko khud,
+		     try/catch ke andar, crash-handler set karne ke TURANT baad
+		     initialize karta hai. Ab do hi outcomes ho sakte hain:
+		       1. Sab sahi → app normally chalta hai, jaisa pehle chalta tha.
+		       2. Kuch missing → poora stack trace DebugActivity mein dikhega
+		          aur SketchLogger se bhi milega — app crash nahi hoga, Firebase
+		          bas is process ke liye disabled ho jayega.
+		     Agar kabhi wapas is provider ko add karne ka mann kare, to pehle
+		     SketchApplication.java se manual init hata dena — dono ek saath
+		     honge to double-init ki wajah se alag masla ho sakta hai. -->
+
+		<!-- Firebase's own ComponentDiscoveryService is merged in from the library manifests.
+		     FirebaseInitProvider is removed on purpose: SketchApplication initialises Firebase
+		     itself, after the crash handler is installed. -->
+		<provider
+			android:name="com.google.firebase.provider.FirebaseInitProvider"
+			android:authorities="${applicationId}.firebaseinitprovider"
+			tools:node="remove" />
+
+		<service
+			android:name=".FCMNotificationSender"
+			android:directBootAware="true"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="com.google.firebase.MESSAGING_EVENT" />
+			</intent-filter>
+		</service>
+
+		<receiver
+			android:name=".NotificationActionReceiver"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="com.silu.minigram.ACTION_REPLY" />
+				<action android:name="com.silu.minigram.ACTION_MUTE" />
+				<action android:name="com.silu.minigram.ACTION_BLOCK" />
+			</intent-filter>
+		</receiver>
+
+		<provider
+			android:name="androidx.core.content.FileProvider"
+			android:authorities="com.silu.minigram.provider"
+			android:exported="false"
+			android:grantUriPermissions="true">
+			<meta-data
+				android:name="android.support.FILE_PROVIDER_PATHS"
+				android:resource="@xml/file_provider_paths" />
+		</provider>
+
+	</application>
+</manifest>

@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F5F7">
+
+    <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:paddingLeft="12dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="arrow_back"
+            android:textSize="24sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="16dp"
+            android:text="Privacy and Security"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#000000" />
+
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="16dp"
+            android:paddingRight="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="36dp">
+
+            <!-- ── Tip box ──────────────────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/tip_box"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="14dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="shield"
+                    android:textSize="20sp"
+                    android:textColor="#4FC3F7"
+                    android:layout_marginRight="10dp"
+                    android:fontFamily="@font/material_icons" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Control who can see your activity and how your data is protected."
+                    android:textSize="13sp"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <!-- ── SECURITY ─────────────────────────────────────────────── -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SECURITY"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#8E8E93"
+                android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:id="@+id/card_security"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="16dp">
+
+                <!-- App Lock -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="lock" android:textSize="20sp" android:textColor="#2196F3"
+                        android:fontFamily="@font/material_icons" />
+                    <LinearLayout
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="App Lock" android:textSize="15sp" android:textColor="#000000" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Require a PIN to open Minigram" android:textSize="12sp" android:textColor="#757575" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_app_lock" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+
+                <!-- Screenshot Protection -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="screenshot" android:textSize="20sp" android:textColor="#2196F3"
+                        android:fontFamily="@font/material_icons" />
+                    <LinearLayout
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Screenshot Protection" android:textSize="15sp" android:textColor="#000000" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Block screenshots inside chats and channels" android:textSize="12sp" android:textColor="#757575" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_screenshot" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ── PRIVACY ──────────────────────────────────────────────── -->
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="PRIVACY" android:textSize="12sp" android:textStyle="bold"
+                android:textColor="#8E8E93" android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:id="@+id/card_privacy"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:layout_marginBottom="16dp">
+
+                <!-- Online Status -->
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="circle" android:textSize="20sp" android:textColor="#4CAF50"
+                        android:fontFamily="@font/material_icons" />
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Online Status" android:textSize="15sp" android:textColor="#000000" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Let others see when you're online" android:textSize="12sp" android:textColor="#757575" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_online" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+
+                <!-- Last Seen -->
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="schedule" android:textSize="20sp" android:textColor="#4CAF50"
+                        android:fontFamily="@font/material_icons" />
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Last Seen" android:textSize="15sp" android:textColor="#000000" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Show others when you were last active" android:textSize="12sp" android:textColor="#757575" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_last_seen" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+
+                <!-- Read Receipts -->
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="done_all" android:textSize="20sp" android:textColor="#4CAF50"
+                        android:fontFamily="@font/material_icons" />
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Read Receipts" android:textSize="15sp" android:textColor="#000000" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Let others see when you've read their messages" android:textSize="12sp" android:textColor="#757575" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_read_rcpt" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ── NOTIFICATIONS ────────────────────────────────────────── -->
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="NOTIFICATIONS" android:textSize="12sp" android:textStyle="bold"
+                android:textColor="#8E8E93" android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:id="@+id/card_notif"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="visibility_off" android:textSize="20sp" android:textColor="#FF9500"
+                        android:fontFamily="@font/material_icons" />
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Message Preview" android:textSize="15sp" android:textColor="#000000" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="Show message text in notifications" android:textSize="12sp" android:textColor="#757575" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/sw_notif_prev" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ── ACCOUNT ──────────────────────────────────────────────── -->
+            <TextView
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="ACCOUNT" android:textSize="12sp" android:textStyle="bold"
+                android:textColor="#8E8E93" android:layout_marginBottom="6dp" />
+
+            <LinearLayout
+                android:id="@+id/card_account"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/row_privacy_policy"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="policy" android:textSize="20sp" android:textColor="#2196F3"
+                        android:fontFamily="@font/material_icons" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp"
+                        android:text="Privacy Policy" android:textSize="15sp" android:textColor="#000000" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="chevron_right" android:textSize="22sp" android:textColor="#BDBDBD"
+                        android:fontFamily="@font/material_icons" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+
+                <LinearLayout
+                    android:id="@+id/row_delete_account"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
+                    <TextView android:layout_width="28dp" android:layout_height="wrap_content"
+                        android:text="delete_forever" android:textSize="20sp" android:textColor="#FF3B30"
+                        android:fontFamily="@font/material_icons" />
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:layout_marginLeft="10dp"
+                        android:text="Delete Account" android:textSize="15sp" android:textColor="#FF3B30" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

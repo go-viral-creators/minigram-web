@@ -1,0 +1,485 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:background="@drawable/chat_wallpaper_bg">
+	<LinearLayout
+		android:id="@+id/toolbar"
+		android:layout_width="match_parent"
+		android:layout_height="58dp"
+		android:paddingLeft="4dp"
+		android:paddingRight="8dp"
+		android:background="@color/colorSurface"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:elevation="4dp">
+		<TextView
+			android:id="@+id/btn_back_icon"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="arrow_back"
+			android:textSize="22sp"
+			android:textColor="@color/colorPrimary"
+			android:fontFamily="@font/material_icons" />
+		<ImageView
+			android:id="@+id/img_profile"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:layout_marginLeft="2dp"
+			android:layout_marginRight="10dp"
+			android:background="@drawable/circle_grey_bg"
+			android:src="@drawable/ic_person"
+			android:scaleType="centerCrop"
+			android:clipToOutline="true" />
+		<LinearLayout
+			android:id="@+id/linear97"
+			android:layout_width="0dp"
+			android:layout_height="match_parent"
+			android:gravity="center_vertical"
+			android:orientation="vertical"
+			android:layout_weight="1">
+			<LinearLayout
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:gravity="center_vertical"
+				android:orientation="horizontal">
+				<TextView
+					android:id="@+id/txt_name"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Name"
+					android:textSize="16sp"
+					android:textStyle="bold"
+					android:textColor="@color/colorPrimary"
+					android:maxLines="1"
+					android:ellipsize="end" />
+				<ImageView
+					android:id="@+id/img_verified_badge"
+					android:layout_width="15dp"
+					android:layout_height="15dp"
+					android:layout_marginLeft="4dp"
+					android:src="@drawable/ic_verified_badge"
+					android:visibility="gone" />
+			</LinearLayout>
+			<TextView
+				android:id="@+id/txt_status"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="offline"
+				android:textSize="12sp"
+				android:textColor="#B2EBF2" />
+		</LinearLayout>
+		<TextView
+			android:id="@+id/btn_search_chat"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="search"
+			android:textSize="22sp"
+			android:textColor="@color/colorPrimary"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:id="@+id/more_options"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="more_vert"
+			android:textSize="22sp"
+			android:textColor="@color/colorPrimary"
+			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+	<LinearLayout
+		android:id="@+id/search_bar"
+		android:layout_width="match_parent"
+		android:layout_height="52dp"
+		android:paddingLeft="8dp"
+		android:paddingRight="8dp"
+		android:background="@color/colorSurface"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:elevation="4dp"
+		android:visibility="gone">
+		<EditText
+			android:id="@+id/edit_search"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:hint="Search in chat..."
+			android:textSize="15sp"
+            android:textColorHint="#607D8B"
+            android:textColor="#000000"
+			android:background="@android:color/transparent"
+			android:inputType="text"
+			android:imeOptions="actionSearch"
+			android:maxLines="1" />
+		<TextView
+			android:id="@+id/txt_search_count"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginLeft="4dp"
+			android:layout_marginRight="4dp"
+			android:text=""
+			android:textSize="13sp"
+			android:textColor="#8E8E8E" />
+		<TextView
+			android:id="@+id/btn_search_prev"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center"
+			android:text="keyboard_arrow_up"
+			android:textSize="24sp"
+			android:textColor="@color/colorPrimary"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:id="@+id/btn_search_next"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center"
+			android:text="keyboard_arrow_down"
+			android:textSize="24sp"
+			android:textColor="@color/colorPrimary"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:id="@+id/btn_search_close"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center"
+			android:text="close"
+			android:textSize="22sp"
+			android:textColor="@color/colorPrimary"
+			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+	<LinearLayout
+		android:id="@+id/pinned_bar"
+		android:layout_width="match_parent"
+		android:layout_height="40dp"
+		android:paddingLeft="12dp"
+		android:paddingRight="8dp"
+		android:background="@color/colorPrimaryDark"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:visibility="gone">
+		<TextView
+			android:id="@+id/textview21"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginRight="6dp"
+			android:text="push_pin"
+			android:textSize="14sp"
+			android:textColor="#FFFFFF"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:id="@+id/pinned_text"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:textSize="13sp"
+			android:textColor="#FFFFFF"
+			android:layout_weight="1"
+			android:maxLines="1"
+			android:ellipsize="end" />
+		<TextView
+			android:id="@+id/btn_unpin"
+			android:layout_width="36dp"
+			android:layout_height="36dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="close"
+			android:textSize="18sp"
+			android:textColor="#FFFFFF"
+			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+	<FrameLayout
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1">
+
+		<!--
+			PHASE 2 of the RecyclerView migration — was <ListView>.
+			Same id (listview1) kept on purpose so Phase 3 only needs to
+			change the Java field's TYPE in ChatActivity, not hunt down
+			every R.id.listview1 reference across ~40 call sites.
+
+			transcriptMode="alwaysScroll" + stackFromBottom="true" (ListView-
+			only attributes, no RecyclerView XML equivalent) will be replicated
+			in Phase 3 via a LinearLayoutManager with setStackFromEnd(true).
+			choiceMode/divider are dropped — selection is handled manually via
+			the adapter's selectedMsgs background-highlight, and there's no
+			default divider drawn (matching the old divider="@null").
+		-->
+		<androidx.recyclerview.widget.RecyclerView
+			android:id="@+id/listview1"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:paddingTop="8dp"
+			android:paddingBottom="4dp"
+			android:scrollbars="none"
+			android:clipToPadding="false" />
+
+		<!-- Small spinner shown briefly at the top while older messages load in -->
+		<ProgressBar
+			android:id="@+id/progress_load_more"
+			style="?android:attr/progressBarStyleSmall"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="top|center_horizontal"
+			android:layout_marginTop="10dp"
+			android:visibility="gone" />
+
+		<!-- Full-screen state shown while the chat's first page of messages loads -->
+		<LinearLayout
+			android:id="@+id/layout_initial_loading"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:gravity="center"
+			android:orientation="vertical"
+			android:background="#FFFFFF"
+			android:visibility="visible">
+			<ProgressBar
+				android:layout_width="40dp"
+				android:layout_height="40dp" />
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="12dp"
+				android:text="Loading messages..."
+				android:textSize="13sp"
+				android:textColor="#9E9E9E" />
+		</LinearLayout>
+	</FrameLayout>
+	<LinearLayout
+		android:id="@+id/layout_reply_bar"
+		android:layout_width="match_parent"
+		android:layout_height="44dp"
+		android:paddingLeft="12dp"
+		android:paddingRight="4dp"
+		android:background="@color/colorPrimaryLight"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:visibility="gone">
+		<TextView
+			android:id="@+id/textview22"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginRight="8dp"
+			android:text="reply"
+			android:textSize="18sp"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:id="@+id/txt_reply_preview"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:textSize="13sp"
+			android:textColor="#424242"
+			android:layout_weight="1"
+			android:maxLines="1"
+			android:ellipsize="end" />
+		<TextView
+			android:id="@+id/btn_cancel_reply"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="close"
+			android:textSize="18sp"
+			android:textColor="#757575"
+			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+
+	<!-- Live link-preview — appears while composing, as soon as a URL in
+	     the message resolves to a usable preview. What's shown here is
+	     exactly what gets sent/embedded — no separate fetch happens again
+	     once the message lands in the chat. -->
+	<LinearLayout
+		android:id="@+id/layout_compose_link_preview"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingLeft="12dp"
+		android:paddingRight="4dp"
+		android:paddingTop="6dp"
+		android:paddingBottom="6dp"
+		android:background="#F0F2F5"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:visibility="gone">
+		<ImageView
+			android:id="@+id/img_compose_link_preview"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:scaleType="centerCrop"
+			android:visibility="gone" />
+		<ProgressBar
+			android:id="@+id/progress_compose_link_preview"
+			android:layout_width="20dp"
+			android:layout_height="20dp"
+			android:layout_marginRight="10dp" />
+		<LinearLayout
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginLeft="10dp"
+			android:orientation="vertical">
+			<TextView
+				android:id="@+id/txt_compose_link_preview_title"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:text="Fetching preview…"
+				android:textSize="13sp"
+				android:textStyle="bold"
+				android:maxLines="1"
+				android:ellipsize="end"
+				android:textColor="#1A1A1A" />
+			<TextView
+				android:id="@+id/txt_compose_link_preview_desc"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:text=""
+				android:textSize="12sp"
+				android:maxLines="1"
+				android:ellipsize="end"
+				android:textColor="#757575" />
+		</LinearLayout>
+		<TextView
+			android:id="@+id/btn_cancel_compose_preview"
+			android:layout_width="36dp"
+			android:layout_height="36dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="close"
+			android:textSize="16sp"
+			android:textColor="#757575"
+			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+	<LinearLayout
+		android:id="@+id/linear37"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingLeft="8dp"
+		android:paddingTop="6dp"
+		android:paddingRight="8dp"
+		android:paddingBottom="6dp"
+		android:background="@color/colorSurface"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:minHeight="58dp"
+		android:elevation="4dp">
+		<TextView
+			android:id="@+id/btn_attach_icon"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center_horizontal|center_vertical"
+			android:text="attach_file"
+			android:textSize="22sp"
+			android:fontFamily="@font/material_icons" />
+		<LinearLayout
+			android:id="@+id/layout_recording_bar"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginLeft="4dp"
+			android:layout_marginRight="6dp"
+			android:paddingLeft="10dp"
+			android:paddingRight="10dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal"
+			android:minHeight="44dp"
+			android:visibility="gone">
+			<TextView
+				android:id="@+id/dot_recording"
+				android:layout_width="10dp"
+				android:layout_height="10dp"
+				android:layout_marginRight="10dp"
+				android:background="@drawable/circle_red_bg" />
+			<TextView
+				android:id="@+id/txt_recording_timer"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="0:00"
+				android:textSize="15sp"
+				android:textColor="#1A1A1A" />
+			<LinearLayout
+				android:id="@+id/layout_slide_to_cancel"
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:gravity="center"
+				android:orientation="horizontal">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="keyboard_arrow_left"
+					android:textSize="18sp"
+					android:textColor="#9E9E9E"
+					android:fontFamily="@font/material_icons" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginLeft="2dp"
+					android:text="Slide to cancel"
+					android:textSize="13sp"
+					android:textColor="#9E9E9E" />
+			</LinearLayout>
+		</LinearLayout>
+		<LinearLayout
+			android:id="@+id/linear18"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_marginLeft="4dp"
+			android:layout_marginRight="6dp"
+			android:paddingLeft="14dp"
+			android:paddingTop="4dp"
+			android:paddingRight="14dp"
+			android:paddingBottom="4dp"
+			android:background="@drawable/input_bubble_bg"
+			android:gravity="center_vertical"
+			android:layout_weight="1"
+			android:minHeight="44dp">
+			<EditText
+				android:id="@+id/edit_msg"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:textSize="15sp"
+				android:hint="Message"
+                android:textColor="#000000"
+				android:textColorHint="#9E9E9E"
+				android:background="@null"
+				android:inputType="textCapSentences|textMultiLine"
+				android:imeOptions="actionNone"
+				android:maxLines="6" />
+		</LinearLayout>
+		<LinearLayout
+			android:id="@+id/btn_send"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:background="@drawable/circle_primary_bg"
+			android:gravity="center_horizontal|center_vertical">
+			<TextView
+				android:id="@+id/btn_send_icon"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="send"
+				android:textSize="22sp"
+				android:textColor="#FFFFFF"
+				android:fontFamily="@font/material_icons" />
+		</LinearLayout>
+	</LinearLayout>
+	<LinearLayout
+		android:id="@+id/linear96"
+		android:layout_width="0dp"
+		android:layout_height="0dp" />
+	<LinearLayout
+		android:id="@+id/linear98"
+		android:layout_width="0dp"
+		android:layout_height="0dp" />
+</LinearLayout>

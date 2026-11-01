@@ -1,0 +1,281 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:background="#F7F8FA">
+
+	<!-- ══ TOP HEADER ══════════════════════════════════════════════════════ -->
+	<LinearLayout
+		android:id="@+id/linear80"
+		android:layout_width="match_parent"
+		android:layout_height="60dp"
+		android:paddingLeft="20dp"
+		android:paddingRight="8dp"
+		android:background="#FFFFFF"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:elevation="2dp">
+
+		<TextView
+			android:id="@+id/textview72"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:text="Minigram"
+			android:textSize="22sp"
+			android:textStyle="bold"
+			android:textColor="#0D0D0D"
+			android:letterSpacing="-0.02"
+			android:layout_weight="1" />
+
+		<TextView
+			android:id="@+id/icon_search"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center"
+			android:text="search"
+			android:textSize="22sp"
+			android:textColor="#444444"
+			android:fontFamily="@font/material_icons" />
+
+		<TextView
+			android:id="@+id/icon_menu"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:background="?attr/selectableItemBackgroundBorderless"
+			android:gravity="center"
+			android:text="more_vert"
+			android:textSize="22sp"
+			android:textColor="#444444"
+			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+
+	<!-- ══ CONTENT AREA ════════════════════════════════════════════════════ -->
+	<FrameLayout
+		android:id="@+id/frame_layout81"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1">
+
+		<ListView
+			android:id="@+id/listview_chats"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:paddingTop="8dp"
+			android:choiceMode="none"
+			android:scrollbars="none"
+			android:divider="@null"
+			android:dividerHeight="0dp"
+			android:clipToPadding="false" />
+
+		<!-- Updates tab content — hosts UpdatesFragment. A real
+		     androidx Fragment (not a content-swap like Chats/Channels),
+		     shown/hidden the same way via visibility toggling. -->
+		<FrameLayout
+			android:id="@+id/frame_updates_container"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:visibility="gone" />
+
+		<!-- FAB -->
+		<LinearLayout
+			android:id="@+id/btn_new_chat"
+			android:layout_width="56dp"
+			android:layout_height="56dp"
+			android:layout_margin="20dp"
+			android:background="@drawable/circle_primary_bg"
+			android:gravity="center"
+			android:layout_gravity="bottom|end"
+            android:visibility="gone"
+			android:elevation="8dp"
+			android:focusable="true">
+			<TextView
+				android:id="@+id/icon_fab"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="search"
+				android:textSize="22sp"
+				android:textColor="#FFFFFF"
+				android:fontFamily="@font/material_icons" />
+		</LinearLayout>
+
+		<!--
+		  ══ CHANNEL SUB-TABS (Issue 9) ══════════════════════════════════════
+		  Pill-chip style: selected tab has filled blue bg + white text.
+		  Sits at the top of the content area, floats over the ListView.
+		  Initially GONE; shown only when Channels tab (tab=1) is active.
+		  ListView gets paddingTop=60dp when this is visible.
+		-->
+	<LinearLayout
+    android:id="@+id/layout_channel_subtabs"
+    android:layout_width="match_parent"
+    android:layout_height="52dp"
+    android:layout_gravity="top"
+    android:background="#FFFFFF"
+    android:elevation="2dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:visibility="gone">
+
+				<!-- MY CHANNELS pill -->
+				<TextView
+					android:id="@+id/tab_my_channels"
+					android:layout_width="wrap_content"
+					android:layout_height="34dp"
+					android:layout_marginRight="8dp"
+					android:paddingLeft="18dp"
+					android:paddingRight="18dp"
+					android:gravity="center"
+					android:text="My Channels"
+					android:textSize="13sp"
+                    android:layout_weight="1"
+					android:textStyle="bold"
+					android:textColor="#FFFFFF"
+					android:background="@drawable/tab_pill_active_bg"
+					android:focusable="true" />
+
+				<!-- SUBSCRIBED pill -->
+				<TextView
+					android:id="@+id/tab_subscribed"
+					android:layout_width="wrap_content"
+					android:layout_height="34dp"
+					android:paddingLeft="18dp"
+					android:paddingRight="18dp"
+					android:gravity="center"
+					android:text="Subscribed"
+                    android:layout_weight="1"
+					android:textSize="13sp"
+					android:textColor="#5A5A5A"
+					android:background="@drawable/tab_pill_inactive_bg"
+					android:focusable="true" />
+
+			</LinearLayout>
+
+	</FrameLayout>
+
+	<!--
+	  ══ BANNER AD ════════════════════════════════════════════════════════
+	  Real AdView declared directly in XML (no runtime screen-wrapping) —
+	  sits directly above the bottom nav bar. Default GONE — a GONE view in
+	  a LinearLayout takes zero width AND zero height, so no empty gap shows
+	  before the ad loads (or if it never loads, or the user is Pro). Java
+	  only flips this to VISIBLE once the ad actually loads successfully
+	  (and the user isn't Pro) — see ChatlistActivity's AdListener.
+	-->
+	<com.google.android.gms.ads.AdView
+		android:id="@+id/banner_ad"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center_horizontal"
+		android:visibility="gone"
+        app:adSize="SMART_BANNER"
+        app:adUnitId="ca-app-pub-5237566165900598/8597822077" />
+        
+	<!-- adSize is set in Java (setupBannerAd()), not here as an XML attribute —
+	     Sketchware Pro's layout XML pipeline doesn't reliably apply custom
+	     library attributes like this one on a manually-added view tag, which
+	     caused a crash ("ad size ... must be set before loadAd"). -->
+
+	<!-- ══ BOTTOM NAV BAR ══════════════════════════════════════════════════ -->
+	<LinearLayout
+		android:id="@+id/linear82"
+		android:layout_width="match_parent"
+		android:layout_height="64dp"
+		android:background="#FFFFFF"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:elevation="12dp">
+
+		<!-- Chats -->
+		<LinearLayout
+			android:id="@+id/linear83"
+			android:layout_width="0dp"
+			android:layout_height="match_parent"
+			android:gravity="center"
+			android:orientation="vertical"
+			android:layout_weight="1"
+			android:background="?attr/selectableItemBackground">
+
+			<TextView
+				android:id="@+id/icon_chats"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="chat_bubble"
+				android:textSize="22sp"
+				android:textColor="#2196F3"
+				android:fontFamily="@font/material_icons" />
+			<TextView
+				android:id="@+id/textview73"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="2dp"
+				android:text="Chats"
+				android:textSize="11sp"
+				android:textStyle="bold"
+				android:textColor="#2196F3" />
+		</LinearLayout>
+
+		<!-- Groups / Channels -->
+		<LinearLayout
+			android:id="@+id/linear84"
+			android:layout_width="0dp"
+			android:layout_height="match_parent"
+			android:gravity="center"
+			android:orientation="vertical"
+			android:layout_weight="1"
+			android:background="?attr/selectableItemBackground">
+
+			<TextView
+				android:id="@+id/icon_channels"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="groups"
+				android:textSize="22sp"
+				android:textColor="#9E9E9E"
+				android:fontFamily="@font/material_icons" />
+			<TextView
+				android:id="@+id/textview74"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="2dp"
+				android:text="Groups"
+				android:textSize="11sp"
+				android:textColor="#9E9E9E" />
+		</LinearLayout>
+
+		<!-- Updates -->
+		<LinearLayout
+			android:id="@+id/linear85"
+			android:layout_width="0dp"
+			android:layout_height="match_parent"
+			android:gravity="center"
+			android:orientation="vertical"
+			android:layout_weight="1"
+			android:background="?attr/selectableItemBackground">
+
+			<TextView
+				android:id="@+id/icon_profile"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="campaign"
+				android:textSize="22sp"
+				android:textColor="#9E9E9E"
+				android:fontFamily="@font/material_icons" />
+			<TextView
+				android:id="@+id/textview75"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="2dp"
+				android:text="Updates"
+				android:textSize="11sp"
+				android:textColor="#9E9E9E" />
+		</LinearLayout>
+
+	</LinearLayout>
+</LinearLayout>

@@ -1,0 +1,598 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  channel.xml
+  ─────────────────────────────────────────────────────────────────────────────
+  Layout for ChannelActivity — Telegram-style broadcast channel screen.
+
+  Structure (top → bottom):
+    1. Toolbar           — back, logo, name/sub/bio, search, mute, settings
+    2. Search bar        — collapsed by default
+    3. Pinned bar        — collapsed by default
+    4. FrameLayout       — posts ListView (weight=1, takes remaining space)
+    5. Reply bar         — shows quoted post preview when owner is composing a reply
+    6. Input bar         — owner only: attach | EditText | send
+    7. Subscribe banner  — non-owner: subscribe / unsubscribe button
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/chat_wallpaper_bg">
+
+    <!-- ── 1. Toolbar ─────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="arrow_back"
+            android:textSize="24sp"
+            android:textColor="#212121"
+            android:fontFamily="@font/material_icons" />
+
+        <ImageView
+            android:id="@+id/img_channel_photo"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginLeft="4dp"
+            android:padding="2dp"
+            android:background="@drawable/circle_bg_light"
+            android:src="@drawable/ic_channel"
+            android:scaleType="centerCrop" />
+
+        <LinearLayout
+            android:id="@+id/layout_channel_header"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:paddingLeft="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/txt_channel_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Channel Name"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="#212121"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+                <ImageView
+                    android:id="@+id/img_verified_badge"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_marginLeft="4dp"
+                    android:src="@drawable/ic_verified_badge"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/txt_sub_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 subscribers"
+                android:textSize="11sp"
+                android:textColor="#757575" />
+
+            <TextView
+                android:id="@+id/txt_channel_bio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="11sp"
+                android:textColor="#9E9E9E"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btn_search"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="search"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/btn_mute"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="notifications"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/btn_settings"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="settings"
+            android:textSize="22sp"
+            android:textColor="#212121"
+            android:fontFamily="@font/material_icons"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- ── 2. Search bar ──────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/layout_search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="8dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:elevation="2dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginRight="8dp"
+            android:gravity="center"
+            android:text="search"
+            android:textSize="20sp"
+            android:textColor="#9E9E9E"
+            android:fontFamily="@font/material_icons" />
+
+        <EditText
+            android:id="@+id/edit_search"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="Search in channel..."
+            android:textSize="15sp"
+            android:textColorHint="#607D8B"
+            android:textColor="#212121"
+            android:imeOptions="actionSearch"
+            android:singleLine="true"
+            android:inputType="text" />
+
+        <TextView
+            android:id="@+id/btn_close_search"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="close"
+            android:textSize="20sp"
+            android:textColor="#757575"
+            android:fontFamily="@font/material_icons" />
+
+    </LinearLayout>
+
+    <!-- ── 3. Pinned message bar ──────────────────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/pinned_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="4dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:background="#E3F2FD"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginRight="8dp"
+            android:gravity="center"
+            android:text="push_pin"
+            android:textSize="16sp"
+            android:textColor="#1A73E8"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/pinned_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Pinned message"
+            android:textSize="13sp"
+            android:textColor="#1A73E8"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/btn_unpin"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:gravity="center"
+            android:text="close"
+            android:textSize="18sp"
+            android:textColor="#757575"
+            android:fontFamily="@font/material_icons" />
+
+    </LinearLayout>
+
+    <!-- ── 4. Posts ListView ──────────────────────────────────────────────── -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- transcriptMode is deliberately "disabled".
+             "alwaysScroll" is a PLATFORM behaviour: the ListView force-scrolls
+             itself to the bottom on EVERY adapter data change, before any of
+             our code runs. It overrode every scroll we performed — jumping to
+             a specific post landed correctly, then the next data change
+             (pagination, a view count, a reaction) snapped the list straight
+             back to the newest post. No Java-side guard can win against it.
+             ChannelActivity already implements this behaviour itself and more
+             precisely: it auto-scrolls only when the user was actually at the
+             bottom, and otherwise shows the "new posts" bubble. The attribute
+             was redundant with that logic and actively fighting it. -->
+        <ListView
+            android:id="@+id/listview1"
+            android:transcriptMode="disabled"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingLeft="8dp"
+            android:paddingRight="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:clipToPadding="false"
+            android:divider="@null"
+            android:choiceMode="none"
+            android:stackFromBottom="true"
+            android:scrollbars="none" />
+
+        <!-- Spinner shown at the top while older posts load in. Sits on a
+             solid circular backdrop so it stays clearly visible over post
+             content (a bare small spinner blended into the posts behind it
+             and was easy to miss entirely). -->
+        <LinearLayout
+            android:id="@+id/progress_load_more"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="12dp"
+            android:padding="10dp"
+            android:elevation="6dp"
+            android:background="@drawable/circle_bg_light"
+            android:gravity="center"
+            android:visibility="gone">
+            <ProgressBar
+                android:layout_width="30dp"
+                android:layout_height="30dp" />
+        </LinearLayout>
+
+        <!-- Full-screen state shown while the channel's first page of posts loads -->
+        <LinearLayout
+            android:id="@+id/layout_initial_loading"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:visibility="visible">
+            <ProgressBar
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Loading posts..."
+                android:textSize="13sp"
+                android:textColor="#9E9E9E" />
+        </LinearLayout>
+
+        <!-- Shown when the channel genuinely has zero posts -->
+        <LinearLayout
+            android:id="@+id/layout_empty_posts"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="campaign"
+                android:textSize="40sp"
+                android:textColor="#E0E0E0"
+                android:fontFamily="@font/material_icons" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="No posts yet"
+                android:textSize="14sp"
+                android:textColor="#9E9E9E" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- ── 5. Reply bar (shown when owner is replying to a post) ─────────── -->
+    <LinearLayout
+        android:id="@+id/layout_reply_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="4dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:background="#F1F8E9"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <!-- Green accent bar -->
+        <View
+            android:layout_width="3dp"
+            android:layout_height="36dp"
+            android:layout_marginRight="10dp"
+            android:background="#388E3C" />
+
+        <!-- Reply preview text -->
+        <TextView
+            android:id="@+id/txt_reply_preview"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Replying to..."
+            android:textSize="13sp"
+            android:textColor="#33691E"
+            android:maxLines="2"
+            android:ellipsize="end" />
+
+        <!-- Cancel reply -->
+        <TextView
+            android:id="@+id/btn_cancel_reply"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="close"
+            android:textSize="20sp"
+            android:textColor="#757575"
+            android:fontFamily="@font/material_icons" />
+
+    </LinearLayout>
+
+    <!-- Live link-preview while composing a channel post — same idea as chat. -->
+    <LinearLayout
+        android:id="@+id/layout_compose_link_preview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="4dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:background="#F0F2F5"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:visibility="gone">
+        <ImageView
+            android:id="@+id/img_compose_link_preview"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone" />
+        <ProgressBar
+            android:id="@+id/progress_compose_link_preview"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginRight="10dp" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="10dp"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/txt_compose_link_preview_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Fetching preview…"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="#1A1A1A" />
+            <TextView
+                android:id="@+id/txt_compose_link_preview_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="#757575" />
+        </LinearLayout>
+        <TextView
+            android:id="@+id/btn_cancel_compose_preview"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center_horizontal|center_vertical"
+            android:text="close"
+            android:textSize="16sp"
+            android:textColor="#757575"
+            android:fontFamily="@font/material_icons" />
+    </LinearLayout>
+
+    <!-- ── 6. Input bar (OWNER only — hidden by default, shown in Java) ──── -->
+    <LinearLayout
+        android:id="@+id/linear98"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="56dp"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:elevation="4dp"
+        android:visibility="gone">
+
+        <!-- Attach / Camera button -->
+        <TextView
+            android:id="@+id/btn_attach_icon"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:text="attach_file"
+            android:textSize="24sp"
+            android:textColor="#757575"
+            android:fontFamily="@font/material_icons" />
+
+        <!-- Voice recording indicator (shown instead of edit_msg while recording) -->
+        <LinearLayout
+            android:id="@+id/layout_recording_bar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="4dp"
+            android:layout_marginRight="4dp"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:minHeight="44dp"
+            android:visibility="gone">
+            <TextView
+                android:id="@+id/dot_recording"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginRight="10dp"
+                android:background="@drawable/circle_red_bg" />
+            <TextView
+                android:id="@+id/txt_recording_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0:00"
+                android:textSize="15sp"
+                android:textColor="#1A1A1A" />
+            <LinearLayout
+                android:id="@+id/layout_slide_to_cancel"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="keyboard_arrow_left"
+                    android:textSize="18sp"
+                    android:textColor="#9E9E9E"
+                    android:fontFamily="@font/material_icons" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="2dp"
+                    android:text="Slide to cancel"
+                    android:textSize="13sp"
+                    android:textColor="#9E9E9E" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Message compose box -->
+        <EditText
+            android:id="@+id/edit_msg"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="4dp"
+            android:layout_marginRight="4dp"
+            android:background="@drawable/edit_msg_bg"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:hint="Message..."
+            android:textSize="15sp"
+            android:textColorHint="#607D8B"
+            android:textColor="#212121"
+            android:minLines="1"
+            android:maxLines="5"
+            android:inputType="textMultiLine|textCapSentences"
+            android:imeOptions="actionNone" />
+
+        <!-- Send button -->
+        <LinearLayout
+            android:id="@+id/btn_send"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/circle_primary_bg"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/btn_send_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="send"
+                android:textSize="20sp"
+                android:textColor="#FFFFFF"
+                android:fontFamily="@font/material_icons" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- ── 7. Subscribe banner (NON-OWNER only) ───────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/btn_subscribe"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="#1A73E8"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/txt_subscribe_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Subscribe"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+
+    </LinearLayout>
+
+</LinearLayout>

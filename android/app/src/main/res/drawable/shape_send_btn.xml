@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shape_send_btn.xml
+     Blue circle background for the Send button in ImageSendPreviewActivity.
+     Location: res/drawable/shape_send_btn.xml
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#1A73E8"/>
+    <size android:width="48dp" android:height="48dp"/>
+</shape>

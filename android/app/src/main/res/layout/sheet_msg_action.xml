@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/container_actions"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- Reactions row (horizontally scrollable, Telegram-style) -->
+    <HorizontalScrollView
+        android:id="@+id/scroll_reactions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingTop="12dp"
+        android:paddingBottom="8dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp">
+        <LinearLayout
+            android:id="@+id/row_reactions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <TextView android:id="@+id/react_love"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="❤️" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_like"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👍" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_dislike" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👎" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_laugh" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😂" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_wow"   android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😮" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_sad"   android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😢" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_angry" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😡" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_fire"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🔥" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_clap"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👏" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_party" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🎉" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_think" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🤔" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_heart_eyes" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😍" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_pray"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🙏" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_100"   android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="💯" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
+    </HorizontalScrollView>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- Copy row -->
+    <LinearLayout
+        android:id="@+id/row_copy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/icon_copy"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="content_copy"
+            android:textSize="22sp"
+            android:textColor="#424242"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_copy"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Copy"
+            android:textSize="15.5sp"
+            android:textColor="#212121" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- Reply row -->
+    <LinearLayout
+        android:id="@+id/row_reply"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/icon_reply"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="reply"
+            android:textSize="22sp"
+            android:textColor="#424242"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_reply"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Reply"
+            android:textSize="15.5sp"
+            android:textColor="#212121" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- Forward row -->
+    <LinearLayout
+        android:id="@+id/row_forward"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/icon_forward"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="forward"
+            android:textSize="22sp"
+            android:textColor="#424242"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_forward"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Forward"
+            android:textSize="15.5sp"
+            android:textColor="#212121" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- Pin / Unpin row -->
+    <LinearLayout
+        android:id="@+id/row_pin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/icon_pin"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="push_pin"
+            android:textSize="22sp"
+            android:textColor="#424242"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_pin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Pin Message"
+            android:textSize="15.5sp"
+            android:textColor="#212121" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- Edit row (own text only) -->
+    <LinearLayout
+        android:id="@+id/row_edit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/icon_edit"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="edit"
+            android:textSize="22sp"
+            android:textColor="#1976D2"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_edit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Edit Message"
+            android:textSize="15.5sp"
+            android:textColor="#1976D2" />
+    </LinearLayout>
+
+    <!-- Separator between normal actions and delete actions -->
+    <View
+        android:id="@+id/separator"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:background="#F5F5F5" />
+
+    <!-- Delete for me row -->
+    <LinearLayout
+        android:id="@+id/row_delete_me"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:id="@+id/icon_delete_me"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="delete_outline"
+            android:textSize="22sp"
+            android:textColor="#E53935"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_delete_me"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Delete for Me"
+            android:textSize="15.5sp"
+            android:textColor="#E53935" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#F0F0F0" />
+
+    <!-- Delete for everyone row (own messages only) -->
+    <LinearLayout
+        android:id="@+id/row_delete_all"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="56dp"
+        android:paddingEnd="56dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/icon_delete_all"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:text="delete_forever"
+            android:textSize="22sp"
+            android:textColor="#B71C1C"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:id="@+id/label_delete_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:text="Delete for Everyone"
+            android:textSize="15.5sp"
+            android:textColor="#B71C1C" />
+    </LinearLayout>
+
+</LinearLayout>

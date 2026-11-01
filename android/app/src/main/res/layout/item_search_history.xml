@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingLeft="20dp"
+    android:paddingRight="8dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:gravity="center_vertical"
+    android:background="?attr/selectableItemBackground"
+    android:orientation="horizontal">
+
+    <TextView
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:gravity="center"
+        android:text="history"
+        android:textSize="18sp"
+        android:textColor="#9E9E9E"
+        android:fontFamily="@font/material_icons" />
+
+    <TextView
+        android:id="@+id/txt_history_query"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginLeft="14dp"
+        android:textSize="15sp"
+        android:textColor="#000000" />
+
+    <TextView
+        android:id="@+id/btn_remove_history"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:text="close"
+        android:textSize="16sp"
+        android:textColor="#BDBDBD"
+        android:fontFamily="@font/material_icons"
+        android:background="?attr/selectableItemBackgroundBorderless" />
+
+</LinearLayout>

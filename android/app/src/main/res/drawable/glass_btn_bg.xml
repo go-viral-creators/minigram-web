@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    glass_btn_bg.xml
+    ─────────────────────────────────────────────────────────────────────────
+    Glass-effect button background:
+      • Semi-transparent dark background (#55000000) with rounded corners
+      • White ripple overlay on press (Material feel)
+    ─────────────────────────────────────────────────────────────────────────
+    Usage:
+      android:background="@drawable/glass_btn_bg"
+-->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#44FFFFFF">
+
+    <!-- Ripple mask (same rounded shape) -->
+    <item android:id="@android:id/mask">
+        <shape android:shape="oval">
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Actual glass background -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#55000000" />
+            <!-- No stroke needed — glass should be clean -->
+        </shape>
+    </item>
+
+</ripple>

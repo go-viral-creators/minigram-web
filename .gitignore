@@ -1,0 +1,10 @@
+node_modules/
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/**/*.keystore
+android/**/*.jks
+*.log
+.rules.copy.json
+*.hprof

@@ -1,0 +1,178 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF">
+
+    <!-- Search Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:gravity="center_vertical"
+        android:background="#FFFFFF"
+        android:elevation="4dp">
+
+        <EditText
+            android:id="@+id/et_search"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:layout_marginLeft="4dp"
+            android:layout_marginRight="8dp"
+            android:background="@drawable/search_bar_bg"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp"
+            android:hint="Search by name or @username"
+            android:textSize="15sp"
+            android:textColor="#212121"
+            android:textColorHint="#9E9E9E"
+            android:singleLine="true"
+            android:imeOptions="actionSearch"
+            android:inputType="text" />
+
+        <TextView
+            android:id="@+id/btn_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancel"
+            android:textSize="14sp"
+            android:textColor="#000000"
+            android:textStyle="bold"
+            android:paddingLeft="8dp"
+            android:paddingRight="4dp" />
+
+    </LinearLayout>
+
+    <!-- Loading indicator -->
+    <LinearLayout
+        android:id="@+id/layout_loading"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center"
+        android:visibility="gone">
+        <ProgressBar
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:indeterminate="true" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:text="Searching..."
+            android:textSize="14sp"
+            android:textColor="#757575" />
+    </LinearLayout>
+
+    <!-- Default view (shown while the query box is empty): recent searches
+         + popular channels. Scrollable, since both lists can grow. -->
+    <ScrollView
+        android:id="@+id/layout_recent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <!-- ── Recent searches ──────────────────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/layout_history_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="20dp"
+                android:paddingRight="12dp"
+                android:paddingTop="18dp"
+                android:paddingBottom="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="RECENT SEARCHES"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#8E8E93" />
+                <TextView
+                    android:id="@+id/btn_clear_history"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="8dp"
+                    android:text="CLEAR"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="#E53935"
+                    android:background="?attr/selectableItemBackground" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/container_history"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- ── Popular channels (channel mode only) ─────────────────── -->
+            <TextView
+                android:id="@+id/txt_popular_header"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="20dp"
+                android:paddingRight="20dp"
+                android:paddingTop="18dp"
+                android:paddingBottom="4dp"
+                android:text="MOST POPULAR CHANNELS"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#8E8E93"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/container_popular"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/txt_recent_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingLeft="20dp"
+                android:paddingTop="20dp"
+                android:text="Start typing to search"
+                android:textSize="14sp"
+                android:textColor="#BDBDBD"
+                android:visibility="gone" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Empty state -->
+    <TextView
+        android:id="@+id/txt_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="40dp"
+        android:text="No users found"
+        android:textSize="15sp"
+        android:textColor="#9E9E9E"
+        android:gravity="center"
+        android:visibility="gone" />
+
+    <!-- Results -->
+    <ListView
+        android:id="@+id/lv_results"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="none"
+        android:divider="#F5F5F5"
+        android:dividerHeight="1dp" />
+
+</LinearLayout>

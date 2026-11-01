@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="20dp"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="24dp"
+        android:layout_marginRight="24dp"
+        android:layout_marginBottom="4dp"
+        android:text="Channel Type"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#000000" />
+
+    <RadioGroup
+        android:id="@+id/radio_group_type"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical">
+
+        <!-- Public -->
+        <LinearLayout
+            android:id="@+id/row_public"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="16dp"
+            android:paddingRight="24dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:gravity="top"
+            android:background="?attr/selectableItemBackground"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/radio_public"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:clickable="false"
+                android:focusable="false" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="14dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Public Channel"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Public channels can be found in search, chat history is available to everyone, and anyone can join."
+                    android:textSize="13sp"
+                    android:textColor="#757575"
+                    android:lineSpacingExtra="2dp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Private -->
+        <LinearLayout
+            android:id="@+id/row_private"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="16dp"
+            android:paddingRight="24dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:gravity="top"
+            android:background="?attr/selectableItemBackground"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/radio_private"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:clickable="false"
+                android:focusable="false" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginLeft="14dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Private Channel"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Private channels can only be joined if you were invited or have an invite link."
+                    android:textSize="13sp"
+                    android:textColor="#757575"
+                    android:lineSpacingExtra="2dp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </RadioGroup>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="#EEEEEE" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end|center_vertical"
+        android:paddingTop="4dp"
+        android:paddingRight="12dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btn_dialog_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:text="CANCEL"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#757575"
+            android:background="?attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/btn_dialog_save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:padding="12dp"
+            android:text="SAVE"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/colorPrimary"
+            android:background="?attr/selectableItemBackground" />
+
+    </LinearLayout>
+
+</LinearLayout>

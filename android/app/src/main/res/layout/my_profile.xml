@@ -1,0 +1,445 @@
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/main"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="#F5F5F5">
+
+	<!-- Selection-mode contextual bar — hidden by default, slides over the
+	     normal header when Media/Links/Voice items are long-pressed.
+	     View only shows for a single selection with a known content_id
+	     (see MyProfileActivity._updateSelectionBar()). -->
+	<LinearLayout
+		android:id="@+id/layout_selection_bar"
+		android:layout_width="match_parent"
+		android:layout_height="56dp"
+		android:background="#229ED9"
+		android:gravity="center_vertical"
+		android:orientation="horizontal"
+		android:elevation="6dp"
+		android:visibility="gone">
+
+		<TextView
+			android:id="@+id/btn_selection_close"
+			android:layout_width="40dp"
+			android:layout_height="40dp"
+			android:layout_marginLeft="6dp"
+			android:gravity="center"
+			android:text="close"
+			android:textSize="22sp"
+			android:textColor="#FFFFFF"
+			android:fontFamily="@font/material_icons"
+			android:background="?attr/selectableItemBackgroundBorderless" />
+
+		<TextView
+			android:id="@+id/txt_selection_count"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginLeft="12dp"
+			android:text="1 selected"
+			android:textSize="16sp"
+			android:textColor="#FFFFFF" />
+
+		<TextView
+			android:id="@+id/btn_selection_view"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:gravity="center"
+			android:text="visibility"
+			android:textSize="22sp"
+			android:textColor="#FFFFFF"
+			android:fontFamily="@font/material_icons"
+			android:background="?attr/selectableItemBackgroundBorderless" />
+
+		<TextView
+			android:id="@+id/btn_selection_forward"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:gravity="center"
+			android:text="forward"
+			android:textSize="22sp"
+			android:textColor="#FFFFFF"
+			android:fontFamily="@font/material_icons"
+			android:background="?attr/selectableItemBackgroundBorderless" />
+
+		<TextView
+			android:id="@+id/btn_selection_delete"
+			android:layout_width="44dp"
+			android:layout_height="44dp"
+			android:layout_marginRight="8dp"
+			android:gravity="center"
+			android:text="delete"
+			android:textSize="22sp"
+			android:textColor="#FFFFFF"
+			android:fontFamily="@font/material_icons"
+			android:background="?attr/selectableItemBackgroundBorderless" />
+
+	</LinearLayout>
+
+	<ScrollView
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:scrollbars="none"
+		android:fillViewport="true">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="vertical">
+
+			<!-- ══ HEADER — large photo, gradient backdrop, name/status ══════════ -->
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:gravity="center_horizontal"
+				android:background="@drawable/profile_header_gradient_bg"
+				android:paddingBottom="24dp">
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:gravity="center_vertical"
+					android:padding="8dp">
+					<TextView
+						android:id="@+id/btn_back"
+						android:layout_width="40dp"
+						android:layout_height="40dp"
+						android:gravity="center"
+						android:text="arrow_back"
+						android:textSize="24sp"
+						android:textColor="#FFFFFF"
+						android:fontFamily="@font/material_icons"
+						android:background="?attr/selectableItemBackgroundBorderless" />
+					<TextView
+						android:layout_width="0dp"
+						android:layout_height="wrap_content"
+						android:layout_weight="1" />
+					<TextView
+						android:id="@+id/btn_overflow_menu"
+						android:layout_width="40dp"
+						android:layout_height="40dp"
+						android:gravity="center"
+						android:text="more_vert"
+						android:textSize="22sp"
+						android:textColor="#FFFFFF"
+						android:fontFamily="@font/material_icons"
+						android:background="?attr/selectableItemBackgroundBorderless" />
+				</LinearLayout>
+
+				<FrameLayout
+					android:layout_width="116dp"
+					android:layout_height="116dp"
+					android:layout_marginTop="4dp"
+					android:background="@drawable/circle_bg_light"
+					android:elevation="6dp"
+					android:padding="4dp">
+					<ImageView
+						android:id="@+id/img_avatar"
+						android:layout_width="match_parent"
+						android:layout_height="match_parent"
+						android:scaleType="centerCrop" />
+				</FrameLayout>
+
+				<LinearLayout
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="14dp"
+					android:gravity="center_vertical"
+					android:orientation="horizontal">
+					<TextView
+						android:id="@+id/txt_fullname"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text=""
+						android:textSize="21sp"
+						android:textStyle="bold"
+						android:textColor="#FFFFFF" />
+					<ImageView
+						android:id="@+id/img_pro_badge"
+						android:layout_width="18dp"
+						android:layout_height="18dp"
+						android:layout_marginLeft="4dp"
+						android:src="@drawable/ic_verified_badge"
+						android:visibility="gone" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="4dp"
+					android:gravity="center_vertical">
+					<TextView
+						android:id="@+id/txt_status_dot"
+						android:layout_width="8dp"
+						android:layout_height="8dp"
+						android:background="@drawable/circle_bg_light" />
+					<TextView
+						android:id="@+id/txt_status"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginLeft="6dp"
+						android:text="@username"
+						android:textSize="14sp"
+						android:textColor="#E3F2FD" />
+				</LinearLayout>
+
+			</LinearLayout>
+
+			<!-- ══ QUICK ACTIONS ═══════════════════════════════════════════════ -->
+			<LinearLayout
+				android:id="@+id/layout_quick_actions_row"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="horizontal"
+				android:paddingLeft="16dp"
+				android:paddingRight="16dp"
+				android:paddingTop="16dp"
+				android:paddingBottom="8dp">
+
+				<LinearLayout
+					android:id="@+id/btn_set_photo"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:layout_marginRight="6dp"
+					android:orientation="vertical"
+					android:gravity="center"
+					android:padding="14dp"
+					android:background="@drawable/plan_card_bg">
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="add_a_photo"
+						android:textSize="22sp"
+						android:textColor="#229ED9"
+						android:fontFamily="@font/material_icons" />
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginTop="4dp"
+						android:text="Set Photo"
+						android:textSize="12sp"
+						android:textColor="#424242" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:id="@+id/btn_edit_info"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:layout_marginLeft="6dp"
+					android:orientation="vertical"
+					android:gravity="center"
+					android:padding="14dp"
+					android:background="@drawable/plan_card_bg">
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="edit"
+						android:textSize="22sp"
+						android:textColor="#229ED9"
+						android:fontFamily="@font/material_icons" />
+					<TextView
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginTop="4dp"
+						android:text="Edit Info"
+						android:textSize="12sp"
+						android:textColor="#424242" />
+				</LinearLayout>
+
+			</LinearLayout>
+
+			<!-- ══ INFO CARD ═══════════════════════════════════════════════════ -->
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_margin="16dp"
+				android:layout_marginTop="8dp"
+				android:orientation="vertical"
+				android:background="@drawable/plan_card_bg"
+				android:padding="16dp">
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Display Name"
+					android:textSize="11sp"
+					android:textColor="#9E9E9E" />
+				<TextView
+					android:id="@+id/txt_info_name"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="2dp"
+					android:text=""
+					android:textSize="15sp"
+					android:textColor="#212121" />
+
+				<View
+					android:layout_width="match_parent"
+					android:layout_height="1dp"
+					android:layout_marginTop="12dp"
+					android:layout_marginBottom="12dp"
+					android:background="#EEEEEE" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Username"
+					android:textSize="11sp"
+					android:textColor="#9E9E9E" />
+				<TextView
+					android:id="@+id/txt_info_username"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="2dp"
+					android:text=""
+					android:textSize="15sp"
+					android:textColor="#212121" />
+
+				<View
+					android:layout_width="match_parent"
+					android:layout_height="1dp"
+					android:layout_marginTop="12dp"
+					android:layout_marginBottom="12dp"
+					android:background="#EEEEEE" />
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Bio"
+					android:textSize="11sp"
+					android:textColor="#9E9E9E" />
+				<TextView
+					android:id="@+id/txt_info_bio"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="2dp"
+					android:text="No bio yet"
+					android:textSize="14sp"
+					android:textColor="#616161" />
+
+			</LinearLayout>
+
+			<!-- ══ TABS ═══════════════════════════════════════════════════════ -->
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="48dp"
+				android:layout_marginLeft="16dp"
+				android:layout_marginRight="16dp"
+				android:orientation="horizontal"
+				android:background="@drawable/plan_card_bg">
+
+				<LinearLayout
+					android:id="@+id/tab_media"
+					android:layout_width="0dp"
+					android:layout_height="match_parent"
+					android:layout_weight="1"
+					android:gravity="center"
+					android:background="?attr/selectableItemBackground">
+					<TextView
+						android:id="@+id/txt_tab_media"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="Media"
+						android:textSize="13sp"
+						android:textStyle="bold"
+						android:textColor="#229ED9" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:id="@+id/tab_links"
+					android:layout_width="0dp"
+					android:layout_height="match_parent"
+					android:layout_weight="1"
+					android:gravity="center"
+					android:background="?attr/selectableItemBackground">
+					<TextView
+						android:id="@+id/txt_tab_links"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="Links"
+						android:textSize="13sp"
+						android:textColor="#9E9E9E" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:id="@+id/tab_voice"
+					android:layout_width="0dp"
+					android:layout_height="match_parent"
+					android:layout_weight="1"
+					android:gravity="center"
+					android:background="?attr/selectableItemBackground">
+					<TextView
+						android:id="@+id/txt_tab_voice"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="Voice"
+						android:textSize="13sp"
+						android:textColor="#9E9E9E" />
+				</LinearLayout>
+
+			</LinearLayout>
+
+			<View
+				android:id="@+id/tab_indicator"
+				android:layout_width="0dp"
+				android:layout_height="2dp"
+				android:layout_marginLeft="16dp"
+				android:background="#229ED9" />
+
+			<!-- ══ TAB CONTENT ═══════════════════════════════════════════════ -->
+			<FrameLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:minHeight="220dp">
+
+				<androidx.recyclerview.widget.RecyclerView
+					android:id="@+id/recycler_tab_content"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:scrollbars="none"
+					android:padding="8dp" />
+
+				<LinearLayout
+					android:id="@+id/layout_tab_empty"
+					android:layout_width="match_parent"
+					android:layout_height="220dp"
+					android:orientation="vertical"
+					android:gravity="center"
+					android:visibility="gone">
+					<TextView
+						android:id="@+id/txt_tab_empty_icon"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:text="photo_library"
+						android:textSize="44sp"
+						android:textColor="#BDBDBD"
+						android:fontFamily="@font/material_icons" />
+					<TextView
+						android:id="@+id/txt_tab_empty_label"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginTop="10dp"
+						android:text="Nothing here yet"
+						android:textSize="13sp"
+						android:textColor="#9E9E9E" />
+				</LinearLayout>
+
+				<ProgressBar
+					android:id="@+id/progress_tab_content"
+					android:layout_width="32dp"
+					android:layout_height="32dp"
+					android:layout_gravity="center"
+					android:layout_marginTop="24dp"
+					android:visibility="gone" />
+
+			</FrameLayout>
+
+			<View android:layout_width="match_parent" android:layout_height="24dp" />
+
+		</LinearLayout>
+	</ScrollView>
+</FrameLayout>

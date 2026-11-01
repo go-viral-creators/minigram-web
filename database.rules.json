@@ -1,0 +1,249 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "handle",
+        "username",
+        "fullname",
+        "fullname_lower",
+        "username_lower"
+      ],
+      "$uid": {
+        "is_banned": {
+          ".write": false
+        },
+        "fullname": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+        },
+        "fullname_lower": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val().length <= 60"
+        },
+        "bio": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val().length <= 300"
+        },
+        "photo_url": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isString() && newData.val().length <= 600 && (newData.val() === '' || newData.val().beginsWith('https://'))"
+        },
+        "$other": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "newData.isBoolean() || newData.isNumber() || (newData.isString() && newData.val().length <= 300)"
+        }
+      }
+    },
+    "user_private": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$f": {
+          ".validate": "newData.isString() && newData.val().length <= 120"
+        }
+      }
+    },
+    "fcm_tokens": {
+      "$uid": {
+        ".read": false,
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.isString() && newData.val().length <= 400"
+      }
+    },
+    "rate_limits": {
+      ".read": false,
+      ".write": false
+    },
+    "handles": {
+      ".read": "auth != null",
+      "$h": {
+        ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid)",
+        ".validate": "newData.isString()"
+      }
+    },
+    "phone_index": {
+      "$k": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid)",
+        ".validate": "newData.isString()"
+      }
+    },
+    "blocked_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "chats": {
+      "$chatId": {
+        ".read": "auth != null && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
+        ".indexOn": [
+          "timestamp",
+          "is_pinned",
+          "sender_uid"
+        ],
+        "$msgId": {
+          ".write": "auth != null && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
+          ".validate": "newData.hasChildren(['sender_uid','timestamp']) && (data.exists() || newData.child('sender_uid').val() === auth.uid) && newData.child('timestamp').isNumber() && newData.child('timestamp').val() < now + 300000 && newData.child('timestamp').val() > now - 600000",
+          "text": {
+            ".validate": "newData.isString() && newData.val().length <= 20000"
+          },
+          "caption": {
+            ".validate": "newData.isString() && newData.val().length <= 4000"
+          },
+          "reply_preview": {
+            ".validate": "newData.isString() && newData.val().length <= 600"
+          }
+        }
+      }
+    },
+    "user_chats": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".indexOn": [
+          "last_time"
+        ],
+        "$chatId": {
+          ".write": "auth != null && (auth.uid === $uid || (($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid)) && ($chatId.beginsWith($uid + '_') || $chatId.endsWith('_' + $uid))))"
+        }
+      }
+    },
+    "channels": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "owner_uid",
+        "handle",
+        "name_lower",
+        "name"
+      ],
+      "$cid": {
+        ".write": "auth != null && ((!data.exists() && newData.child('owner_uid').val() === auth.uid) || root.child('channels').child($cid).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($cid).child(auth.uid).exists())",
+        "subscriber_count": {
+          ".write": "auth != null && newData.isNumber() && newData.val() >= 0 && (!data.exists() || newData.val() === data.val() + 1 || newData.val() === data.val() - 1)"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 100"
+        },
+        "description": {
+          ".validate": "newData.isString() && newData.val().length <= 1000"
+        }
+      }
+    },
+    "channel_admins": {
+      "$cid": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('channels').child($cid).child('owner_uid').val() === auth.uid"
+      }
+    },
+    "channel_subscribers": {
+      "$cid": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('channels').child($cid).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($cid).child(auth.uid).exists())"
+        }
+      }
+    },
+    "user_channels": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$cid": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('channels').child($cid).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($cid).child(auth.uid).exists())"
+        }
+      }
+    },
+    "channel_presence": {
+      "$cid": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+    "channel_post_views": {
+      "$cid": {
+        "$pid": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        }
+      }
+    },
+    "channel_posts": {
+      "$cid": {
+        ".read": "auth != null",
+        ".indexOn": [
+          "timestamp",
+          "is_pinned"
+        ],
+        "$pid": {
+          ".write": "auth != null && (root.child('channels').child($cid).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($cid).child(auth.uid).exists())",
+          "likes": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid"
+            }
+          },
+          "reactions": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid"
+            }
+          },
+          "views": {
+            ".write": "auth != null && !newData.exists()"
+          },
+          "view_count": {
+            ".write": "auth != null && newData.isNumber() && (!data.exists() || newData.val() >= data.val())"
+          },
+          "reply_count": {
+            ".write": "auth != null && newData.isNumber() && newData.val() >= 0"
+          }
+        }
+      }
+    },
+    "channel_replies": {
+      "$cid": {
+        "$pid": {
+          ".read": "auth != null",
+          ".indexOn": [
+            "timestamp"
+          ],
+          "$rid": {
+            ".write": "auth != null && ((!data.exists() && newData.child('sender_uid').val() === auth.uid) || data.child('sender_uid').val() === auth.uid || root.child('channels').child($cid).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($cid).child(auth.uid).exists())",
+            "text": {
+              ".validate": "newData.isString() && newData.val().length <= 4000"
+            }
+          }
+        }
+      }
+    },
+    "channel_reports": {
+      ".read": false,
+      "$id": {
+        ".write": "auth != null && !data.exists()"
+      }
+    },
+    "user_media": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "user_links": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "updates_feed": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "app_update": {
+      ".read": "auth != null",
+      ".write": false
+    }
+  }
+}

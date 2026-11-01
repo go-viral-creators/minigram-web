@@ -1,0 +1,47 @@
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:background="#F5F5F5">
+
+	<androidx.recyclerview.widget.RecyclerView
+		android:id="@+id/recycler_updates"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:scrollbars="none"
+		android:overScrollMode="never"
+		android:paddingTop="8dp"
+		android:paddingBottom="16dp"
+		android:clipToPadding="false" />
+
+	<LinearLayout
+		android:id="@+id/layout_updates_empty"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:gravity="center"
+		android:orientation="vertical"
+		android:visibility="gone">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="campaign"
+			android:textSize="56sp"
+			android:textColor="#BDBDBD"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:text="No updates yet"
+			android:textSize="15sp"
+			android:textColor="#9E9E9E" />
+	</LinearLayout>
+
+	<ProgressBar
+		android:id="@+id/progress_updates"
+		android:layout_width="36dp"
+		android:layout_height="36dp"
+		android:layout_gravity="center"
+		android:visibility="visible" />
+
+</FrameLayout>

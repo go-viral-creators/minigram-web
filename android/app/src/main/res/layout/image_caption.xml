@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Full-screen image preview -->
+    <ImageView
+        android:id="@+id/img_preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:background="#111111" />
+
+    <!-- Drawing canvas overlay (hidden by default) -->
+    <com.silu.minigram.DrawingView
+        android:id="@+id/drawing_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- ── Top toolbar (normal mode) ─────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/toolbar_top"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="4dp"
+        android:paddingRight="8dp"
+        android:background="#99000000"
+        android:layout_gravity="top">
+
+        <TextView
+            android:id="@+id/btn_back"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:text="arrow_back"
+                android:shadowDx="0"
+    android:shadowDy="2"
+    android:shadowRadius="4"
+            android:textSize="24sp"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Send Photo"
+            android:textSize="17sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginLeft="4dp" />
+
+        <!-- FIX Bug #3: Image counter "2 / 5" -->
+        <TextView
+            android:id="@+id/txt_image_counter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="8dp"
+            android:textSize="13sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/txt_size_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="8dp"
+            android:textSize="12sp"
+            android:textColor="#BDBDBD" />
+
+        <!-- Crop tool -->
+        <TextView
+            android:id="@+id/btn_tool_crop"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:text="crop"
+                android:shadowDx="0"
+    android:shadowDy="2"
+    android:shadowRadius="4"
+            android:textSize="22sp"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:fontFamily="@font/material_icons"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+        <!-- Draw tool -->
+        <TextView
+            android:id="@+id/btn_tool_draw"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:text="edit"
+                android:shadowDx="0"
+    android:shadowDy="2"
+    android:shadowRadius="4"
+            android:textSize="22sp"
+            android:textColor="#FFFFFF"
+            android:gravity="center"
+            android:layout_marginLeft="4dp"
+            android:fontFamily="@font/material_icons"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+
+    </LinearLayout>
+
+    <!-- ── Draw toolbar (visible in draw mode) ───────────────────── -->
+    <LinearLayout
+        android:id="@+id/toolbar_draw"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#CC000000"
+        android:layout_gravity="top"
+        android:visibility="gone"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp">
+
+            <TextView
+                android:id="@+id/btn_draw_pen"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="brush"
+                android:textSize="22sp"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:fontFamily="@font/material_icons"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <TextView
+                android:id="@+id/btn_draw_eraser"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="auto_fix_high"
+                android:textSize="22sp"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:alpha="0.5"
+                android:fontFamily="@font/material_icons"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <TextView
+                android:id="@+id/btn_draw_undo"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="undo"
+                android:textSize="22sp"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:fontFamily="@font/material_icons"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/btn_draw_done"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="DONE"
+                android:textSize="13sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:background="@drawable/btn_primary_bg"
+                android:layout_marginRight="8dp" />
+
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/seek_stroke"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="12dp"
+            android:layout_marginRight="12dp"
+            android:max="40"
+            android:progress="10" />
+
+        <HorizontalScrollView
+            android:id="@+id/scroll_colors"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:scrollbars="none"
+            android:layout_marginTop="4dp">
+
+            <LinearLayout
+                android:id="@+id/layout_colors"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp" />
+
+        </HorizontalScrollView>
+
+    </LinearLayout>
+
+    <!-- ── Upload progress bar ───────────────────────────────────── -->
+    <ProgressBar
+        android:id="@+id/progress_upload"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="5dp"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="136dp"
+        android:indeterminate="true"
+        android:visibility="gone"
+        android:progressTint="#2196F3"
+        android:progressBackgroundTint="#424242" />
+
+    <!-- ── Bottom bar (caption + send) ──────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:background="#CC1A1A1A">
+
+        <!-- FIX Bug #3: Thumbnail strip for multiple images -->
+        <HorizontalScrollView
+            android:id="@+id/scroll_thumbnails"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:scrollbars="none"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/layout_thumbnails"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingLeft="8dp"
+                android:paddingRight="8dp" />
+
+        </HorizontalScrollView>
+
+        <!-- Caption + send row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="60dp"
+            android:paddingLeft="12dp"
+            android:paddingRight="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/et_caption"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Add a caption..."
+                android:textColorHint="#757575"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:background="@null"
+                android:maxLines="4"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
+
+            <!-- Send button -->
+            <LinearLayout
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginLeft="8dp"
+                android:background="@drawable/circle_primary_bg"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/btn_send"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="send"
+                    android:textSize="26sp"
+                    android:textColor="#FFFFFF"
+                    android:gravity="center"
+                    android:fontFamily="@font/material_icons" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

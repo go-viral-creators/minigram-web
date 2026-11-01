@@ -1,0 +1,225 @@
+<ScrollView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:background="#FFFFFF"
+	android:scrollbars="none">
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingLeft="20dp"
+		android:paddingTop="8dp"
+		android:paddingRight="20dp"
+		android:paddingBottom="36dp"
+		android:orientation="vertical">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="10dp"
+			android:paddingBottom="4dp"
+			android:gravity="center_horizontal|center_vertical">
+			<View
+				android:layout_width="40dp"
+				android:layout_height="4dp"
+				android:background="#2E3248" />
+		</LinearLayout>
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="10dp"
+			android:paddingBottom="4dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal">
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginRight="12dp"
+				android:text="data_usage"
+				android:textSize="28sp"
+				android:textColor="#FF9500"
+				android:focusable="false"
+				android:fontFamily="@font/material_icons" />
+			<TextView
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:text="Data and Storage"
+				android:textSize="18sp"
+				android:textStyle="bold"
+				android:textColor="#000000"
+				android:focusable="false" />
+		</LinearLayout>
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="20dp"
+			android:layout_marginBottom="4dp"
+			android:text="AUTOMATIC MEDIA DOWNLOAD"
+			android:textSize="12sp"
+			android:textStyle="bold"
+			android:textColor="#8E8E93" />
+
+		<!-- Auto-download Images -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="12dp"
+			android:paddingBottom="12dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal">
+			<TextView
+				android:layout_width="36dp"
+				android:layout_height="wrap_content"
+				android:text="image"
+				android:textSize="20sp"
+				android:textColor="#2196F3"
+				android:focusable="false"
+				android:fontFamily="@font/material_icons" />
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:layout_weight="1">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Auto-download Images"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:focusable="false" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="2dp"
+					android:text="Off by default — tap an image to download it"
+					android:textSize="12sp"
+					android:textColor="#757575"
+					android:focusable="false" />
+			</LinearLayout>
+			<Switch
+				android:id="@+id/sw_auto_dl_images"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:focusable="false" />
+		</LinearLayout>
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:background="#F0F0F0" />
+
+		<!-- Auto-download Voice Messages -->
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="12dp"
+			android:paddingBottom="12dp"
+			android:gravity="center_vertical"
+			android:orientation="horizontal">
+			<TextView
+				android:layout_width="36dp"
+				android:layout_height="wrap_content"
+				android:text="mic"
+				android:textSize="20sp"
+				android:textColor="#2196F3"
+				android:focusable="false"
+				android:fontFamily="@font/material_icons" />
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:layout_weight="1">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Auto-download Voice Messages"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:focusable="false" />
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="2dp"
+					android:text="Off by default — tap the download icon to play"
+					android:textSize="12sp"
+					android:textColor="#757575"
+					android:focusable="false" />
+			</LinearLayout>
+			<Switch
+				android:id="@+id/sw_auto_dl_voice"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:focusable="false" />
+		</LinearLayout>
+
+		<View
+			android:layout_width="match_parent"
+			android:layout_height="1dp"
+			android:background="#F0F0F0" />
+
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="20dp"
+			android:layout_marginBottom="4dp"
+			android:text="STORAGE"
+			android:textSize="12sp"
+			android:textStyle="bold"
+			android:textColor="#8E8E93" />
+
+		<!-- Clear Cache -->
+		<LinearLayout
+			android:id="@+id/row_clear_cache"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:paddingTop="12dp"
+			android:paddingBottom="12dp"
+			android:gravity="center_vertical"
+			android:clickable="true"
+			android:focusable="true"
+			android:background="?attr/selectableItemBackground"
+			android:orientation="horizontal">
+			<TextView
+				android:layout_width="36dp"
+				android:layout_height="wrap_content"
+				android:text="delete_sweep"
+				android:textSize="20sp"
+				android:textColor="#2196F3"
+				android:focusable="false"
+				android:fontFamily="@font/material_icons" />
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:layout_weight="1">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Clear Cache"
+					android:textSize="15sp"
+					android:textColor="#000000"
+					android:focusable="false" />
+				<TextView
+					android:id="@+id/txt_cache_size"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="2dp"
+					android:text="Calculating…"
+					android:textSize="12sp"
+					android:textColor="#757575"
+					android:focusable="false" />
+			</LinearLayout>
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="chevron_right"
+				android:textSize="22sp"
+				android:textColor="#BDBDBD"
+				android:focusable="false"
+				android:fontFamily="@font/material_icons" />
+		</LinearLayout>
+
+	</LinearLayout>
+</ScrollView>

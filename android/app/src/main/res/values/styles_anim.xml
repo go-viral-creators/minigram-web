@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Add this style to AndroidManifest.xml for ChatActivity and ChannelActivity:
+        android:theme="@style/AppTheme.SlideActivity"
+
+        Or call overridePendingTransition() manually after startActivity():
+            startActivity(intent);
+            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left);
+
+        And in finish() override:
+            @Override public void finish() {
+                super.finish();
+                overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right);
+            }
+    -->
+    <style name="AppTheme.SlideActivity" parent="AppTheme">
+        <item name="android:windowAnimationStyle">@style/ActivitySlideAnimation</item>
+    </style>
+
+    <style name="ActivitySlideAnimation" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/slide_in_right</item>
+        <item name="android:activityOpenExitAnimation">@anim/slide_out_left</item>
+        <item name="android:activityCloseEnterAnimation">@anim/slide_in_left</item>
+        <item name="android:activityCloseExitAnimation">@anim/slide_out_right</item>
+    </style>
+</resources>

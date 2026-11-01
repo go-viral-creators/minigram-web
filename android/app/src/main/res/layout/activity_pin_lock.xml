@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#FFFFFF"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:text="lock"
+        android:textSize="40sp"
+        android:gravity="center"
+        android:textColor="#2196F3"
+        android:background="@drawable/bg_logo_splash"
+        android:fontFamily="@font/material_icons" />
+
+    <TextView
+        android:id="@+id/txt_pin_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="Enter PIN"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:textColor="#000000" />
+
+    <TextView
+        android:id="@+id/txt_pin_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="Enter your PIN to unlock Minigram"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:gravity="center" />
+
+    <EditText
+        android:id="@+id/edt_pin"
+        android:layout_width="200dp"
+        android:layout_height="56dp"
+        android:layout_marginTop="28dp"
+        android:gravity="center"
+        android:maxLength="6"
+        android:textSize="24sp"
+        android:letterSpacing="0.5"
+        android:textColor="#000000"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp" />
+
+    <TextView
+        android:id="@+id/txt_pin_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text=""
+        android:textSize="13sp"
+        android:textColor="#FF3B30"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/btn_pin_action"
+        android:layout_width="200dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="24dp"
+        android:text="Unlock"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#2196F3" />
+
+</LinearLayout>

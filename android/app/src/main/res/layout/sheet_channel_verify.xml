@@ -1,0 +1,184 @@
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content"
+	android:background="#FFFFFF"
+	android:orientation="vertical"
+	android:paddingLeft="20dp"
+	android:paddingRight="20dp"
+	android:paddingTop="8dp"
+	android:paddingBottom="28dp">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingTop="10dp"
+		android:paddingBottom="4dp"
+		android:gravity="center_horizontal|center_vertical">
+		<View
+			android:layout_width="40dp"
+			android:layout_height="4dp"
+			android:background="#2E3248" />
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingTop="14dp"
+		android:paddingBottom="6dp"
+		android:gravity="center_vertical">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginRight="12dp"
+			android:text="verified"
+			android:textSize="28sp"
+			android:textColor="#229ED9"
+			android:fontFamily="@font/material_icons" />
+		<TextView
+			android:id="@+id/txt_channel_name"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="Verify Your Channel"
+			android:textSize="17sp"
+			android:textStyle="bold"
+			android:textColor="#000000" />
+	</LinearLayout>
+
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginBottom="18dp"
+		android:text="Get a blue tick badge on this channel so subscribers know it's authentic."
+		android:textSize="13sp"
+		android:textColor="#757575" />
+
+	<!-- Yearly -->
+	<LinearLayout
+		android:id="@+id/card_ch_yearly"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:padding="14dp"
+		android:layout_marginBottom="10dp"
+		android:background="@drawable/plan_card_highlight_bg">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="BEST VALUE"
+			android:textSize="10sp"
+			android:textStyle="bold"
+			android:textColor="#FFFFFF"
+			android:background="@drawable/badge_pill_bg"
+			android:paddingLeft="8dp"
+			android:paddingRight="8dp"
+			android:paddingTop="2dp"
+			android:paddingBottom="2dp"
+			android:layout_marginBottom="6dp" />
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center_vertical">
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:orientation="vertical">
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Yearly"
+					android:textSize="15sp"
+					android:textStyle="bold"
+					android:textColor="#212121" />
+				<TextView
+					android:id="@+id/txt_ch_price_yearly"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="…"
+					android:textSize="12sp"
+					android:textColor="#616161" />
+			</LinearLayout>
+			<TextView
+				android:id="@+id/btn_ch_subscribe_yearly"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Verify"
+				android:textSize="12sp"
+				android:textStyle="bold"
+				android:textColor="#FFFFFF"
+				android:background="@drawable/btn_pro_bg"
+				android:paddingLeft="18dp"
+				android:paddingRight="18dp"
+				android:paddingTop="9dp"
+				android:paddingBottom="9dp" />
+		</LinearLayout>
+	</LinearLayout>
+
+	<!-- Monthly -->
+	<LinearLayout
+		android:id="@+id/card_ch_monthly"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal"
+		android:gravity="center_vertical"
+		android:padding="14dp"
+		android:layout_marginBottom="6dp"
+		android:background="@drawable/plan_card_bg">
+		<LinearLayout
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:orientation="vertical">
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="Monthly"
+				android:textSize="15sp"
+				android:textStyle="bold"
+				android:textColor="#212121" />
+			<TextView
+				android:id="@+id/txt_ch_price_monthly"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:text="…"
+				android:textSize="12sp"
+				android:textColor="#616161" />
+		</LinearLayout>
+		<TextView
+			android:id="@+id/btn_ch_subscribe_monthly"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="Verify"
+			android:textSize="12sp"
+			android:textStyle="bold"
+			android:textColor="#229ED9"
+			android:background="@drawable/btn_pro_outline_bg"
+			android:paddingLeft="18dp"
+			android:paddingRight="18dp"
+			android:paddingTop="9dp"
+			android:paddingBottom="9dp" />
+	</LinearLayout>
+
+	<TextView
+		android:id="@+id/txt_ch_current_status"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="8dp"
+		android:gravity="center"
+		android:text=""
+		android:textSize="13sp"
+		android:textColor="#229ED9"
+		android:visibility="gone" />
+
+	<ProgressBar
+		android:id="@+id/progress_ch_loading"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="12dp"
+		android:layout_gravity="center_horizontal"
+		android:indeterminate="true"
+		android:visibility="gone" />
+
+</LinearLayout>
