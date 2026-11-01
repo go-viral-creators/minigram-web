@@ -238,47 +238,15 @@ public class ChatActivity extends AppCompatActivity {
         // same button again (now showing "send") to stop and send. Dragging
         // the recording bar left past a threshold cancels it.
         btn_send.setOnClickListener(v -> {
-            if (isRecording) {
-                _stopVoiceRecording(false);
-                return;
-            }
             String text = edit_msg.getText().toString().trim();
-            if (!text.isEmpty()) {
-                _processAndSendText(text);
-            } else {
-                _startVoiceRecording();
-            }
+            if (!text.isEmpty()) _processAndSendText(text);        // mic gestures are handled by the touch listener below
         });
+        btn_send.setOnTouchListener(this::_onMicTouch);
 
-        if (layout_recording_bar != null) {
-            layout_recording_bar.setOnTouchListener((v, event) -> {
-                if (!isRecording || layout_slide_to_cancel == null) return false;
-                switch (event.getAction()) {
-                    case android.view.MotionEvent.ACTION_DOWN:
-                        slideStartX = event.getRawX();
-                        return true;
-                    case android.view.MotionEvent.ACTION_MOVE: {
-                        float dx = event.getRawX() - slideStartX;
-                        if (dx > 0) dx = 0;
-                        float maxSlide = dp(120);
-                        if (dx < -maxSlide) dx = -maxSlide;
-                        layout_slide_to_cancel.setTranslationX(dx);
-                        layout_slide_to_cancel.setAlpha(1f - (Math.abs(dx) / maxSlide) * 0.7f);
-                        return true;
-                    }
-                    case android.view.MotionEvent.ACTION_UP:
-                    case android.view.MotionEvent.ACTION_CANCEL: {
-                        float dx = layout_slide_to_cancel.getTranslationX();
-                        layout_slide_to_cancel.animate().translationX(0).alpha(1f).setDuration(150).start();
-                        if (dx <= -dp(90)) {
-                            _stopVoiceRecording(true);
-                        }
-                        return true;
-                    }
-                }
-                return false;
-            });
-        }
+        TextView trash = findViewById(R.id.btn_rec_trash);
+        TextView pause = findViewById(R.id.btn_rec_pause);
+        if (trash != null) trash.setOnClickListener(v -> _stopVoiceRecording(true));
+        if (pause != null) pause.setOnClickListener(v -> _togglePauseRecording());
 
         btn_attach_icon.setOnClickListener(v -> _openMediaPicker());
 
@@ -1542,9 +1510,8 @@ public class ChatActivity extends AppCompatActivity {
     // ----------------------------------------------------------------- voice notes (live recorder + pipeline)
     private com.silu.minigram.voice.LiveRecorder liveRecorder;
     private File rawVoiceFile;
-    private View voiceCard;
     private com.silu.minigram.voice.WaveformView voiceWave;
-    private TextView voiceTimer, voicePauseBtn;
+    private TextView voiceTimer;
 
     private void _startVoiceRecording() {
         if (isRecording) return;
@@ -1562,7 +1529,7 @@ public class ChatActivity extends AppCompatActivity {
             rawVoiceFile = new File(outDir, "raw_" + System.currentTimeMillis() + ".pcm");
             voiceFilePath = rawVoiceFile.getAbsolutePath();
 
-            _showVoiceCard();
+            _showRecordingBar();
             liveRecorder = new com.silu.minigram.voice.LiveRecorder(rawVoiceFile, new com.silu.minigram.voice.LiveRecorder.Listener() {
                 @Override public void onLevel(float level) { if (voiceWave != null) voiceWave.push(level); }
                 @Override public void onError(Exception e) {
@@ -1576,12 +1543,7 @@ public class ChatActivity extends AppCompatActivity {
             isRecording = true;
             recordingCancelled = false;
             recordingStartTime = System.currentTimeMillis();
-            if (btn_send_icon != null) btn_send_icon.setText("send");
 
-            TextView status = voiceCard.findViewById(R.id.txt_rec_status);
-            status.setText(liveRecorder.nsActive || liveRecorder.agcActive
-                    ? "\u2726 Cleaning up background noise and levelling your voice"
-                    : "\u2726 Your voice is levelled and cleaned after you stop");
 
             recordingTimerRunnable = new Runnable() {
                 @Override public void run() {
@@ -1601,35 +1563,132 @@ public class ChatActivity extends AppCompatActivity {
         }
     }
 
-    private void _showVoiceCard() {
-        if (voiceCard == null) {
-            voiceCard = getLayoutInflater().inflate(R.layout.view_voice_card, null);
-            voiceWave = voiceCard.findViewById(R.id.wave_live);
-            voiceTimer = voiceCard.findViewById(R.id.txt_rec_timer);
-            voicePauseBtn = voiceCard.findViewById(R.id.btn_rec_pause);
-            voiceCard.findViewById(R.id.btn_rec_delete).setOnClickListener(v -> _stopVoiceRecording(true));
-            voiceCard.findViewById(R.id.btn_rec_send).setOnClickListener(v -> _stopVoiceRecording(false));
-            voicePauseBtn.setOnClickListener(v -> {
-                if (liveRecorder == null) return;
-                boolean p = !liveRecorder.isPaused();
-                liveRecorder.setPaused(p);
-                voicePauseBtn.setText(p ? "mic" : "pause");
-                voicePauseBtn.setContentDescription(p ? "Resume recording" : "Pause recording");
-            });
-            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-1, -2, android.view.Gravity.BOTTOM);
-            ((android.widget.FrameLayout) findViewById(android.R.id.content)).addView(voiceCard, lp);
+    // ---- WhatsApp-style gesture: hold to record, release to send, slide left to cancel, slide up to lock ----
+    private boolean micLocked = false, micHolding = false, micTouchStartedLocked = false;
+    private float micDownX, micDownY;
+    private View lockHint;
+
+    private boolean _onMicTouch(View v, android.view.MotionEvent e) {
+        boolean textMode = !edit_msg.getText().toString().trim().isEmpty();
+        if (textMode && !isRecording) return false;                 // normal click sends the text
+        switch (e.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                micTouchStartedLocked = micLocked;
+                if (micLocked) return true;                         // tap on "send" while locked: handled on UP
+                if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.RECORD_AUDIO)
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    androidx.core.app.ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.RECORD_AUDIO}, REQ_RECORD_AUDIO);
+                    return true;
+                }
+                micDownX = e.getRawX(); micDownY = e.getRawY();
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+                for (android.view.ViewParent p = v.getParent(); p instanceof android.view.ViewGroup; p = p.getParent()) {
+                    ((android.view.ViewGroup) p).setClipChildren(false);
+                    ((android.view.ViewGroup) p).setClipToPadding(false);
+                }
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                _startVoiceRecording();
+                if (isRecording) { micHolding = true; v.animate().scaleX(1.6f).scaleY(1.6f).setDuration(120).start(); _showLockHint(v); }
+                return true;
+            case android.view.MotionEvent.ACTION_MOVE: {
+                if (!micHolding || micLocked) return true;
+                float dx = e.getRawX() - micDownX, dy = e.getRawY() - micDownY;
+                if (dx > 0) dx = 0;
+                View slide = findViewById(R.id.layout_slide_to_cancel);
+                if (slide != null) { slide.setTranslationX(dx * 0.7f); slide.setAlpha(Math.max(0.2f, 1f - Math.abs(dx) / dp(160))); }
+                if (lockHint != null) lockHint.setTranslationY(Math.max(-dp(70), Math.min(0, dy * 0.5f)));
+                if (dx < -dp(110)) { micHolding = false; _endMicGesture(v); v.performHapticFeedback(android.view.HapticFeedbackConstants.REJECT); _stopVoiceRecording(true); }
+                else if (dy < -dp(90)) { micLocked = true; micHolding = false; _endMicGesture(v); v.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM); _enterLockedUi(); }
+                return true;
+            }
+            case android.view.MotionEvent.ACTION_UP:
+            case android.view.MotionEvent.ACTION_CANCEL:
+                if (micTouchStartedLocked && micLocked) {            // tapped send while locked
+                    micLocked = false;
+                    _stopVoiceRecording(e.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL);
+                    return true;
+                }
+                if (micHolding) {
+                    micHolding = false;
+                    _endMicGesture(v);
+                    long ms = System.currentTimeMillis() - recordingStartTime;
+                    if (e.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) _stopVoiceRecording(true);
+                    else if (ms < 700) { _stopVoiceRecording(true); Toast.makeText(this, "Hold the mic to record, release to send", Toast.LENGTH_SHORT).show(); }
+                    else _stopVoiceRecording(false);
+                }
+                return true;
         }
-        voiceCard.findViewById(R.id.pill_encrypted).setVisibility(useE2ee ? View.VISIBLE : View.GONE);
-        voiceWave.reset();
-        voiceTimer.setText("0:00");
-        voicePauseBtn.setText("pause");
-        voiceCard.setAlpha(0f);
-        voiceCard.setVisibility(View.VISIBLE);
-        voiceCard.animate().alpha(1f).translationY(0f).setDuration(180).start();
+        return false;
+    }
+
+    private void _endMicGesture(View v) {
+        v.animate().scaleX(1f).scaleY(1f).setDuration(120).start();
+        if (lockHint != null) { lockHint.setVisibility(View.GONE); lockHint.setTranslationY(0); }
+        View slide = findViewById(R.id.layout_slide_to_cancel);
+        if (slide != null) { slide.setTranslationX(0); slide.setAlpha(1f); }
+    }
+
+    private void _showLockHint(View anchor) {
+        if (lockHint == null) {
+            TextView t = new TextView(this);
+            t.setText("lock\nkeyboard_arrow_up");
+            t.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this, R.font.material_icons));
+            t.setTextSize(20);
+            t.setGravity(android.view.Gravity.CENTER);
+            t.setTextColor(Ink.res(R.color.ink_text));
+            t.setBackground(Appearance.bubble(this, false));
+            t.setPadding(dp(10), dp(12), dp(10), dp(8));
+            t.setElevation(dp(6));
+            t.setContentDescription("Slide up to lock recording");
+            t.setTransformationMethod(null);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(dp(48), dp(104), android.view.Gravity.BOTTOM | android.view.Gravity.END);
+            lp.rightMargin = dp(14); lp.bottomMargin = dp(112);
+            ((android.widget.FrameLayout) findViewById(android.R.id.content)).addView(t, lp);
+            lockHint = t;
+        }
+        lockHint.setTranslationY(0);
+        lockHint.setVisibility(View.VISIBLE);
+    }
+
+    /** After sliding up: the bar becomes [trash] dot timer ~waveform~ [pause]; the big button becomes "send". */
+    private void _enterLockedUi() {
+        View slide = findViewById(R.id.layout_slide_to_cancel);
+        if (slide != null) slide.setVisibility(View.GONE);
+        View trash = findViewById(R.id.btn_rec_trash), pause = findViewById(R.id.btn_rec_pause), wave = findViewById(R.id.wave_inline);
+        if (trash != null) trash.setVisibility(View.VISIBLE);
+        if (pause != null) { pause.setVisibility(View.VISIBLE); ((TextView) pause).setText("pause"); }
+        if (wave != null) wave.setVisibility(View.VISIBLE);
+        if (btn_send_icon != null) { btn_send_icon.setText("send"); btn_send.setContentDescription("Send voice message"); }
+    }
+
+    private void _togglePauseRecording() {
+        if (liveRecorder == null) return;
+        boolean p = !liveRecorder.isPaused();
+        liveRecorder.setPaused(p);
+        TextView pause = findViewById(R.id.btn_rec_pause);
+        if (pause != null) { pause.setText(p ? "mic" : "pause"); pause.setContentDescription(p ? "Resume recording" : "Pause recording"); }
+        if (p) _stopPulseAnimation(); else _startPulseAnimation();
+    }
+
+    private void _showRecordingBar() {
+        voiceWave = findViewById(R.id.wave_inline);
+        voiceTimer = txt_recording_timer;
+        if (voiceWave != null) voiceWave.reset();
+        if (voiceTimer != null) voiceTimer.setText("0:00");
+        micLocked = false;
+        if (btn_attach_icon != null) btn_attach_icon.setVisibility(View.GONE);
+        if (linear18 != null) linear18.setVisibility(View.GONE);
+        if (layout_recording_bar != null) layout_recording_bar.setVisibility(View.VISIBLE);
+        View slide = findViewById(R.id.layout_slide_to_cancel);
+        if (slide != null) { slide.setVisibility(View.VISIBLE); slide.setTranslationX(0); slide.setAlpha(1f); }
+        for (int id : new int[]{R.id.btn_rec_trash, R.id.btn_rec_pause, R.id.wave_inline}) { View w = findViewById(id); if (w != null) w.setVisibility(View.GONE); }
+        _startPulseAnimation();
     }
 
     private void _hideVoiceCard() {
-        if (voiceCard != null) voiceCard.setVisibility(View.GONE);
+        micLocked = false; micHolding = false;
+        if (lockHint != null) lockHint.setVisibility(View.GONE);
+        if (btn_send != null) { btn_send.setScaleX(1f); btn_send.setScaleY(1f); }
     }
 
     private void _stopVoiceRecording(boolean cancelled) {
@@ -1775,7 +1834,7 @@ public class ChatActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_RECORD_AUDIO) {
             if (grantResults.length > 0 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                _startVoiceRecording(); // start immediately, no need to tap again
+                Toast.makeText(this, "Microphone allowed. Hold the mic button to record.", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Voice message ke liye microphone permission chahiye", Toast.LENGTH_SHORT).show();
             }

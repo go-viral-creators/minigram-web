@@ -37,9 +37,12 @@ public final class VoicePipeline {
                     try { x = d.process(x); append(stages, d.name()); }
                     catch (Throwable t) { Log.w("VoicePipeline", "denoiser failed, continuing without: " + t.getClass().getSimpleName()); }
                 }
+                // noise floor is already pushed down, so levelling can no longer lift it
                 Dsp.speechEq(x, LiveRecorder.SAMPLE_RATE);
+                Dsp.compress(x, LiveRecorder.SAMPLE_RATE, -26.0, 2.5, 8, 160);
                 Dsp.normalize(x, LiveRecorder.SAMPLE_RATE, -16.0);
-                append(stages, "eq+loudness");
+                Dsp.fade(x, LiveRecorder.SAMPLE_RATE);
+                append(stages, "eq>compress>loudness");
                 VoiceEncoder.Result r = VoiceEncoder.encode(x, new File(rawPcm48k.getParentFile(), "voice_" + System.nanoTime()));
                 append(stages, r.ext.equals("ogg") ? "opus" : "aac");
                 final int dur = Math.round(x.length / (float) LiveRecorder.SAMPLE_RATE);

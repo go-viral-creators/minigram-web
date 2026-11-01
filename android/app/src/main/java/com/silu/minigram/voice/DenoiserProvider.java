@@ -2,8 +2,8 @@ package com.silu.minigram.voice;
 
 import android.content.Context;
 
-/** Returns the neural denoiser if its runtime + model are present on this device, else null (pipeline skips the stage). */
+/** The speech-enhancement stage used for every voice note (spectral noise suppression, no model download needed). */
 final class DenoiserProvider {
     private DenoiserProvider() {}
-    static Denoiser get(Context c) { return null; }
+    static Denoiser get(Context c) { return new SpectralDenoiser(); }
 }

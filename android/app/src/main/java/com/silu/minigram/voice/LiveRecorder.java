@@ -41,13 +41,10 @@ public final class LiveRecorder {
     public void start() throws IOException {
         int min = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         if (min <= 0) throw new IOException("48 kHz capture not supported");
-        rec = new AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, SAMPLE_RATE,
+        rec = new AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, Math.max(min, SAMPLE_RATE / 5 * 2));
         if (rec.getState() != AudioRecord.STATE_INITIALIZED) { rec.release(); throw new IOException("microphone unavailable"); }
-        int sid = rec.getAudioSessionId();
-        try { if (NoiseSuppressor.isAvailable()) { ns = NoiseSuppressor.create(sid); if (ns != null) { ns.setEnabled(true); nsActive = true; } } } catch (Throwable ignored) { }
-        try { if (AutomaticGainControl.isAvailable()) { agc = AutomaticGainControl.create(sid); if (agc != null) { agc.setEnabled(true); agcActive = true; } } } catch (Throwable ignored) { }
-        try { if (AcousticEchoCanceler.isAvailable()) { aec = AcousticEchoCanceler.create(sid); if (aec != null) { aec.setEnabled(true); aecActive = true; } } } catch (Throwable ignored) { }
+        // No platform NS/AGC/AEC: our own SpectralDenoiser does the cleaning; stacking two suppressors makes speech sound watery.
 
         running = true;
         rec.startRecording();

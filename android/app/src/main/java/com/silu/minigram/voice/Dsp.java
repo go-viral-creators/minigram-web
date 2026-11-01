@@ -72,11 +72,32 @@ public final class Dsp {
         return n == 0 ? Double.NEGATIVE_INFINITY : -0.691 + 10 * Math.log10(sum / n);
     }
 
+    /** Feed-forward dynamic range compressor (soft knee) to even out loud/quiet speech. Threshold in dBFS. */
+    public static void compress(float[] x, int fs, double thresholdDb, double ratio, double attackMs, double releaseMs) {
+        double atk = Math.exp(-1.0 / (attackMs * 1e-3 * fs)), rel = Math.exp(-1.0 / (releaseMs * 1e-3 * fs));
+        double env = 0, knee = 6.0;
+        for (int i = 0; i < x.length; i++) {
+            double a = Math.abs(x[i]);
+            env = a > env ? atk * env + (1 - atk) * a : rel * env + (1 - rel) * a;
+            double lvl = 20 * Math.log10(env + 1e-9), over = lvl - thresholdDb, red;
+            if (2 * over < -knee) red = 0;
+            else if (2 * Math.abs(over) <= knee) red = (1 - 1 / ratio) * Math.pow(over + knee / 2, 2) / (2 * knee);
+            else red = (1 - 1 / ratio) * over;
+            x[i] *= (float) Math.pow(10, -red / 20);
+        }
+    }
+
+    /** 8 ms fade in/out so cutting the file never clicks. */
+    public static void fade(float[] x, int fs) {
+        int n = Math.min(x.length / 2, (int) (0.008 * fs));
+        for (int i = 0; i < n; i++) { float g = i / (float) n; x[i] *= g; x[x.length - 1 - i] *= g; }
+    }
+
     /** Applies gain to reach the target loudness (max +18 dB / -12 dB), then limits peaks to -1 dBFS. @return gain applied in dB. */
     public static double normalize(float[] pcm, int fs, double targetLufs) {
         double l = integratedLufs(pcm, fs);
         if (Double.isInfinite(l)) return 0;
-        double gainDb = Math.max(-12, Math.min(18, targetLufs - l));
+        double gainDb = Math.max(-12, Math.min(15, targetLufs - l));
         float g = (float) Math.pow(10, gainDb / 20);
         for (int i = 0; i < pcm.length; i++) pcm[i] *= g;
         limit(pcm, fs);
