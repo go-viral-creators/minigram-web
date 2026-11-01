@@ -517,6 +517,17 @@ public class ChannelSettingsActivity extends AppCompatActivity {
 				etHandle.setSingleLine(true);
 				layout.addView(etHandle);
 				
+				// Topics (used by Discover to match the channel with people's interests)
+				final com.silu.minigram.discover.TagPicker tags = com.silu.minigram.discover.TagPicker.attachTo(ChannelSettingsActivity.this, layout);
+				java.util.LinkedHashSet<String> curTags = new java.util.LinkedHashSet<>();
+				for (DataSnapshot t : snap.child("tags").getChildren()) curTags.add(t.getKey());
+				tags.setSelected(curTags);
+				tags.setOnChange(() -> {
+					HashMap<String, Object> tg = new HashMap<>();
+					for (String t : tags.selected()) tg.put(t, true);
+					channelRef.child("tags").setValue(tg.isEmpty() ? null : tg);
+				});
+
 				builder.setView(layout);
 				builder.setPositiveButton("Save", (d, w) -> {
 					String newName   = etName.getText().toString().trim();

@@ -130,3 +130,9 @@ test('e2ee key bundles: public read, owner-only write, ciphertext messages valid
   await assertFails(set(ref(db(C), `chats/${chatAB}/e3`), enc));                 // outsider cannot inject ciphertext
   await assertSucceeds(update(ref(db(A), `chats/${chatAB}/e1`), { ct: 'y'.repeat(100), is_edited: true })); // edit re-encrypts
 });
+
+test('channel tags (Discover): only owner/admin can set them', async () => {
+  await assertSucceeds(set(ref(db(A), 'channels/ch1/tags'), { Tech: true, Cricket: true }));
+  await assertFails(set(ref(db(C), 'channels/ch1/tags'), { Memes: true }));
+  await assertFails(set(ref(db(A), 'channels/ch1/tags/Tech'), 'yes'));            // values must be true
+});

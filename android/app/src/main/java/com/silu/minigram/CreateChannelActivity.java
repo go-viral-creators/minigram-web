@@ -55,6 +55,7 @@ public class CreateChannelActivity extends AppCompatActivity {
     private View         view121;
     private TextView     textview97;
     private EditText     et_desc;
+    private com.silu.minigram.discover.TagPicker tagPicker;
     private CheckBox     cb_private;
     private View         view122;
     private LinearLayout linear123;
@@ -102,6 +103,7 @@ public class CreateChannelActivity extends AppCompatActivity {
         view121         = findViewById(R.id.view121);
         textview97      = findViewById(R.id.textview97);
         et_desc         = findViewById(R.id.et_desc);
+        tagPicker       = com.silu.minigram.discover.TagPicker.attachAfter(this, et_desc);
         cb_private      = findViewById(R.id.cb_private);
         view122         = findViewById(R.id.view122);
         linear123       = findViewById(R.id.linear123);
@@ -367,6 +369,11 @@ public class CreateChannelActivity extends AppCompatActivity {
         channelData.put("subscriber_count", 1);
         channelData.put("privacy",          cb_private.isChecked() ? "private" : "public");
         channelData.put("created_at",       ts);
+        if (tagPicker != null && !tagPicker.selected().isEmpty()) {
+            HashMap<String, Object> tg = new HashMap<>();
+            for (String t : tagPicker.selected()) tg.put(t, true);
+            channelData.put("tags", tg);
+        }
 
         HashMap<String, Object> handleData = new HashMap<>();
         handleData.put("type", "channel");

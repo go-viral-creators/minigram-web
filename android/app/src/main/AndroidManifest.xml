@@ -180,6 +180,10 @@
 			android:exported="false" />
 
 		<activity
+			android:name=".DiscoverActivity"
+			android:exported="false" />
+
+		<activity
 			android:name=".DebugActivity"
 			android:screenOrientation="portrait"
 			android:theme="@style/AppTheme.DebugActivity" />

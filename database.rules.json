@@ -129,7 +129,8 @@
         "owner_uid",
         "handle",
         "name_lower",
-        "name"
+        "name",
+        "subscriber_count"
       ],
       "$cid": {
         ".write": "auth != null && ((!data.exists() && newData.child('owner_uid').val() === auth.uid) || root.child('channels').child($cid).child('owner_uid').val() === auth.uid || root.child('channel_admins').child($cid).child(auth.uid).exists())",
@@ -141,6 +142,12 @@
         },
         "description": {
           ".validate": "newData.isString() && newData.val().length <= 1000"
+        },
+        "tags": {
+          "$t": {
+            ".validate": "newData.val() === true"
+          },
+          ".validate": "newData.hasChildren() ? newData.val() !== null : true"
         }
       }
     },
