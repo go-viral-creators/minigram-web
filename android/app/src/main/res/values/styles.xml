@@ -21,6 +21,7 @@
         <item name="android:windowLightStatusBar">?attr/isLightTheme</item>
         <item name="android:fontFamily">@font/inter</item>
         <item name="fontFamily">@font/inter</item>
+        <item name="viewInflaterClass">com.silu.minigram.InkViewInflater</item>
         <item name="shapeAppearanceSmallComponent">@style/Ink.Shape.Small</item>
         <item name="shapeAppearanceMediumComponent">@style/Ink.Shape.Medium</item>
         <item name="shapeAppearanceLargeComponent">@style/Ink.Shape.Medium</item>

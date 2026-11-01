@@ -1,85 +1,252 @@
-<LinearLayout
-	xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:app="http://schemas.android.com/apk/res-auto"
-	xmlns:tools="http://schemas.android.com/tools"
+	android:id="@+id/main"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:orientation="vertical">
+	android:background="@color/ink_bg">
+
 	<FrameLayout
 		android:id="@+id/frame"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent">
-		<LinearLayout
-			android:id="@+id/linear7"
+
+		<ScrollView
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"
-			android:padding="24dp"
-			android:gravity="center_horizontal|center_vertical"
-			android:orientation="vertical">
-			<ImageView
-				android:id="@+id/img_logo"
-				android:layout_width="120dp"
-				android:layout_height="120dp"
-				android:src="@drawable/ic_app_logo"
-				android:scaleType="fitCenter"
-				android:adjustViewBounds="true" />
-			<TextView
-				android:id="@+id/textview13"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginTop="24dp"
-				android:text="Minigram"
-				android:textSize="32sp"
-				android:textStyle="bold"
-				android:textColor="@color/ink_text" />
-			<TextView
-				android:id="@+id/textview14"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginBottom="48dp"
-				android:text="Connect with the world"
-				android:textSize="16sp"
-				android:textColor="@color/ink_text_2" />
+			android:fillViewport="true"
+			android:scrollbars="none">
+
 			<LinearLayout
-				android:id="@+id/btn_google_login"
+				android:id="@+id/linear7"
 				android:layout_width="match_parent"
-				android:layout_height="55dp"
-				android:background="@drawable/bg_google_btn"
-				android:gravity="center_horizontal|center_vertical"
-				android:orientation="horizontal"
-				android:focusable="true"
-				android:foreground="?attr/selectableItemBackground">
+				android:layout_height="wrap_content"
+				android:gravity="center_horizontal"
+				android:orientation="vertical"
+				android:paddingStart="24dp"
+				android:paddingTop="40dp"
+				android:paddingEnd="24dp"
+				android:paddingBottom="32dp">
+
 				<ImageView
-					android:id="@+id/imageview12"
-					android:layout_width="24dp"
-					android:layout_height="24dp"
-					android:src="@drawable/ic_google"
-					android:scaleType="fitCenter" />
+					android:id="@+id/img_logo"
+					android:layout_width="84dp"
+					android:layout_height="84dp"
+					android:contentDescription="Minigram logo"
+					android:src="@drawable/ic_app_logo" />
+
 				<TextView
-					android:id="@+id/textview191"
+					android:id="@+id/textview13"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
-					android:layout_marginLeft="12dp"
-					android:text="Continue with Google"
-					android:textSize="16sp"
-					android:textStyle="bold"
-					android:textColor="@color/ink_text" />
+					android:layout_marginTop="16dp"
+					android:accessibilityHeading="true"
+					android:fontFamily="@font/newsreader"
+					android:text="Minigram"
+					android:textColor="@color/ink_text"
+					android:textSize="36sp" />
+
+				<TextView
+					android:id="@+id/textview14"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="4dp"
+					android:text="Welcome back"
+					android:textColor="@color/ink_text_2"
+					android:textSize="16sp" />
+
+				<com.google.android.material.button.MaterialButtonToggleGroup
+					android:id="@+id/toggle_mode"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="28dp"
+					app:checkedButton="@+id/btn_mode_signin"
+					app:selectionRequired="true"
+					app:singleSelection="true">
+
+					<com.google.android.material.button.MaterialButton
+						android:id="@+id/btn_mode_signin"
+						style="@style/Widget.Ink.Button.Outlined"
+						android:layout_width="0dp"
+						android:layout_height="48dp"
+						android:layout_weight="1"
+						android:text="Sign in" />
+
+					<com.google.android.material.button.MaterialButton
+						android:id="@+id/btn_mode_signup"
+						style="@style/Widget.Ink.Button.Outlined"
+						android:layout_width="0dp"
+						android:layout_height="48dp"
+						android:layout_weight="1"
+						android:text="Sign up" />
+				</com.google.android.material.button.MaterialButtonToggleGroup>
+
+				<com.google.android.material.textfield.TextInputLayout
+					android:id="@+id/til_email"
+					style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="20dp"
+					android:hint="Email"
+					app:boxCornerRadiusBottomEnd="8dp"
+					app:boxCornerRadiusBottomStart="8dp"
+					app:boxCornerRadiusTopEnd="8dp"
+					app:boxCornerRadiusTopStart="8dp"
+					app:startIconDrawable="@drawable/ic_email_24">
+
+					<com.google.android.material.textfield.TextInputEditText
+						android:id="@+id/et_email"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:autofillHints="emailAddress"
+						android:imeOptions="actionNext"
+						android:inputType="textEmailAddress"
+						android:maxLines="1" />
+				</com.google.android.material.textfield.TextInputLayout>
+
+				<com.google.android.material.textfield.TextInputLayout
+					android:id="@+id/til_password"
+					style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="14dp"
+					android:hint="Password"
+					app:boxCornerRadiusBottomEnd="8dp"
+					app:boxCornerRadiusBottomStart="8dp"
+					app:boxCornerRadiusTopEnd="8dp"
+					app:boxCornerRadiusTopStart="8dp"
+					app:endIconMode="password_toggle"
+					app:startIconDrawable="@drawable/ic_lock_24">
+
+					<com.google.android.material.textfield.TextInputEditText
+						android:id="@+id/et_password"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:autofillHints="password"
+						android:imeOptions="actionNext"
+						android:inputType="textPassword"
+						android:maxLines="1" />
+				</com.google.android.material.textfield.TextInputLayout>
+
+				<com.google.android.material.textfield.TextInputLayout
+					android:id="@+id/til_confirm"
+					style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="14dp"
+					android:hint="Confirm password"
+					android:visibility="gone"
+					app:boxCornerRadiusBottomEnd="8dp"
+					app:boxCornerRadiusBottomStart="8dp"
+					app:boxCornerRadiusTopEnd="8dp"
+					app:boxCornerRadiusTopStart="8dp"
+					app:endIconMode="password_toggle"
+					app:startIconDrawable="@drawable/ic_lock_24">
+
+					<com.google.android.material.textfield.TextInputEditText
+						android:id="@+id/et_confirm"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:imeOptions="actionDone"
+						android:inputType="textPassword"
+						android:maxLines="1" />
+				</com.google.android.material.textfield.TextInputLayout>
+
+				<TextView
+					android:id="@+id/txt_password_hint"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="6dp"
+					android:text="At least 8 characters, with a letter and a number."
+					android:textColor="@color/ink_text_2"
+					android:textSize="13sp"
+					android:visibility="gone" />
+
+				<TextView
+					android:id="@+id/btn_forgot"
+					android:layout_width="wrap_content"
+					android:layout_height="48dp"
+					android:layout_gravity="end"
+					android:background="?attr/selectableItemBackground"
+					android:clickable="true"
+					android:focusable="true"
+					android:gravity="center"
+					android:minWidth="48dp"
+					android:paddingStart="4dp"
+					android:paddingEnd="4dp"
+					android:text="Forgot password?"
+					android:textColor="@color/ink_accent"
+					android:textSize="14sp"
+					android:textStyle="bold" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/btn_primary"
+					style="@style/Widget.Ink.Button"
+					android:layout_width="match_parent"
+					android:layout_height="52dp"
+					android:layout_marginTop="8dp"
+					android:text="Sign in"
+					android:textSize="16sp" />
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="20dp"
+					android:layout_marginBottom="20dp"
+					android:gravity="center_vertical"
+					android:orientation="horizontal">
+					<View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/ink_line" />
+					<TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="12dp" android:layout_marginEnd="12dp" android:text="or" android:textColor="@color/ink_text_2" android:textSize="13sp" />
+					<View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/ink_line" />
+				</LinearLayout>
+
+				<LinearLayout
+					android:id="@+id/btn_google_login"
+					android:layout_width="match_parent"
+					android:layout_height="52dp"
+					android:background="@drawable/bg_google_btn"
+					android:clickable="true"
+					android:contentDescription="Continue with Google"
+					android:focusable="true"
+					android:foreground="?attr/selectableItemBackground"
+					android:gravity="center"
+					android:orientation="horizontal">
+					<ImageView
+						android:id="@+id/imageview12"
+						android:layout_width="22dp"
+						android:layout_height="22dp"
+						android:importantForAccessibility="no"
+						android:scaleType="fitCenter"
+						android:src="@drawable/ic_google" />
+					<TextView
+						android:id="@+id/textview191"
+						android:layout_width="wrap_content"
+						android:layout_height="wrap_content"
+						android:layout_marginStart="12dp"
+						android:text="Continue with Google"
+						android:textColor="@color/ink_text"
+						android:textSize="16sp"
+						android:textStyle="bold" />
+				</LinearLayout>
 			</LinearLayout>
-		</LinearLayout>
+		</ScrollView>
+
 		<LinearLayout
 			android:id="@+id/loadingOverlay"
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"
-			android:background="#80FFFFFF"
-			android:gravity="center_horizontal|center_vertical"
+			android:background="#80000000"
+			android:clickable="true"
+			android:focusable="true"
+			android:gravity="center"
 			android:orientation="vertical"
 			android:visibility="gone">
 			<ProgressBar
 				android:id="@+id/progressbar2"
+				style="?android:progressBarStyle"
 				android:layout_width="48dp"
 				android:layout_height="48dp"
-				android:indeterminate="true"
-				style="?android:progressBarStyle" />
+				android:indeterminate="true" />
 		</LinearLayout>
 	</FrameLayout>
-</LinearLayout>
+</FrameLayout>

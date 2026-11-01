@@ -59,6 +59,145 @@ public class LoginActivity extends AppCompatActivity {
         btn_google_login.setOnClickListener(v -> {
             if (_hasEmailPermission()) _pickEmail();
         });
+        _initEmailAuthUi();
+    }
+
+    // ─── Email + password: Sign in / Sign up / Forgot password ───────────────
+
+    private boolean signUpMode = false;
+    private com.google.android.material.textfield.TextInputLayout tilEmail, tilPassword, tilConfirm;
+    private EditText etEmail, etPassword, etConfirm;
+    private TextView btnForgot, txtPasswordHint;
+    private com.google.android.material.button.MaterialButton btnPrimary;
+
+    private void _initEmailAuthUi() {
+        tilEmail = findViewById(R.id.til_email);
+        tilPassword = findViewById(R.id.til_password);
+        tilConfirm = findViewById(R.id.til_confirm);
+        etEmail = findViewById(R.id.et_email);
+        etPassword = findViewById(R.id.et_password);
+        etConfirm = findViewById(R.id.et_confirm);
+        btnForgot = findViewById(R.id.btn_forgot);
+        txtPasswordHint = findViewById(R.id.txt_password_hint);
+        btnPrimary = findViewById(R.id.btn_primary);
+        com.google.android.material.button.MaterialButtonToggleGroup toggle = findViewById(R.id.toggle_mode);
+        toggle.addOnButtonCheckedListener((g, id, checked) -> { if (checked) _setMode(id == R.id.btn_mode_signup); });
+        btnPrimary.setOnClickListener(v -> _submit());
+        btnForgot.setOnClickListener(v -> _forgotPassword());
+        etPassword.setOnEditorActionListener((v, a, e) -> { if (!signUpMode) { _submit(); return true; } return false; });
+        etConfirm.setOnEditorActionListener((v, a, e) -> { _submit(); return true; });
+        _setMode(false);
+    }
+
+    private void _setMode(boolean signUp) {
+        signUpMode = signUp;
+        tilConfirm.setVisibility(signUp ? View.VISIBLE : View.GONE);
+        txtPasswordHint.setVisibility(signUp ? View.VISIBLE : View.GONE);
+        btnForgot.setVisibility(signUp ? View.GONE : View.VISIBLE);
+        btnPrimary.setText(signUp ? "Create account" : "Sign in");
+        textview14.setText(signUp ? "Create your account" : "Welcome back");
+        tilEmail.setError(null); tilPassword.setError(null); tilConfirm.setError(null);
+        etPassword.setImeOptions(signUp ? android.view.inputmethod.EditorInfo.IME_ACTION_NEXT : android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+    }
+
+    private static boolean _strongEnough(String p) {
+        boolean letter = false, digit = false;
+        for (char c : p.toCharArray()) { if (Character.isLetter(c)) letter = true; if (Character.isDigit(c)) digit = true; }
+        return p.length() >= 8 && letter && digit;
+    }
+
+    private void _hideKeyboard() {
+        android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (imm != null && getCurrentFocus() != null) imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+    }
+
+    private void _submit() {
+        String email = etEmail.getText().toString().trim().toLowerCase(Locale.ENGLISH);
+        String pw = etPassword.getText().toString();
+        tilEmail.setError(null); tilPassword.setError(null); tilConfirm.setError(null);
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { tilEmail.setError("Enter a valid email address"); etEmail.requestFocus(); return; }
+        if (pw.isEmpty()) { tilPassword.setError("Enter your password"); etPassword.requestFocus(); return; }
+        if (signUpMode) {
+            if (!_strongEnough(pw)) { tilPassword.setError("Use 8+ characters with a letter and a number"); etPassword.requestFocus(); return; }
+            if (!pw.equals(etConfirm.getText().toString())) { tilConfirm.setError("Passwords don't match"); etConfirm.requestFocus(); return; }
+        }
+        _hideKeyboard();
+        _loadingBar(true);
+        if (signUpMode) {
+            auth.createUserWithEmailAndPassword(email, pw).addOnCompleteListener(this, task -> {
+                _loadingBar(false);
+                if (task.isSuccessful() && auth.getCurrentUser() != null) {
+                    FirebaseUser u = auth.getCurrentUser();
+                    try { u.sendEmailVerification(); } catch (Throwable ignored) { }
+                    String raw = email.substring(0, email.indexOf('@'));
+                    Intent i = new Intent(this, CompleteProfileActivity.class);
+                    i.putExtra("uid", u.getUid());
+                    i.putExtra("email", email);
+                    i.putExtra("suggested_name", raw.isEmpty() ? "" : raw.substring(0, 1).toUpperCase(Locale.ENGLISH) + raw.substring(1).replace(".", " "));
+                    i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(i);
+                    finish();
+                } else {
+                    Exception e = task.getException();
+                    if (e instanceof com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                        tilEmail.setError("This email already has an account. Sign in, or use Forgot password.");
+                    } else if (e instanceof com.google.firebase.auth.FirebaseAuthWeakPasswordException) {
+                        tilPassword.setError("That password is too weak");
+                    } else _authError(e);
+                }
+            });
+        } else {
+            auth.signInWithEmailAndPassword(email, pw).addOnCompleteListener(this, task -> {
+                _loadingBar(false);
+                if (task.isSuccessful()) { _goToChatlist(); return; }
+                Exception e = task.getException();
+                if (e instanceof com.google.firebase.auth.FirebaseAuthInvalidUserException
+                        || e instanceof com.google.firebase.auth.FirebaseAuthInvalidCredentialsException) {
+                    tilPassword.setError("Wrong email or password. Used Google before? Tap Forgot password to set one.");
+                } else _authError(e);
+            });
+        }
+    }
+
+    private void _authError(Exception e) {
+        String m;
+        if (e instanceof com.google.firebase.FirebaseNetworkException) m = "No internet connection. Check your network and try again.";
+        else if (e instanceof com.google.firebase.FirebaseTooManyRequestsException) m = "Too many attempts. Please wait a few minutes and try again.";
+        else m = "Something went wrong. Please try again.";
+        Toast.makeText(this, m, Toast.LENGTH_LONG).show();
+    }
+
+    private void _forgotPassword() {
+        final com.google.android.material.textfield.TextInputLayout til = new com.google.android.material.textfield.TextInputLayout(this);
+        til.setHint("Email");
+        til.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        final com.google.android.material.textfield.TextInputEditText in = new com.google.android.material.textfield.TextInputEditText(til.getContext());
+        in.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        in.setText(etEmail.getText());
+        til.addView(in);
+        int p = (int) (24 * getResources().getDisplayMetrics().density);
+        android.widget.FrameLayout box = new android.widget.FrameLayout(this);
+        box.setPadding(p, p / 2, p, 0);
+        box.addView(til);
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Reset password")
+            .setMessage("We'll email you a link to choose a new password.")
+            .setView(box)
+            .setPositiveButton("Send link", (d, w) -> {
+                String email = in.getText() == null ? "" : in.getText().toString().trim().toLowerCase(Locale.ENGLISH);
+                if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    Toast.makeText(this, "Enter a valid email address", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                _loadingBar(true);
+                auth.sendPasswordResetEmail(email).addOnCompleteListener(this, t -> {
+                    _loadingBar(false);
+                    // same message whether or not the account exists, so nobody can probe which emails are registered
+                    if (t.getException() instanceof com.google.firebase.FirebaseNetworkException) _authError(t.getException());
+                    else Toast.makeText(this, "If an account exists for " + email + ", a reset link is on its way. Check spam too.", Toast.LENGTH_LONG).show();
+                });
+            })
+            .setNegativeButton("Cancel", null).show();
     }
 
     private void initializeLogic() {

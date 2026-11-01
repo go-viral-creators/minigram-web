@@ -1,316 +1,70 @@
-<ScrollView
-	android:scrollbars="none"
-	xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/main"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:background="@color/ink_surface"
-	android:fillViewport="true">
+	android:background="@color/ink_bg"
+	android:fillViewport="true"
+	android:scrollbars="none">
 
 	<LinearLayout
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:orientation="vertical"
-		android:padding="24dp">
+		android:paddingStart="24dp"
+		android:paddingTop="32dp"
+		android:paddingEnd="24dp"
+		android:paddingBottom="32dp">
 
 		<TextView
 			android:id="@+id/txt_header"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginTop="24dp"
-			android:text="Complete your profile"
-			android:textSize="24sp"
-			android:textStyle="bold"
-			android:textColor="@color/ink_text" />
+			android:accessibilityHeading="true"
+			android:text="Set up your profile"
+			android:textAppearance="@style/TextAppearance.Ink.Display" />
 
 		<TextView
 			android:id="@+id/txt_subheader"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="6dp"
-			android:layout_marginBottom="28dp"
-			android:text="Choose a username — this is how people find you on Minigram."
-			android:textSize="14sp"
-			android:textColor="@color/ink_text_2" />
-
-		<!-- ── Full Name (mandatory) ──────────────────────────────────────── -->
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Full Name"
-			android:textSize="13sp"
-			android:textStyle="bold"
-			android:textColor="@color/ink_text_2" />
-		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_marginTop="6dp"
-			android:gravity="center_vertical"
-			android:orientation="horizontal">
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="person"
-				android:textSize="22sp"
-				android:textColor="@color/ink_text_2"
-				android:fontFamily="@font/material_icons" />
-			<EditText
-				android:id="@+id/et_fullname"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:padding="12dp"
-				android:background="@android:color/transparent"
-				android:textSize="16sp"
-				android:hint="Your name"
-				android:textColorHint="@color/ink_text_2"
-				android:maxLength="40" />
-		</LinearLayout>
-		<TextView
-			android:id="@+id/txt_fullname_error"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="40dp"
-			android:layout_marginBottom="4dp"
-			android:text=""
-			android:textSize="12sp"
-			android:textColor="@color/ink_danger"
-			android:visibility="gone" />
-		<View
-			android:layout_width="match_parent"
-			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
-			android:layout_marginBottom="20dp"
-			android:background="@color/ink_line" />
+			android:text="Choose how people find you on Minigram."
+			android:textColor="@color/ink_text_2"
+			android:textSize="16sp" />
 
-		<!-- ── Username (mandatory, live-checked) ─────────────────────────── -->
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Username"
-			android:textSize="13sp"
-			android:textStyle="bold"
-			android:textColor="@color/ink_text_2" />
-		<LinearLayout
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="6dp"
-			android:gravity="center_vertical"
-			android:orientation="horizontal">
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="alternate_email"
-				android:textSize="22sp"
-				android:textColor="@color/ink_text_2"
-				android:fontFamily="@font/material_icons" />
-			<EditText
-				android:id="@+id/et_username"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:padding="12dp"
-				android:background="@android:color/transparent"
-				android:textSize="16sp"
-				android:hint="choose_a_username"
-				android:textColorHint="@color/ink_text_2"
-				android:inputType="text"
-				android:maxLength="20" />
-			<TextView
-				android:id="@+id/txt_username_status"
-				android:layout_width="24dp"
-				android:layout_height="24dp"
-				android:layout_marginRight="4dp"
-				android:gravity="center"
-				android:text=""
-				android:textSize="18sp"
-				android:fontFamily="@font/material_icons" />
-			<ProgressBar
-				android:id="@+id/progress_username_check"
-				android:layout_width="18dp"
-				android:layout_height="18dp"
-				android:layout_marginRight="8dp"
-				android:visibility="gone" />
-		</LinearLayout>
-		<TextView
-			android:id="@+id/txt_username_error"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="40dp"
-			android:layout_marginBottom="4dp"
-			android:text=""
-			android:textSize="12sp"
-			android:textColor="@color/ink_danger"
-			android:visibility="gone" />
-		<TextView
-			android:id="@+id/txt_username_hint"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="40dp"
-			android:layout_marginBottom="4dp"
-			android:text="4–20 characters: lowercase letters, numbers, underscore"
-			android:textSize="12sp"
-			android:textColor="@color/ink_text_2" />
-		<View
-			android:layout_width="match_parent"
-			android:layout_height="1dp"
-			android:layout_marginTop="8dp"
-			android:layout_marginBottom="20dp"
-			android:background="@color/ink_line" />
+            <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:text="Full name" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="8dp" android:background="@drawable/field_box" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="14dp" android:paddingEnd="14dp"><TextView android:layout_width="24dp" android:layout_height="wrap_content" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="person" android:textColor="@color/ink_text_2" android:textSize="22sp" /><EditText android:id="@+id/et_fullname" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="12dp" android:background="@null" android:hint="Your name" android:importantForAutofill="no" android:maxLines="1" android:textColor="@color/ink_text" android:textColorHint="@color/ink_text_2" android:textSize="16sp" android:inputType="textPersonName|textCapWords" /></LinearLayout>
+            <TextView android:id="@+id/txt_fullname_error" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textColor="@color/ink_danger" android:textSize="13sp" android:visibility="gone" />
+            <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:text="Username" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="8dp" android:background="@drawable/field_box" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="14dp" android:paddingEnd="14dp"><TextView android:layout_width="24dp" android:layout_height="wrap_content" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="alternate_email" android:textColor="@color/ink_text_2" android:textSize="22sp" /><EditText android:id="@+id/et_username" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="12dp" android:background="@null" android:hint="username" android:importantForAutofill="no" android:maxLines="1" android:textColor="@color/ink_text" android:textColorHint="@color/ink_text_2" android:textSize="16sp" android:inputType="textNoSuggestions|textVisiblePassword" /><ProgressBar android:id="@+id/progress_username_check" style="?android:attr/progressBarStyleSmall" android:layout_width="20dp" android:layout_height="20dp" android:visibility="gone" /><TextView android:id="@+id/txt_username_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:textSize="22sp" /></LinearLayout>
+            <TextView android:id="@+id/txt_username_error" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textColor="@color/ink_danger" android:textSize="13sp" android:visibility="gone" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="4–20 characters: lowercase letters, numbers, underscore" android:textColor="@color/ink_text_2" android:textSize="13sp" />
+            <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:text="Phone number" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="8dp" android:background="@drawable/field_box" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="14dp" android:paddingEnd="14dp"><TextView android:layout_width="24dp" android:layout_height="wrap_content" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="call" android:textColor="@color/ink_text_2" android:textSize="22sp" /><EditText android:id="@+id/et_country_code" android:layout_width="64dp" android:layout_height="match_parent" android:layout_marginStart="12dp" android:background="@null" android:hint="+91" android:importantForAutofill="no" android:inputType="phone" android:maxLength="5" android:maxLines="1" android:text="+91" android:textColor="@color/ink_text" android:textSize="16sp" android:contentDescription="Country code" /><View android:layout_width="1dp" android:layout_height="26dp" android:background="@color/ink_line" /><EditText android:id="@+id/et_phone" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="12dp" android:background="@null" android:hint="Phone number" android:importantForAutofill="no" android:maxLines="1" android:textColor="@color/ink_text" android:textColorHint="@color/ink_text_2" android:textSize="16sp" android:inputType="phone" android:maxLength="15" /><ProgressBar android:id="@+id/progress_phone_check" style="?android:attr/progressBarStyleSmall" android:layout_width="20dp" android:layout_height="20dp" android:visibility="gone" /><TextView android:id="@+id/txt_phone_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:textSize="22sp" /></LinearLayout>
+            <TextView android:id="@+id/txt_phone_error" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:textColor="@color/ink_danger" android:textSize="13sp" android:visibility="gone" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Helps people who have your number find you here. It is never shown on your profile." android:textColor="@color/ink_text_2" android:textSize="13sp" />
+            <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:text="Bio (optional)" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="56dp" android:layout_marginTop="8dp" android:background="@drawable/field_box" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="14dp" android:paddingEnd="14dp"><TextView android:layout_width="24dp" android:layout_height="wrap_content" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="info" android:textColor="@color/ink_text_2" android:textSize="22sp" /><EditText android:id="@+id/et_bio" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:layout_marginStart="12dp" android:background="@null" android:hint="Hello 👋" android:importantForAutofill="no" android:maxLines="1" android:textColor="@color/ink_text" android:textColorHint="@color/ink_text_2" android:textSize="16sp" android:inputType="textCapSentences" android:maxLength="120" /></LinearLayout>
 
-		<!-- ── Phone Number (mandatory) — Requirement 5, contacts matching ──── -->
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Phone Number"
-			android:textSize="13sp"
-			android:textStyle="bold"
-			android:textColor="@color/ink_text_2" />
-		<LinearLayout
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="6dp"
-			android:gravity="center_vertical"
-			android:orientation="horizontal">
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:text="call"
-				android:textSize="22sp"
-				android:textColor="@color/ink_text_2"
-				android:fontFamily="@font/material_icons" />
-			<EditText
-				android:id="@+id/et_country_code"
-				android:layout_width="52dp"
-				android:layout_height="wrap_content"
-				android:padding="12dp"
-				android:background="@android:color/transparent"
-				android:textSize="16sp"
-				android:text="+91"
-				android:inputType="phone"
-				android:maxLength="4" />
-			<View
-				android:layout_width="1dp"
-				android:layout_height="24dp"
-				android:background="@color/ink_line" />
-			<EditText
-				android:id="@+id/et_phone"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:layout_marginLeft="8dp"
-				android:padding="12dp"
-				android:background="@android:color/transparent"
-				android:textSize="16sp"
-				android:hint="phone number"
-				android:textColorHint="@color/ink_text_2"
-				android:inputType="phone"
-				android:maxLength="14" />
-			<TextView
-				android:id="@+id/txt_phone_status"
-				android:layout_width="24dp"
-				android:layout_height="24dp"
-				android:layout_marginRight="4dp"
-				android:gravity="center"
-				android:text=""
-				android:textSize="18sp"
-				android:fontFamily="@font/material_icons" />
-			<ProgressBar
-				android:id="@+id/progress_phone_check"
-				android:layout_width="18dp"
-				android:layout_height="18dp"
-				android:layout_marginRight="8dp"
-				android:visibility="gone" />
-		</LinearLayout>
-		<TextView
-			android:id="@+id/txt_phone_error"
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="40dp"
-			android:layout_marginBottom="4dp"
-			android:text=""
-			android:textSize="12sp"
-			android:textColor="@color/ink_danger"
-			android:visibility="gone" />
-		<TextView
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="40dp"
-			android:layout_marginBottom="4dp"
-			android:text="Lets people who have your number find you here — same as WhatsApp/Telegram"
-			android:textSize="12sp"
-			android:textColor="@color/ink_text_2" />
-		<View
-			android:layout_width="match_parent"
-			android:layout_height="1dp"
-			android:layout_marginTop="8dp"
-			android:layout_marginBottom="20dp"
-			android:background="@color/ink_line" />
-
-		<!-- ── Bio (optional) ──────────────────────────────────────────────── -->
-		<TextView
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:text="Bio (optional)"
-			android:textSize="13sp"
-			android:textStyle="bold"
-			android:textColor="@color/ink_text_2" />
-		<LinearLayout
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="6dp"
-			android:gravity="top"
-			android:orientation="horizontal">
-			<TextView
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:layout_marginTop="12dp"
-				android:text="info"
-				android:textSize="22sp"
-				android:textColor="@color/ink_text_2"
-				android:fontFamily="@font/material_icons" />
-			<EditText
-				android:id="@+id/et_bio"
-				android:layout_width="0dp"
-				android:layout_height="wrap_content"
-				android:layout_weight="1"
-				android:padding="12dp"
-				android:background="@android:color/transparent"
-				android:textSize="15sp"
-				android:hint="Tell people a little about yourself"
-				android:textColorHint="@color/ink_text_2"
-				android:inputType="textMultiLine"
-				android:minLines="2"
-				android:maxLines="4"
-				android:maxLength="150" />
-		</LinearLayout>
-		<View
-			android:layout_width="match_parent"
-			android:layout_height="1dp"
-			android:layout_marginTop="8dp"
-			android:layout_marginBottom="32dp"
-			android:background="@color/ink_line" />
-
-		<TextView
+		<com.google.android.material.button.MaterialButton
 			android:id="@+id/btn_continue"
+			style="@style/Widget.Ink.Button"
 			android:layout_width="match_parent"
-			android:layout_height="wrap_content"
-			android:gravity="center"
-			android:paddingTop="15dp"
-			android:paddingBottom="15dp"
+			android:layout_height="56dp"
+			android:layout_marginTop="32dp"
 			android:text="Continue"
-			android:textSize="16sp"
-			android:textStyle="bold"
-			android:textColor="#FFFFFF"
-			android:background="@drawable/btn_pro_bg" />
+			android:textSize="16sp" />
 
 		<ProgressBar
 			android:id="@+id/progress_saving"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_marginTop="20dp"
-			android:layout_gravity="center_horizontal"
+			style="?android:attr/progressBarStyleHorizontal"
+			android:layout_width="match_parent"
+			android:layout_height="3dp"
+			android:layout_marginTop="12dp"
 			android:indeterminate="true"
+			android:indeterminateTint="@color/ink_accent"
+			android:importantForAccessibility="no"
 			android:visibility="gone" />
-
 	</LinearLayout>
 </ScrollView>

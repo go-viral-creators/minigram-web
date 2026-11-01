@@ -534,10 +534,18 @@ public class CompleteProfileActivity extends AppCompatActivity {
                 // handles/ and phone_index/ rules block overwriting an
                 // existing entry, so this fails safely rather than
                 // hijacking it.
-                Toast.makeText(this, "That username or phone number was just taken — try again",
-                    Toast.LENGTH_LONG).show();
-                usernameAvailable = false;
-                phoneAvailable = false;
+                Exception ex = task.getException();
+                boolean denied = ex != null && String.valueOf(ex.getMessage()).toLowerCase(Locale.ENGLISH).contains("permission");
+                if (denied) {
+                    // A rules problem is not "taken" - say so (and do not block the fields)
+                    Toast.makeText(this, "Couldn't save your profile (server permission). Please update the app or try again later.",
+                        Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this, "That username or phone number was just taken — try again",
+                        Toast.LENGTH_LONG).show();
+                    usernameAvailable = false;
+                    phoneAvailable = false;
+                }
             }
         });
     }

@@ -136,3 +136,31 @@ test('channel tags (Discover): only owner/admin can set them', async () => {
   await assertFails(set(ref(db(C), 'channels/ch1/tags'), { Memes: true }));
   await assertFails(set(ref(db(A), 'channels/ch1/tags/Tech'), 'yes'));            // values must be true
 });
+
+// ---- Regression: the exact multi-path writes the app performs (profile screen showed "username or phone just taken" for everyone)
+test('CompleteProfile: brand-new user claims object handle + phone + legacy username in one write', async () => {
+  const w = {
+    'users/carol/fullname': 'Carol', 'users/carol/fullname_lower': 'carol', 'users/carol/bio': 'Hello',
+    'user_private/carol/phone': '+919625006163', 'user_private/carol/phone_cc': '+91', 'user_private/carol/phone_number': '9625006163',
+    'phone_index/919625006163': C,
+    'handles/baddevil123hh': { type: 'user', id: C }, 'usernames/baddevil123hh': C,
+    'users/carol/username': 'baddevil123hh', 'users/carol/username_lower': 'baddevil123hh', 'users/carol/handle': 'baddevil123hh',
+    'user_private/carol/email': 'c@x.com', 'users/carol/photo_url': '', 'users/carol/status': 'offline', 'users/carol/created_at': now(),
+  };
+  await assertSucceeds(update(ref(db(C)), w));
+});
+test('handles: cannot take a handle someone else owns (object or string form), owner can release/rename', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'handles/taken'), { type: 'user', id: A }); });
+  await assertFails(set(ref(db(B), 'handles/taken'), { type: 'user', id: B }));
+  await assertFails(set(ref(db(B), 'handles/taken'), null));
+  await assertFails(set(ref(db(B), 'handles/new'), { type: 'user', id: A }));          // cannot register on behalf of another user
+  await assertSucceeds(update(ref(db(A)), { 'handles/taken': null, 'handles/renamed': { type: 'user', id: A } }));
+});
+test('CreateChannel: channel + channel handle created atomically; only that owner can release it', async () => {
+  await assertSucceeds(update(ref(db(C)), {
+    'channels/chN': { owner_uid: C, name: 'N', subscriber_count: 1, privacy: 'public' },
+    'handles/mychannel': { type: 'channel', id: 'chN' } }));
+  await assertFails(set(ref(db(B), 'handles/mychannel'), null));
+  await assertSucceeds(set(ref(db(C), 'handles/mychannel'), null));
+  await assertFails(update(ref(db(B)), { 'handles/stolen': { type: 'channel', id: 'ch1' } }));   // ch1 is owned by alice
+});

@@ -60,8 +60,8 @@
     "handles": {
       ".read": "auth != null",
       "$h": {
-        ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid)",
-        ".validate": "newData.isString()"
+        ".write": "auth != null && ((!data.exists() && (newData.child('id').val() === auth.uid || newData.val() === auth.uid || (newData.child('type').val() === 'channel' && newData.parent().parent().child('channels').child(newData.child('id').val()).child('owner_uid').val() === auth.uid))) || (data.exists() && (data.child('id').val() === auth.uid || data.val() === auth.uid || (data.child('type').val() === 'channel' && root.child('channels').child(data.child('id').val()).child('owner_uid').val() === auth.uid))))",
+        ".validate": "!newData.exists() || newData.isString() || newData.hasChildren(['type','id'])"
       }
     },
     "phone_index": {
@@ -272,6 +272,13 @@
         "$f": {
           ".validate": "(newData.isString() && newData.val().length <= 120) || newData.isNumber()"
         }
+      }
+    },
+    "usernames": {
+      ".read": "auth != null",
+      "$u": {
+        ".write": "auth != null && ((!data.exists() && newData.val() === auth.uid) || data.val() === auth.uid)",
+        ".validate": "newData.isString()"
       }
     }
   }

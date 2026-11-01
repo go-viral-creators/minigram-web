@@ -23,3 +23,7 @@
     public static int i(...);
     public static int w(...);
 }
+
+# Loaded by name from the theme (viewInflaterClass) - R8 cannot see that reference
+-keep class com.silu.minigram.InkViewInflater { <init>(); }
+-keep class com.silu.minigram.IconTextView { <init>(android.content.Context, android.util.AttributeSet); }
