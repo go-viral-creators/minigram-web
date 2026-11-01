@@ -9,3 +9,5 @@ android/**/*.jks
 .rules.copy.json
 *.hprof
 android/dist/
+android/keystore.properties
+android/keystore/

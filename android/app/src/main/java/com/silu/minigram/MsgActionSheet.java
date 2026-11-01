@@ -106,8 +106,7 @@ public class MsgActionSheet extends BottomSheetDialogFragment {
         // ── Material Icons typeface (agar XML mein font nahi set kiya ho) ─
         Typeface iconFont = null;
         try {
-            iconFont = Typeface.createFromAsset(requireContext().getAssets(),
-                       "fonts/material_icons.ttf");
+            iconFont = androidx.core.content.res.ResourcesCompat.getFont(requireContext(), R.font.material_icons);
         } catch (Exception ignored) {}
 
         // ── Reaction row (channel subscribers get reactions too — always shown) ──

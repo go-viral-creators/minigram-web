@@ -272,7 +272,7 @@ public class NotificationActionReceiver extends BroadcastReceiver {
                                           int notificationId, String peerName) {
         if (nm == null) return;
         NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL_ID_CHAT)
-                .setSmallIcon(R.drawable.ic_app_logo)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(!TextUtils.isEmpty(peerName) ? peerName : "Minigram")
                 .setContentText("Reply sent")
                 .setPriority(NotificationCompat.PRIORITY_LOW)

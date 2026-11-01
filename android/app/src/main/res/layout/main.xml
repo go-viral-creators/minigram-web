@@ -1,43 +1,69 @@
-<LinearLayout
-	xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res-auto"
-	xmlns:tools="http://schemas.android.com/tools"
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:orientation="vertical">
-	<ImageView
-		android:id="@+id/logo"
-		android:layout_width="150dp"
-		android:layout_height="150dp"
-		android:src="@drawable/ic_app_logo"
-		android:scaleType="fitCenter"
-		android:adjustViewBounds="true" />
+	android:background="@color/ink_bg">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center"
+		android:gravity="center_horizontal"
+		android:orientation="vertical">
+
+		<ImageView
+			android:id="@+id/logo"
+			android:layout_width="116dp"
+			android:layout_height="116dp"
+			android:contentDescription="Minigram logo"
+			android:src="@drawable/ic_app_logo" />
+
+		<TextView
+			android:id="@+id/textview_name"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="22dp"
+			android:accessibilityHeading="true"
+			android:fontFamily="@font/newsreader"
+			android:text="Minigram"
+			android:textColor="@color/ink_text"
+			android:textSize="40sp" />
+
+		<TextView
+			android:id="@+id/textview_slogan"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="6dp"
+			android:text="Private chats, in any language"
+			android:textColor="@color/ink_text_2"
+			android:textSize="15sp" />
+
+		<ProgressBar
+			android:id="@+id/progressbar3"
+			style="?android:attr/progressBarStyleHorizontal"
+			android:layout_width="132dp"
+			android:layout_height="3dp"
+			android:layout_marginTop="44dp"
+			android:indeterminate="true"
+			android:indeterminateTint="@color/ink_accent"
+			android:importantForAccessibility="no" />
+
+		<TextView
+			android:id="@+id/textview3"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="12dp"
+			android:text="Loading…"
+			android:textColor="@color/ink_text_2"
+			android:textSize="13sp" />
+	</LinearLayout>
+
 	<TextView
-		android:id="@+id/textview_slogan"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="60dp"
-		android:gravity="center_horizontal|center_vertical"
-		android:text="One Link, Unlimited Possibilities"
-		android:textSize="18sp"
-		android:textStyle="bold"
-		android:textColor="#9C27B0"
-		android:letterSpacing="0.02" />
-	<ProgressBar
-		android:id="@+id/progressbar3"
-		android:layout_width="220dp"
-		android:layout_height="4dp"
-		android:layout_marginTop="120dp"
-		android:indeterminate="true"
-		style="?android:progressBarStyleHorizontal"
-		android:indeterminateTint="#D81B60" />
-	<TextView
-		android:id="@+id/textview3"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_marginTop="12dp"
-		android:text="Loading..."
-		android:textSize="14sp"
+		android:layout_gravity="bottom|center_horizontal"
+		android:layout_marginBottom="36dp"
+		android:text="🔒  End-to-end encrypted"
 		android:textColor="@color/ink_text_2"
-		android:fontFamily="sans-serif-medium" />
-</LinearLayout>
+		android:textSize="13sp" />
+</FrameLayout>

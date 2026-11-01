@@ -2,6 +2,10 @@ plugins {
 	id 'com.android.application'
 }
 
+def ksFile = rootProject.file('keystore.properties')
+def ksProps = new Properties()
+if (ksFile.exists()) ksFile.withInputStream { ksProps.load(it) }
+
 android {
 	compileSdk 36
 	
@@ -10,13 +14,24 @@ android {
 			enable true
 			reset()
 			include 'arm64-v8a', 'armeabi-v7a'
-			universalApk true
+			universalApk false
 		}
 	}
 
 	lint {
 		checkReleaseBuilds false
 		abortOnError false
+	}
+
+	signingConfigs {
+		release {
+			if (ksFile.exists()) {
+				storeFile rootProject.file(ksProps['storeFile'])
+				storePassword ksProps['storePassword']
+				keyAlias ksProps['keyAlias']
+				keyPassword ksProps['keyPassword']
+			}
+		}
 	}
 
 	buildFeatures {
@@ -31,6 +46,7 @@ android {
 		targetSdkVersion 36
 		versionCode 10
 		versionName "1.1.0"
+		resConfigs "en", "hi"
 		buildConfigField "boolean", "APP_CHECK_DEBUG", project.hasProperty("appCheckDebug") ? "true" : "false"
 	}
 	
@@ -39,7 +55,7 @@ android {
 			minifyEnabled true
 			shrinkResources true
 			// Debug-signed on request (sideload/testing). Replace with a real keystore before Play upload.
-			signingConfig signingConfigs.debug
+			signingConfig ksFile.exists() ? signingConfigs.release : signingConfigs.debug
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 		}
 	}

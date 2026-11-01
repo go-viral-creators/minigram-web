@@ -1039,7 +1039,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             replyIcon = new TextView(context);
             if (materialTypeface == null) {
                 try {
-                    materialTypeface = Typeface.createFromAsset(context.getAssets(), "fonts/materialfont.ttf");
+                    materialTypeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.material_icons);
                 } catch (Exception e) {
                     materialTypeface = Typeface.DEFAULT;
                 }

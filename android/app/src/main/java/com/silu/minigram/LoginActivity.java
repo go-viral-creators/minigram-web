@@ -242,6 +242,16 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onRequestPermissionsResult(int code, @NonNull String[] perms, @NonNull int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
+        if (code != 1001) return;
+        boolean ok = res.length > 0;
+        for (int r : res) if (r != android.content.pm.PackageManager.PERMISSION_GRANTED) ok = false;
+        if (ok) _pickEmail();
+        else Toast.makeText(this, "Allow Accounts + Contacts access to choose your Google account", Toast.LENGTH_LONG).show();
+    }
+
     private boolean _hasEmailPermission() {
         if (android.os.Build.VERSION.SDK_INT < 23) return true;
         if (checkSelfPermission(android.Manifest.permission.GET_ACCOUNTS)

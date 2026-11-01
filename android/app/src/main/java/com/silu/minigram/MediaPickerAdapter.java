@@ -198,8 +198,7 @@ public class MediaPickerAdapter extends BaseAdapter {
     private void _loadMaterialFont() {
         if (materialTypeface == null) {
             try {
-                materialTypeface = android.graphics.Typeface.createFromAsset(
-                    context.getAssets(), "fonts/material_icons.ttf");
+                materialTypeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.material_icons);
             } catch (Exception e) {
                 materialTypeface = android.graphics.Typeface.DEFAULT;
             }

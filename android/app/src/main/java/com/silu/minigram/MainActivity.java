@@ -125,6 +125,9 @@ public class MainActivity extends AppCompatActivity {
 	
 	private void initialize(Bundle _savedInstanceState) {
 		logo = findViewById(R.id.logo);
+		logo.setAlpha(0f); logo.setScaleX(0.8f); logo.setScaleY(0.8f);
+		logo.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(450)
+			.setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
 		textview3 = findViewById(R.id.textview3);
 		progressbar3 = findViewById(R.id.progressbar3);
 		auth = FirebaseAuth.getInstance();
