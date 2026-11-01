@@ -61,7 +61,7 @@
         <item name="android:textStyle">bold</item>
     </style>
     <style name="TextAppearance.Ink.Mono" parent="TextAppearance.Material3.BodyLarge">
-        <item name="android:fontFamily">@font/jetbrains_mono_var</item>
+        <item name="android:fontFamily">@font/jetbrains_mono</item>
         <item name="android:textColor">@color/ink_text</item>
     </style>
     <!-- Cards: white, hairline border, 6dp corners -->

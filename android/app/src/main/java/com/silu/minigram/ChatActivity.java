@@ -1395,10 +1395,10 @@ public class ChatActivity extends AppCompatActivity {
             if (translateChip == null && toolbar != null && more_options != null && more_options.getParent() == toolbar) {
                 translateChip = new TextView(this);
                 translateChip.setBackgroundResource(R.drawable.btn_pill_outline);
-                translateChip.setPadding(dp(12), 0, dp(12), 0);
-                translateChip.setMinHeight(dp(48));
+                translateChip.setPadding(dp(10), 0, dp(10), 0);
+                translateChip.setMinHeight(dp(36));
                 translateChip.setGravity(android.view.Gravity.CENTER);
-                translateChip.setTextSize(13);
+                translateChip.setTextSize(12);
                 translateChip.setTextColor(Ink.res(R.color.ink_text));
                 translateChip.setOnClickListener(v -> startActivity(new Intent(this, LanguageSettingsActivity.class)));
                 toolbar.addView(translateChip, toolbar.indexOfChild(more_options));
@@ -2475,6 +2475,11 @@ public class ChatActivity extends AppCompatActivity {
 
     @Override protected void onResume() {
         super.onResume();
+        try {
+            android.view.ViewGroup content = findViewById(android.R.id.content);
+            if (content != null && content.getChildCount() > 0) content.getChildAt(0).setBackground(Appearance.wallpaperDrawable(this));
+            if (adapter != null) adapter.notifyDataSetChanged();
+        } catch (Throwable ignored) { }
         isFirstLoad   = true;
         currentChatId = chatId;
         _resetBubbleState();

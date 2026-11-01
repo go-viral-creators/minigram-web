@@ -407,6 +407,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             return;
         }
         bindMessage((MsgVH) holder, position);
+        { MsgVH vh = (MsgVH) holder; if (vh.bubbleView != null) vh.bubbleView.setBackground(Appearance.bubble(vh.itemView.getContext(), vh.viewType == TYPE_SENT)); }
         _applyTranslationUi((MsgVH) holder, position);
     }
 
@@ -598,7 +599,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if (h.txtCaption != null) h.txtCaption.setVisibility(View.GONE);
             if (h.layoutVoiceMsg != null) h.layoutVoiceMsg.setVisibility(View.GONE);
             h.txtMsg.setVisibility(View.VISIBLE);
-            MsgRenderer.render(context, h.txtMsg, text);
+            MsgRenderer.render(context, h.txtMsg, text, h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent) : Ink.res(R.color.ink_text));
             _applySearchHighlight(h.txtMsg);
             SmartLinkMovementMethod.apply(h.txtMsg);
             if (Boolean.TRUE.equals(isForwarded)) prependForwarded(h.txtMsg);
@@ -824,7 +825,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                 if (hasCaption || Boolean.TRUE.equals(finalMsg.get("is_forwarded"))) {
                     h.txtCaption.setVisibility(View.VISIBLE);
                     h.txtCaption.setTextColor(Ink.c("#FFFFFF"));
-                    MsgRenderer.render(context, h.txtCaption, caption);
+                    MsgRenderer.render(context, h.txtCaption, caption, h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent) : Ink.res(R.color.ink_text));
                     SmartLinkMovementMethod.apply(h.txtCaption);
                     if (Boolean.TRUE.equals(finalMsg.get("is_forwarded"))) prependForwarded(h.txtCaption);
                 } else {
@@ -856,7 +857,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             } else if (caption != null && !caption.isEmpty()) {
                 h.txtCaption.setVisibility(View.VISIBLE);
                 h.txtCaption.setTextColor(Ink.c("#FFFFFF"));
-                MsgRenderer.render(context, h.txtCaption, caption);
+                MsgRenderer.render(context, h.txtCaption, caption, h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent) : Ink.res(R.color.ink_text));
                 SmartLinkMovementMethod.apply(h.txtCaption);
             } else {
                 h.txtCaption.setVisibility(View.GONE);

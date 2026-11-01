@@ -150,6 +150,8 @@
             <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="8dp" android:text="Language &amp; AI" />
 
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/card_bg" android:orientation="vertical">
+                <include layout="@layout/row_setting" android:id="@+id/row_appearance" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
                 <include layout="@layout/row_setting" android:id="@+id/row_language" />
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
                 <include layout="@layout/row_setting" android:id="@+id/row_models" />

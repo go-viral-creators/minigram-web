@@ -43,6 +43,8 @@ public class SettingsActivity extends AppCompatActivity {
                 () -> startActivity(new Intent(this, PrivacySecurityActivity.class)));
         row(b.rowNotifications, "notifications_none", "Notifications", "Sounds, previews, channels",
                 this::openSystemNotificationSettings);
+        row(b.rowAppearance, "palette", "Appearance", "Theme, text size, bubbles, wallpaper",
+                () -> startActivity(new Intent(this, AppearanceActivity.class)));
         row(b.rowLanguage, "translate", "Language & Translation", languageSummary(),
                 () -> startActivity(new Intent(this, LanguageSettingsActivity.class)));
         row(b.rowModels, "memory", "Offline AI models", "Translation packs, voice clean-up",

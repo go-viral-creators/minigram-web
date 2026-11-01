@@ -16,7 +16,7 @@
 		android:paddingBottom="4dp"
 		android:text="Today"
 		android:textSize="12sp"
-		android:textColor="#555555"
+		android:textColor="@color/ink_text_2"
 		android:background="@drawable/date_chip_bg"
 		android:elevation="1dp" />
 </LinearLayout>

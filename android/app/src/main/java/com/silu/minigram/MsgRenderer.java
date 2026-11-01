@@ -35,6 +35,13 @@ public class MsgRenderer {
     private static final int BTN_BG     = Ink.c("#1A73E8"); // Material Blue
     private static final int BTN_TXT    = Color.WHITE;
 
+    /** Text colour for the bubble this TextView lives in (white on sent bubbles, ink on received). */
+    public static void render(Context ctx, TextView tv, String text, int textColor) {
+        defaultColor = textColor;
+        try { render(ctx, tv, text); } finally { defaultColor = 0; }
+    }
+    private static int defaultColor = 0;
+
     public static void render(Context ctx, TextView tv, String text) {
         if (text == null || text.isEmpty()) {
             tv.setText("");
@@ -272,9 +279,10 @@ public class MsgRenderer {
     private static void resetStyle(TextView tv) {
         tv.setBackgroundResource(0);
         tv.setBackgroundColor(Color.TRANSPARENT);
-        tv.setTypeface(Typeface.DEFAULT);
-        tv.setTextSize(15f);
-        tv.setTextColor(Ink.c("#212121"));
+        Typeface inter = androidx.core.content.res.ResourcesCompat.getFont(tv.getContext(), R.font.inter);
+        tv.setTypeface(inter != null ? inter : Typeface.DEFAULT);
+        tv.setTextSize(Appearance.textSp(tv.getContext()));
+        tv.setTextColor(defaultColor != 0 ? defaultColor : Ink.res(R.color.ink_text));
         tv.setHorizontallyScrolling(false);
         tv.setPadding(0, 0, 0, 0); 
         tv.setLineSpacing(0f, 1f);

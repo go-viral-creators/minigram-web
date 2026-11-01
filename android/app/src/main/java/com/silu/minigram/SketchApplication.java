@@ -57,6 +57,7 @@ public class SketchApplication extends Application {
                 });
         SketchLogger.startLogging();
         AppLock.install(this);
+        Appearance.applyTheme(this);
 
         // ═══════════════════════════════════════════════════════════════════
         // STEP 2 — Firebase ko khud, defensively initialize karo.
