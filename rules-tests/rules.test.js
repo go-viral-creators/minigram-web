@@ -164,3 +164,19 @@ test('CreateChannel: channel + channel handle created atomically; only that owne
   await assertSucceeds(set(ref(db(C), 'handles/mychannel'), null));
   await assertFails(update(ref(db(B)), { 'handles/stolen': { type: 'channel', id: 'ch1' } }));   // ch1 is owned by alice
 });
+
+test('existing user changes username/phone when old handle/phone entries do not exist (null write to missing node)', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const d = ctx.database();
+    await set(ref(d, 'users/dave'), { fullname: 'Dave', handle: 'baddevil123hh', username: 'baddevil123hh' });   // legacy profile, no handles/ entry
+  });
+  const D = 'dave';
+  await assertSucceeds(update(ref(db(D)), {
+    'users/dave/fullname': 'Bad Devil', 'users/dave/fullname_lower': 'bad devil', 'users/dave/bio': 'Hello',
+    'user_private/dave/phone': '+918532081568', 'user_private/dave/phone_cc': '+91', 'user_private/dave/phone_number': '8532081568',
+    'phone_index/918532081568': D,
+    'handles/baddevil123hh': null,                                   // release old (never existed)
+    'handles/baddevil': { type: 'user', id: D }, 'usernames/baddevil': D,
+    'users/dave/username': 'baddevil', 'users/dave/username_lower': 'baddevil', 'users/dave/handle': 'baddevil' }));
+  await assertSucceeds(update(ref(db(D)), { 'phone_index/910000000000': null }));   // release a phone key that was never claimed
+});
