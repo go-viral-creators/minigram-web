@@ -3,7 +3,7 @@
 	android:id="@+id/main"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:background="#FFFFFF">
+	android:background="@color/ink_surface">
 
 	<LinearLayout
 		android:layout_width="match_parent"
@@ -17,7 +17,7 @@
 			android:paddingLeft="4dp"
 			android:paddingRight="16dp"
 			android:gravity="center_vertical"
-			android:background="#FFFFFF"
+			android:background="@color/ink_surface"
 			android:elevation="4dp"
 			android:orientation="horizontal">
 
@@ -27,7 +27,7 @@
 				android:layout_height="48dp"
 				android:text="close"
 				android:textSize="24sp"
-				android:textColor="#212121"
+				android:textColor="@color/ink_text"
 				android:gravity="center"
 				android:fontFamily="@font/material_icons"
 				android:background="?attr/selectableItemBackgroundBorderless" />
@@ -41,7 +41,7 @@
 				android:text="Forward to..."
 				android:textSize="18sp"
 				android:textStyle="bold"
-				android:textColor="#212121"
+				android:textColor="@color/ink_text"
 				android:singleLine="true"
 				android:ellipsize="end" />
 
@@ -55,7 +55,7 @@
 			android:paddingRight="16dp"
 			android:paddingTop="4dp"
 			android:paddingBottom="10dp"
-			android:background="#FFFFFF">
+			android:background="@color/ink_surface">
 
 			<EditText
 				android:id="@+id/et_forward_search"
@@ -66,8 +66,8 @@
 				android:paddingRight="16dp"
 				android:hint="Search chats and channels"
 				android:textSize="15sp"
-				android:textColor="#212121"
-				android:textColorHint="#9E9E9E"
+				android:textColor="@color/ink_text"
+				android:textColorHint="@color/ink_text_2"
 				android:singleLine="true"
 				android:imeOptions="actionSearch"
 				android:inputType="text" />
@@ -77,7 +77,7 @@
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
-			android:background="#F0F0F0" />
+			android:background="@color/ink_surface_alt" />
 
 		<!-- Empty state: no chats/channels at all -->
 		<LinearLayout
@@ -94,7 +94,7 @@
 				android:layout_height="wrap_content"
 				android:text="No chats or channels to forward to"
 				android:textSize="15sp"
-				android:textColor="#9E9E9E" />
+				android:textColor="@color/ink_text_2" />
 
 		</LinearLayout>
 
@@ -106,7 +106,7 @@
 			android:layout_marginTop="40dp"
 			android:text="No matches found"
 			android:textSize="15sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:gravity="center"
 			android:visibility="gone" />
 
@@ -131,7 +131,7 @@
 		android:layout_gravity="bottom"
 		android:orientation="horizontal"
 		android:gravity="center_vertical"
-		android:background="#FFFFFF"
+		android:background="@color/ink_surface"
 		android:elevation="8dp"
 		android:paddingLeft="16dp"
 		android:paddingRight="16dp"

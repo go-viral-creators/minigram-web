@@ -2,7 +2,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#FFFFFF"
+    android:background="@color/ink_surface"
     android:paddingBottom="24dp">
 
     <View
@@ -21,7 +21,7 @@
         android:layout_marginTop="4dp"
         android:text="close"
         android:textSize="22sp"
-        android:textColor="#9E9E9E"
+        android:textColor="@color/ink_text_2"
         android:fontFamily="@font/material_icons"
         android:padding="8dp"
         android:clickable="true"
@@ -51,7 +51,7 @@
             android:text="Full Name"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:textColor="#111111" />
+            android:textColor="@color/ink_text" />
         <ImageView
             android:id="@+id/img_verified_badge"
             android:layout_width="18dp"
@@ -69,7 +69,7 @@
         android:layout_marginTop="2dp"
         android:text="● Offline"
         android:textSize="12sp"
-        android:textColor="#9E9E9E" />
+        android:textColor="@color/ink_text_2" />
 
     <TextView
         android:id="@+id/txt_username"
@@ -79,7 +79,7 @@
         android:layout_marginTop="4dp"
         android:text="@username"
         android:textSize="14sp"
-        android:textColor="#2196F3" />
+        android:textColor="@color/ink_accent" />
 
     <View
         android:layout_width="match_parent"
@@ -87,7 +87,7 @@
         android:layout_marginLeft="24dp"
         android:layout_marginRight="24dp"
         android:layout_marginTop="16dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <TextView
         android:id="@+id/txt_bio"
@@ -99,7 +99,7 @@
         android:text="No bio"
         android:textSize="14sp"
         android:lineSpacingExtra="4dp"
-        android:textColor="#424242"
+        android:textColor="@color/ink_text"
         android:gravity="center" />
 
     <LinearLayout

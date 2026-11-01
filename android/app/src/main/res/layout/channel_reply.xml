@@ -23,7 +23,7 @@
 			android:gravity="center_horizontal|center_vertical"
 			android:text="arrow_back"
 			android:textSize="22sp"
-			android:textColor="#000000"
+			android:textColor="@color/ink_text"
 			android:fontFamily="@font/material_icons"
 			android:focusable="true" />
 		<TextView
@@ -34,7 +34,7 @@
 			android:text="Replies"
 			android:textSize="18sp"
 			android:textStyle="bold"
-			android:textColor="#000000"
+			android:textColor="@color/ink_text"
 			android:layout_weight="1"
 			android:maxLines="1"
 			android:ellipsize="end" />
@@ -52,7 +52,7 @@
 			android:gravity="center_horizontal|center_vertical"
 			android:text="No replies yet.\nBe the first to reply!"
 			android:textSize="15sp"
-			android:textColor="#757575"
+			android:textColor="@color/ink_text_2"
 			android:lineSpacingMultiplier="1.5"
 			android:visibility="visible" />
 		<ListView
@@ -93,9 +93,9 @@
 			android:paddingBottom="10dp"
 			android:background="@drawable/input_bubble_bg"
 			android:textSize="15sp"
-			android:textColor="#000000"
+			android:textColor="@color/ink_text"
 			android:hint="Write a reply…"
-			android:textColorHint="#757575"
+			android:textColorHint="@color/ink_text_2"
 			android:layout_weight="1"
 			android:inputType="textCapSentences|textMultiLine"
 			android:paddingStart="14dp"
@@ -110,7 +110,7 @@
 			android:gravity="center_horizontal|center_vertical"
 			android:text="send"
 			android:textSize="22sp"
-			android:textColor="#1A73E8"
+			android:textColor="@color/ink_accent"
 			android:layout_marginStart="6dp"
 			android:fontFamily="@font/material_icons"
 			android:focusable="true" />

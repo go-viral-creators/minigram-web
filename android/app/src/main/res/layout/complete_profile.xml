@@ -3,7 +3,7 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:background="#FFFFFF"
+	android:background="@color/ink_surface"
 	android:fillViewport="true">
 
 	<LinearLayout
@@ -20,7 +20,7 @@
 			android:text="Complete your profile"
 			android:textSize="24sp"
 			android:textStyle="bold"
-			android:textColor="#212121" />
+			android:textColor="@color/ink_text" />
 
 		<TextView
 			android:id="@+id/txt_subheader"
@@ -30,7 +30,7 @@
 			android:layout_marginBottom="28dp"
 			android:text="Choose a username — this is how people find you on Minigram."
 			android:textSize="14sp"
-			android:textColor="#757575" />
+			android:textColor="@color/ink_text_2" />
 
 		<!-- ── Full Name (mandatory) ──────────────────────────────────────── -->
 		<TextView
@@ -39,7 +39,7 @@
 			android:text="Full Name"
 			android:textSize="13sp"
 			android:textStyle="bold"
-			android:textColor="#616161" />
+			android:textColor="@color/ink_text_2" />
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -51,7 +51,7 @@
 				android:layout_height="wrap_content"
 				android:text="person"
 				android:textSize="22sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:fontFamily="@font/material_icons" />
 			<EditText
 				android:id="@+id/et_fullname"
@@ -62,7 +62,7 @@
 				android:background="@android:color/transparent"
 				android:textSize="16sp"
 				android:hint="Your name"
-				android:textColorHint="#9E9E9E"
+				android:textColorHint="@color/ink_text_2"
 				android:maxLength="40" />
 		</LinearLayout>
 		<TextView
@@ -73,14 +73,14 @@
 			android:layout_marginBottom="4dp"
 			android:text=""
 			android:textSize="12sp"
-			android:textColor="#E53935"
+			android:textColor="@color/ink_danger"
 			android:visibility="gone" />
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
 			android:layout_marginBottom="20dp"
-			android:background="#E0E0E0" />
+			android:background="@color/ink_line" />
 
 		<!-- ── Username (mandatory, live-checked) ─────────────────────────── -->
 		<TextView
@@ -89,7 +89,7 @@
 			android:text="Username"
 			android:textSize="13sp"
 			android:textStyle="bold"
-			android:textColor="#616161" />
+			android:textColor="@color/ink_text_2" />
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -101,7 +101,7 @@
 				android:layout_height="wrap_content"
 				android:text="alternate_email"
 				android:textSize="22sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:fontFamily="@font/material_icons" />
 			<EditText
 				android:id="@+id/et_username"
@@ -112,7 +112,7 @@
 				android:background="@android:color/transparent"
 				android:textSize="16sp"
 				android:hint="choose_a_username"
-				android:textColorHint="#9E9E9E"
+				android:textColorHint="@color/ink_text_2"
 				android:inputType="text"
 				android:maxLength="20" />
 			<TextView
@@ -139,7 +139,7 @@
 			android:layout_marginBottom="4dp"
 			android:text=""
 			android:textSize="12sp"
-			android:textColor="#E53935"
+			android:textColor="@color/ink_danger"
 			android:visibility="gone" />
 		<TextView
 			android:id="@+id/txt_username_hint"
@@ -149,13 +149,13 @@
 			android:layout_marginBottom="4dp"
 			android:text="4–20 characters: lowercase letters, numbers, underscore"
 			android:textSize="12sp"
-			android:textColor="#9E9E9E" />
+			android:textColor="@color/ink_text_2" />
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
 			android:layout_marginBottom="20dp"
-			android:background="#E0E0E0" />
+			android:background="@color/ink_line" />
 
 		<!-- ── Phone Number (mandatory) — Requirement 5, contacts matching ──── -->
 		<TextView
@@ -164,7 +164,7 @@
 			android:text="Phone Number"
 			android:textSize="13sp"
 			android:textStyle="bold"
-			android:textColor="#616161" />
+			android:textColor="@color/ink_text_2" />
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -176,7 +176,7 @@
 				android:layout_height="wrap_content"
 				android:text="call"
 				android:textSize="22sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:fontFamily="@font/material_icons" />
 			<EditText
 				android:id="@+id/et_country_code"
@@ -191,7 +191,7 @@
 			<View
 				android:layout_width="1dp"
 				android:layout_height="24dp"
-				android:background="#E0E0E0" />
+				android:background="@color/ink_line" />
 			<EditText
 				android:id="@+id/et_phone"
 				android:layout_width="0dp"
@@ -202,7 +202,7 @@
 				android:background="@android:color/transparent"
 				android:textSize="16sp"
 				android:hint="phone number"
-				android:textColorHint="#9E9E9E"
+				android:textColorHint="@color/ink_text_2"
 				android:inputType="phone"
 				android:maxLength="14" />
 			<TextView
@@ -229,7 +229,7 @@
 			android:layout_marginBottom="4dp"
 			android:text=""
 			android:textSize="12sp"
-			android:textColor="#E53935"
+			android:textColor="@color/ink_danger"
 			android:visibility="gone" />
 		<TextView
 			android:layout_width="match_parent"
@@ -238,13 +238,13 @@
 			android:layout_marginBottom="4dp"
 			android:text="Lets people who have your number find you here — same as WhatsApp/Telegram"
 			android:textSize="12sp"
-			android:textColor="#9E9E9E" />
+			android:textColor="@color/ink_text_2" />
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
 			android:layout_marginBottom="20dp"
-			android:background="#E0E0E0" />
+			android:background="@color/ink_line" />
 
 		<!-- ── Bio (optional) ──────────────────────────────────────────────── -->
 		<TextView
@@ -253,7 +253,7 @@
 			android:text="Bio (optional)"
 			android:textSize="13sp"
 			android:textStyle="bold"
-			android:textColor="#616161" />
+			android:textColor="@color/ink_text_2" />
 		<LinearLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
@@ -266,7 +266,7 @@
 				android:layout_marginTop="12dp"
 				android:text="info"
 				android:textSize="22sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:fontFamily="@font/material_icons" />
 			<EditText
 				android:id="@+id/et_bio"
@@ -277,7 +277,7 @@
 				android:background="@android:color/transparent"
 				android:textSize="15sp"
 				android:hint="Tell people a little about yourself"
-				android:textColorHint="#9E9E9E"
+				android:textColorHint="@color/ink_text_2"
 				android:inputType="textMultiLine"
 				android:minLines="2"
 				android:maxLines="4"
@@ -288,7 +288,7 @@
 			android:layout_height="1dp"
 			android:layout_marginTop="8dp"
 			android:layout_marginBottom="32dp"
-			android:background="#E0E0E0" />
+			android:background="@color/ink_line" />
 
 		<TextView
 			android:id="@+id/btn_continue"

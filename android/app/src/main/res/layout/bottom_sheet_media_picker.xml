@@ -61,7 +61,7 @@
                 android:text="send"
                 android:fontFamily="@font/materialfont"
                 android:textSize="26sp"
-                android:textColor="#1A73E8"
+                android:textColor="@color/ink_accent"
                 android:alpha="0.4"/>
 
             <TextView

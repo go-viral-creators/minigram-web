@@ -5,7 +5,7 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical"
-	android:background="#FFFFFF">
+	android:background="@color/ink_surface">
 
 	<!-- Toolbar -->
 	<LinearLayout
@@ -15,7 +15,7 @@
 		android:gravity="center_vertical"
 		android:paddingLeft="4dp"
 		android:paddingRight="16dp"
-		android:background="#FFFFFF"
+		android:background="@color/ink_surface"
 		android:elevation="2dp">
 		<TextView
 			android:id="@+id/btn_back"
@@ -24,7 +24,7 @@
 			android:gravity="center"
 			android:text="arrow_back"
 			android:textSize="24sp"
-			android:textColor="#212121"
+			android:textColor="@color/ink_text"
 			android:background="?attr/selectableItemBackgroundBorderless"
 			android:fontFamily="@font/material_icons" />
 		<TextView
@@ -34,7 +34,7 @@
 			android:text="Minigram Pro"
 			android:textSize="18sp"
 			android:textStyle="bold"
-			android:textColor="#212121" />
+			android:textColor="@color/ink_text" />
 	</LinearLayout>
 
 	<ScrollView
@@ -66,7 +66,7 @@
 					android:gravity="center"
 					android:text="workspace_premium"
 					android:textSize="40sp"
-					android:textColor="#229ED9"
+					android:textColor="@color/ink_accent"
 					android:background="@drawable/circle_bg_light"
 					android:fontFamily="@font/material_icons" />
 				<TextView
@@ -76,7 +76,7 @@
 					android:text="Upgrade to Minigram Pro"
 					android:textSize="20sp"
 					android:textStyle="bold"
-					android:textColor="#212121" />
+					android:textColor="@color/ink_text" />
 				<TextView
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
@@ -84,7 +84,7 @@
 					android:gravity="center"
 					android:text="No ads, a blue tick on your profile, and every feature unlocked."
 					android:textSize="13sp"
-					android:textColor="#757575" />
+					android:textColor="@color/ink_text_2" />
 			</LinearLayout>
 
 			<!-- Feature list -->
@@ -108,7 +108,7 @@
 						android:gravity="center"
 						android:text="block"
 						android:textSize="18sp"
-						android:textColor="#229ED9"
+						android:textColor="@color/ink_accent"
 						android:fontFamily="@font/material_icons" />
 					<TextView
 						android:layout_width="wrap_content"
@@ -116,7 +116,7 @@
 						android:layout_marginLeft="12dp"
 						android:text="No Ads — anywhere in the app"
 						android:textSize="14sp"
-						android:textColor="#212121" />
+						android:textColor="@color/ink_text" />
 				</LinearLayout>
 
 				<LinearLayout
@@ -130,7 +130,7 @@
 						android:gravity="center"
 						android:text="verified"
 						android:textSize="18sp"
-						android:textColor="#229ED9"
+						android:textColor="@color/ink_accent"
 						android:fontFamily="@font/material_icons" />
 					<TextView
 						android:layout_width="wrap_content"
@@ -138,7 +138,7 @@
 						android:layout_marginLeft="12dp"
 						android:text="Blue tick on your profile"
 						android:textSize="14sp"
-						android:textColor="#212121" />
+						android:textColor="@color/ink_text" />
 				</LinearLayout>
 
 				<LinearLayout
@@ -152,7 +152,7 @@
 						android:gravity="center"
 						android:text="lock_open"
 						android:textSize="18sp"
-						android:textColor="#229ED9"
+						android:textColor="@color/ink_accent"
 						android:fontFamily="@font/material_icons" />
 					<TextView
 						android:layout_width="wrap_content"
@@ -160,7 +160,7 @@
 						android:layout_marginLeft="12dp"
 						android:text="All Pro features unlocked"
 						android:textSize="14sp"
-						android:textColor="#212121" />
+						android:textColor="@color/ink_text" />
 				</LinearLayout>
 			</LinearLayout>
 
@@ -211,7 +211,7 @@
 								android:text="Yearly"
 								android:textSize="16sp"
 								android:textStyle="bold"
-								android:textColor="#212121" />
+								android:textColor="@color/ink_text" />
 							<TextView
 								android:id="@+id/txt_price_yearly"
 								android:layout_width="wrap_content"
@@ -219,7 +219,7 @@
 								android:layout_marginTop="2dp"
 								android:text="…"
 								android:textSize="13sp"
-								android:textColor="#616161" />
+								android:textColor="@color/ink_text_2" />
 						</LinearLayout>
 						<TextView
 							android:id="@+id/btn_subscribe_yearly"
@@ -257,7 +257,7 @@
 							android:text="Monthly"
 							android:textSize="16sp"
 							android:textStyle="bold"
-							android:textColor="#212121" />
+							android:textColor="@color/ink_text" />
 						<TextView
 							android:id="@+id/txt_price_monthly"
 							android:layout_width="wrap_content"
@@ -265,7 +265,7 @@
 							android:layout_marginTop="2dp"
 							android:text="…"
 							android:textSize="13sp"
-							android:textColor="#616161" />
+							android:textColor="@color/ink_text_2" />
 					</LinearLayout>
 					<TextView
 						android:id="@+id/btn_subscribe_monthly"
@@ -274,7 +274,7 @@
 						android:text="Subscribe"
 						android:textSize="13sp"
 						android:textStyle="bold"
-						android:textColor="#229ED9"
+						android:textColor="@color/ink_accent"
 						android:background="@drawable/btn_pro_outline_bg"
 						android:paddingLeft="20dp"
 						android:paddingRight="20dp"
@@ -293,7 +293,7 @@
 				android:gravity="center"
 				android:text=""
 				android:textSize="13sp"
-				android:textColor="#229ED9"
+				android:textColor="@color/ink_accent"
 				android:visibility="gone" />
 
 			<TextView
@@ -305,7 +305,7 @@
 				android:gravity="center"
 				android:text="Cancel anytime from Google Play → Subscriptions. Auto-renews until cancelled."
 				android:textSize="11sp"
-				android:textColor="#9E9E9E" />
+				android:textColor="@color/ink_text_2" />
 
 			<ProgressBar
 				android:id="@+id/progress_loading"

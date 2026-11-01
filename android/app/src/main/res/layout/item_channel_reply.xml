@@ -37,7 +37,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="#000000"
+                android:textColor="@color/ink_text"
                 android:textSize="13sp"
                 android:textStyle="bold"
                 android:maxLines="1"
@@ -48,7 +48,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:textColor="#000000"
+                android:textColor="@color/ink_text"
                 android:textSize="11sp"/>
 
             <TextView
@@ -59,7 +59,7 @@
                 android:gravity="center"
                 android:text="delete"
                 android:textSize="16sp"
-                android:textColor="#212121"
+                android:textColor="@color/ink_text"
                 android:fontFamily="@font/material_icons"
                 android:clickable="true"
                 android:focusable="true"
@@ -74,7 +74,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:textColor="#424242"
+            android:textColor="@color/ink_text"
             android:textSize="14sp"
             android:lineSpacingMultiplier="1.3"/>
 

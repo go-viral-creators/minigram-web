@@ -119,7 +119,7 @@ public class PrivacySecurityActivity extends AppCompatActivity {
 
         // ── Tip box background ─────────────────────────────────────────────
         GradientDrawable tipBg = new GradientDrawable();
-        tipBg.setColor(Color.parseColor("#1A2744"));
+        tipBg.setColor(Ink.c("#1A2744"));
         tipBg.setCornerRadius(dp(10));
         findViewById(R.id.tip_box).setBackground(tipBg);
 
@@ -447,7 +447,7 @@ public class PrivacySecurityActivity extends AppCompatActivity {
 
     private void applyCardBg(View view) {
         GradientDrawable gd = new GradientDrawable();
-        gd.setColor(Color.parseColor("#FFFFFF"));
+        gd.setColor(Ink.res(R.color.ink_surface));
         gd.setCornerRadius(dp(14));
         view.setBackground(gd);
         view.setClipToOutline(true);
@@ -456,7 +456,7 @@ public class PrivacySecurityActivity extends AppCompatActivity {
     private void applyRipple(View view) {
         StateListDrawable sl = new StateListDrawable();
         GradientDrawable pressed = new GradientDrawable();
-        pressed.setColor(Color.parseColor("#22253A"));
+        pressed.setColor(Ink.c("#22253A"));
         sl.addState(new int[]{android.R.attr.state_pressed}, pressed);
         sl.addState(new int[]{}, new GradientDrawable());
         view.setBackground(sl);

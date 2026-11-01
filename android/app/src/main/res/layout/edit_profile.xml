@@ -5,7 +5,7 @@
 	android:id="@+id/main"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:background="#FFFFFF">
+	android:background="@color/ink_surface">
 	<LinearLayout
 		android:id="@+id/linear81"
 		android:layout_width="match_parent"
@@ -17,7 +17,7 @@
 			android:layout_height="56dp"
 			android:paddingLeft="16dp"
 			android:paddingRight="16dp"
-			android:background="#FFFFFF"
+			android:background="@color/ink_surface"
 			android:gravity="center_vertical"
 			android:orientation="horizontal"
 			android:elevation="4dp">
@@ -29,7 +29,7 @@
 				android:gravity="center_horizontal|center_vertical"
 				android:text="arrow_back"
 				android:textSize="30sp"
-				android:textColor="#212121"
+				android:textColor="@color/ink_text"
 				android:fontFamily="@font/material_icons" />
 			<TextView
 				android:id="@+id/textview174"
@@ -39,7 +39,7 @@
 				android:text="Edit Profile"
 				android:textSize="18sp"
 				android:textStyle="bold"
-				android:textColor="#212121"
+				android:textColor="@color/ink_text"
 				android:layout_weight="1" />
 			<TextView
 				android:id="@+id/btn_save"
@@ -49,7 +49,7 @@
 				android:gravity="center_horizontal|center_vertical"
 				android:text="done"
 				android:textSize="30sp"
-				android:textColor="#1A73E8"
+				android:textColor="@color/ink_accent"
 				android:fontFamily="@font/material_icons" />
 		</LinearLayout>
 		<ScrollView
@@ -117,7 +117,7 @@
 						android:layout_height="wrap_content"
 						android:text="person"
 						android:textSize="24sp"
-						android:textColor="#757575"
+						android:textColor="@color/ink_text_2"
 						android:layout_gravity="center_vertical"
 						android:fontFamily="@font/material_icons" />
 					<EditText
@@ -129,8 +129,8 @@
 						android:background="@android:color/transparent"
 						android:textSize="16sp"
 						android:hint="Full Name"
-                        android:textColor="#000000"
-						android:textColorHint="#616161" />
+                        android:textColor="@color/ink_text"
+						android:textColorHint="@color/ink_text_2" />
 				</LinearLayout>
 				<TextView
 					android:id="@+id/txt_fullname_error"
@@ -140,7 +140,7 @@
 					android:layout_marginBottom="8dp"
 					android:text=""
 					android:textSize="12sp"
-					android:textColor="#E53935"
+					android:textColor="@color/ink_danger"
 					android:visibility="gone" />
 				<View
 					android:id="@+id/view183"
@@ -148,7 +148,7 @@
 					android:layout_height="1dp"
 					android:layout_marginLeft="40dp"
 					android:layout_marginBottom="20dp"
-					android:background="#EEEEEE" />
+					android:background="@color/ink_surface_alt" />
 				<TextView
 					android:id="@+id/textview181"
 					android:layout_width="match_parent"
@@ -169,7 +169,7 @@
 						android:layout_height="wrap_content"
 						android:text="alternate_email"
 						android:textSize="24sp"
-						android:textColor="#757575"
+						android:textColor="@color/ink_text_2"
 						android:layout_gravity="center_vertical"
 						android:fontFamily="@font/material_icons" />
 					<EditText
@@ -181,8 +181,8 @@
 						android:background="@android:color/transparent"
 						android:textSize="16sp"
 						android:hint="Username"
-                        android:textColor="#000000"
-						android:textColorHint="#616161" />
+                        android:textColor="@color/ink_text"
+						android:textColorHint="@color/ink_text_2" />
 				</LinearLayout>
 				<TextView
 					android:id="@+id/txt_username_error"
@@ -192,7 +192,7 @@
 					android:layout_marginBottom="8dp"
 					android:text=""
 					android:textSize="12sp"
-					android:textColor="#E53935"
+					android:textColor="@color/ink_danger"
 					android:visibility="gone" />
 				<View
 					android:id="@+id/view185"
@@ -200,7 +200,7 @@
 					android:layout_height="1dp"
 					android:layout_marginLeft="40dp"
 					android:layout_marginBottom="20dp"
-					android:background="#EEEEEE" />
+					android:background="@color/ink_surface_alt" />
 
 				<!-- ── Phone Number (Requirement 5) ────────────────────────── -->
 				<LinearLayout
@@ -213,7 +213,7 @@
 						android:layout_height="wrap_content"
 						android:text="call"
 						android:textSize="24sp"
-						android:textColor="#757575"
+						android:textColor="@color/ink_text_2"
 						android:layout_gravity="center_vertical"
 						android:fontFamily="@font/material_icons" />
 					<EditText
@@ -224,13 +224,13 @@
 						android:background="@android:color/transparent"
 						android:textSize="16sp"
 						android:text="+91"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:inputType="phone"
 						android:maxLength="4" />
 					<View
 						android:layout_width="1dp"
 						android:layout_height="24dp"
-						android:background="#E0E0E0" />
+						android:background="@color/ink_line" />
 					<EditText
 						android:id="@+id/et_phone"
 						android:layout_width="0dp"
@@ -241,8 +241,8 @@
 						android:background="@android:color/transparent"
 						android:textSize="16sp"
 						android:hint="Phone number"
-						android:textColor="#000000"
-						android:textColorHint="#616161"
+						android:textColor="@color/ink_text"
+						android:textColorHint="@color/ink_text_2"
 						android:inputType="phone"
 						android:maxLength="14" />
 				</LinearLayout>
@@ -254,14 +254,14 @@
 					android:layout_marginBottom="8dp"
 					android:text=""
 					android:textSize="12sp"
-					android:textColor="#E53935"
+					android:textColor="@color/ink_danger"
 					android:visibility="gone" />
 				<View
 					android:layout_width="match_parent"
 					android:layout_height="1dp"
 					android:layout_marginLeft="40dp"
 					android:layout_marginBottom="20dp"
-					android:background="#EEEEEE" />
+					android:background="@color/ink_surface_alt" />
 
 				<TextView
 					android:id="@+id/textview182"
@@ -284,7 +284,7 @@
 						android:gravity="center_horizontal"
 						android:text="info"
 						android:textSize="24sp"
-						android:textColor="#757575"
+						android:textColor="@color/ink_text_2"
 						android:layout_gravity="center_vertical"
 						android:fontFamily="@font/material_icons" />
 					<EditText
@@ -295,8 +295,8 @@
 						android:background="@android:color/transparent"
 						android:textSize="16sp"
 						android:hint="Bio (optional)"
-						android:textColorHint="#616161"
-                        android:textColor="#000000"
+						android:textColorHint="@color/ink_text_2"
+                        android:textColor="@color/ink_text"
 						android:inputType="textMultiLine" />
 				</LinearLayout>
 				<TextView
@@ -305,7 +305,7 @@
 					android:layout_height="wrap_content"
 					android:text="Any details you provide will be visible on your public profile."
 					android:textSize="12sp"
-					android:textColor="#BDBDBD"
+					android:textColor="@color/ink_text_2"
 					android:layout_gravity="center_horizontal" />
 			</LinearLayout>
 		</ScrollView>
@@ -342,7 +342,7 @@
 				android:layout_marginTop="12dp"
 				android:text="Loading..."
 				android:textSize="14sp"
-				android:textColor="#000000" />
+				android:textColor="@color/ink_text" />
 		</LinearLayout>
 	</LinearLayout>
 </FrameLayout>

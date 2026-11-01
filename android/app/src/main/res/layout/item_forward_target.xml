@@ -61,7 +61,7 @@
 			android:layout_height="wrap_content"
 			android:text="User"
 			android:textSize="16sp"
-			android:textColor="#212121"
+			android:textColor="@color/ink_text"
 			android:singleLine="true"
 			android:ellipsize="end" />
 
@@ -71,7 +71,7 @@
 			android:layout_height="wrap_content"
 			android:text=""
 			android:textSize="12.5sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:singleLine="true"
 			android:ellipsize="end"
 			android:visibility="gone" />

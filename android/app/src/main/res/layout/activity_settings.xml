@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ink_bg"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:accessibilityHeading="true"
+                android:text="Settings"
+                android:textAppearance="@style/TextAppearance.Ink.Display" />
+
+            <!-- Profile card -->
+            <LinearLayout
+                android:id="@+id/row_my_profile"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/card_bg"
+                android:contentDescription="Open my profile"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:minHeight="72dp"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <FrameLayout android:layout_width="56dp" android:layout_height="56dp">
+                    <ImageView
+                        android:id="@+id/img_settings_avatar"
+                        android:layout_width="56dp"
+                        android:layout_height="56dp"
+                        android:importantForAccessibility="no"
+                        android:scaleType="centerCrop" />
+                    <ImageView
+                        android:id="@+id/img_settings_badge"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="top|start"
+                        android:contentDescription="Pro member"
+                        android:src="@drawable/ic_verified_badge"
+                        android:visibility="gone" />
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@+id/txt_settings_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/ink_text"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/txt_settings_username"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="View your profile"
+                        android:textColor="@color/ink_text_2"
+                        android:textSize="15sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/material_icons"
+                    android:importantForAccessibility="no"
+                    android:text="chevron_right"
+                    android:textColor="@color/ink_text_2"
+                    android:textSize="24sp" />
+            </LinearLayout>
+
+            <!-- Pro card (hidden for Pro members) -->
+            <LinearLayout
+                android:id="@+id/btn_minigram_pro"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/plan_card_highlight_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:minHeight="64dp"
+                android:orientation="horizontal"
+                android:padding="14dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/material_icons"
+                    android:importantForAccessibility="no"
+                    android:text="workspace_premium"
+                    android:textColor="@color/ink_accent"
+                    android:textSize="26sp" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="14dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Minigram Pro"
+                        android:textColor="@color/ink_text"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="No ads · Blue tick · All features"
+                        android:textColor="@color/ink_text_2"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="8dp" android:text="Account" />
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/card_bg" android:orientation="vertical">
+                <include layout="@layout/row_setting" android:id="@+id/row_edit_profile" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
+                <include layout="@layout/row_setting" android:id="@+id/btn_privacy" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
+                <include layout="@layout/row_setting" android:id="@+id/row_notifications" />
+            </LinearLayout>
+
+            <TextView style="@style/TextAppearance.Ink.Eyebrow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:layout_marginBottom="8dp" android:text="App" />
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/card_bg" android:orientation="vertical">
+                <include layout="@layout/row_setting" android:id="@+id/btn_data_storage" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_line" />
+                <include layout="@layout/row_setting" android:id="@+id/btn_about" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btn_logout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:background="@drawable/card_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:minHeight="52dp"
+                android:orientation="horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Log out"
+                    android:textColor="@color/ink_danger"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvDisplayAppVersion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center"
+                android:textColor="@color/ink_text_2"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <include android:id="@+id/bottom_nav" layout="@layout/view_bottom_nav" />
+</LinearLayout>

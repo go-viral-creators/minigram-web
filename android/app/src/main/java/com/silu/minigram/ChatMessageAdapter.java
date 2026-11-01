@@ -318,7 +318,7 @@ public class ChatMessageAdapter extends BaseAdapter {
             if (layoutVoiceMsg != null) layoutVoiceMsg.setVisibility(View.GONE);
             txtMsg.setVisibility(View.VISIBLE);
             txtMsg.setText("🚫 This message was deleted");
-            txtMsg.setTextColor(Color.parseColor("#9E9E9E"));
+            txtMsg.setTextColor(Ink.c("#9E9E9E"));
             txtMsg.setTypeface(null, Typeface.ITALIC);
             txtMsg.setMovementMethod(null);
             txtMsg.setOnTouchListener(null);
@@ -340,7 +340,7 @@ public class ChatMessageAdapter extends BaseAdapter {
                         int end = sb.length();
                         sb.setSpan(new StyleSpan(Typeface.BOLD), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         if ("You".equals(replySender))
-                            sb.setSpan(new ForegroundColorSpan(Color.parseColor("#25D366")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            sb.setSpan(new ForegroundColorSpan(Ink.c("#25D366")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         sb.append(replyPrev);
                         txtReply.setText(sb);
                     } else {
@@ -420,7 +420,7 @@ public class ChatMessageAdapter extends BaseAdapter {
                     if (txtCaption != null) {
                         txtCaption.setVisibility(View.VISIBLE);
                         txtCaption.setText("⚠  Upload failed  ·  Tap to retry");
-                        txtCaption.setTextColor(Color.parseColor("#FF6B6B"));
+                        txtCaption.setTextColor(Ink.c("#FF6B6B"));
                     }
 
                     // Tap image to retry
@@ -525,7 +525,7 @@ public class ChatMessageAdapter extends BaseAdapter {
                 if (txtCaption != null) {
                     if (hasCaption || Boolean.TRUE.equals(isForwarded)) {
                         txtCaption.setVisibility(View.VISIBLE);
-                        txtCaption.setTextColor(Color.parseColor("#FFFFFF")); // reset color
+                        txtCaption.setTextColor(Ink.c("#FFFFFF")); // reset color
                         MsgRenderer.render(context, txtCaption, caption);
                         SmartLinkMovementMethod.apply(txtCaption);
                         if (Boolean.TRUE.equals(isForwarded)) prependForwarded(txtCaption);
@@ -551,10 +551,10 @@ public class ChatMessageAdapter extends BaseAdapter {
                 if ("failed".equals(uploadState)) {
                     txtCaption.setVisibility(View.VISIBLE);
                     txtCaption.setText("⚠  Upload failed  ·  Tap to retry");
-                    txtCaption.setTextColor(Color.parseColor("#FF6B6B"));
+                    txtCaption.setTextColor(Ink.c("#FF6B6B"));
                 } else if (caption != null && !caption.isEmpty()) {
                     txtCaption.setVisibility(View.VISIBLE);
-                    txtCaption.setTextColor(Color.parseColor("#FFFFFF"));
+                    txtCaption.setTextColor(Ink.c("#FFFFFF"));
                     MsgRenderer.render(context, txtCaption, caption);
                     SmartLinkMovementMethod.apply(txtCaption);
                 } else {
@@ -815,21 +815,21 @@ public class ChatMessageAdapter extends BaseAdapter {
         if (hasLocalUri) {
             if ("uploading".equals(uploadState) || uploadState == null) {
                 txtTick.setText("schedule");
-                txtTick.setTextColor(Color.parseColor("#9E9E9E"));
+                txtTick.setTextColor(Ink.c("#9E9E9E"));
             } else if ("failed".equals(uploadState)) {
                 txtTick.setText("error_outline");
-                txtTick.setTextColor(Color.parseColor("#FF6B6B"));
+                txtTick.setTextColor(Ink.c("#FF6B6B"));
             }
         } else {
             if ("read".equals(msgStatus)) {
                 txtTick.setText("done_all");
-                txtTick.setTextColor(Color.parseColor("#1A73E8"));
+                txtTick.setTextColor(Ink.c("#1A73E8"));
             } else if ("delivered".equals(msgStatus)) {
                 txtTick.setText("done_all");
-                txtTick.setTextColor(Color.parseColor("#9E9E9E"));
+                txtTick.setTextColor(Ink.c("#9E9E9E"));
             } else {
                 txtTick.setText("check");
-                txtTick.setTextColor(Color.parseColor("#9E9E9E"));
+                txtTick.setTextColor(Ink.c("#9E9E9E"));
             }
         }
     }
@@ -857,7 +857,7 @@ public class ChatMessageAdapter extends BaseAdapter {
             replyIcon.setTypeface(materialTypeface);
             replyIcon.setText("reply");
             replyIcon.setTextSize(20);
-            replyIcon.setTextColor(Color.parseColor("#1A73E8"));
+            replyIcon.setTextColor(Ink.c("#1A73E8"));
             replyIcon.setAlpha(0f);
             replyIcon.setVisibility(View.VISIBLE);
             if (rowView instanceof ViewGroup) {
@@ -941,10 +941,10 @@ public class ChatMessageAdapter extends BaseAdapter {
         android.text.SpannableStringBuilder sb =
             new android.text.SpannableStringBuilder(tv.getText());
         while (idx >= 0) {
-            sb.setSpan(new android.text.style.BackgroundColorSpan(Color.parseColor("#FFF176")),
+            sb.setSpan(new android.text.style.BackgroundColorSpan(Ink.c("#FFF176")),
                 idx, idx + needle.length(),
                 android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            sb.setSpan(new ForegroundColorSpan(Color.parseColor("#000000")),
+            sb.setSpan(new ForegroundColorSpan(Ink.c("#000000")),
                 idx, idx + needle.length(),
                 android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             idx = lowerHay.indexOf(needle, idx + needle.length());

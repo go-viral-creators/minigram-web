@@ -34,14 +34,14 @@
 				android:layout_width="3dp"
 				android:layout_height="match_parent"
 				android:layout_marginRight="8dp"
-				android:background="#388E3C" />
+				android:background="@color/colorReplyAccentSent" />
 			<TextView
 				android:id="@+id/txt_reply_quote"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:text="Original"
 				android:textSize="12sp"
-				android:textColor="#1B5E20"
+				android:textColor="@color/colorReplyAccentSent"
 				android:maxLines="2"
 				android:ellipsize="end"
 				android:focusable="false" />
@@ -143,7 +143,7 @@
 				android:layout_marginLeft="6dp"
 				android:text="0:00"
 				android:textSize="11sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_on_sent_2"
 				android:focusable="false" />
 		</LinearLayout>
 		<TextView
@@ -156,7 +156,7 @@
 			android:paddingLeft="4dp"
 			android:paddingRight="4dp"
 			android:textSize="14sp"
-			android:textColor="#1A1A1A"
+			android:textColor="@color/ink_on_sent"
 			android:clickable="false"
 			android:visibility="gone"
 			android:focusable="false" />
@@ -171,7 +171,7 @@
 			android:paddingRight="4dp"
 			android:text="Message"
 			android:textSize="15sp"
-			android:textColor="#1A1A1A"
+			android:textColor="@color/ink_on_sent"
 			android:clickable="false"
 			android:focusable="false" />
 		<LinearLayout
@@ -182,7 +182,7 @@
 			android:layout_marginRight="6dp"
 			android:layout_marginTop="4dp"
 			android:orientation="vertical"
-			android:background="#F0F2F5"
+			android:background="#22FFFFFF"
 			android:visibility="gone">
 			<ImageView
 				android:id="@+id/img_link_preview"
@@ -202,7 +202,7 @@
 					android:text=""
 					android:textSize="10sp"
 					android:textAllCaps="true"
-					android:textColor="#9E9E9E" />
+					android:textColor="@color/ink_on_sent_2" />
 				<TextView
 					android:id="@+id/txt_link_preview_title"
 					android:layout_width="match_parent"
@@ -213,7 +213,7 @@
 					android:textStyle="bold"
 					android:maxLines="2"
 					android:ellipsize="end"
-					android:textColor="#1A1A1A" />
+					android:textColor="@color/ink_on_sent" />
 				<TextView
 					android:id="@+id/txt_link_preview_desc"
 					android:layout_width="match_parent"
@@ -223,7 +223,7 @@
 					android:textSize="12sp"
 					android:maxLines="2"
 					android:ellipsize="end"
-					android:textColor="#616161" />
+					android:textColor="@color/ink_on_sent_2" />
 			</LinearLayout>
 		</LinearLayout>
 		<TextView
@@ -235,7 +235,7 @@
 			android:text="edited"
 			android:textSize="10sp"
 			android:textStyle="italic"
-			android:textColor="#8E8E8E"
+			android:textColor="@color/ink_on_sent_2"
 			android:visibility="gone"
 			android:focusable="false" />
 		<TextView
@@ -272,7 +272,7 @@
 				android:layout_marginRight="4dp"
 				android:text="push_pin"
 				android:textSize="12sp"
-				android:textColor="#1A73E8"
+				android:textColor="@color/colorReplyAccentSent"
 				android:visibility="gone"
 				android:fontFamily="@font/material_icons"
 				android:focusable="false" />
@@ -282,7 +282,7 @@
 				android:layout_height="wrap_content"
 				android:text="12:00"
 				android:textSize="10sp"
-				android:textColor="#8E8E8E"
+				android:textColor="@color/ink_on_sent_2"
 				android:focusable="false" />
 			<TextView
 				android:id="@+id/txt_tick_status"
@@ -291,7 +291,7 @@
 				android:layout_marginLeft="3dp"
 				android:text="check"
 				android:textSize="13sp"
-				android:textColor="#9E9E9E"
+				android:textColor="@color/ink_on_sent_2"
 				android:fontFamily="@font/material_icons"
 				android:focusable="false" />
 		</LinearLayout>

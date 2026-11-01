@@ -25,7 +25,7 @@
 				android:id="@+id/drag_handle"
 				android:layout_width="40dp"
 				android:layout_height="4dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear243"
@@ -42,7 +42,7 @@
 				android:layout_marginRight="12dp"
 				android:text=""
 				android:textSize="28sp"
-				android:textColor="#2196F3"
+				android:textColor="@color/ink_accent"
 				android:focusable="false"
 				android:fontFamily="@font/material_icons" />
 			<LinearLayout
@@ -58,7 +58,7 @@
 					android:text="Privacy &amp; Security"
 					android:textSize="20sp"
 					android:textStyle="bold"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:focusable="false" />
 				<TextView
 					android:id="@+id/textview192"
@@ -67,7 +67,7 @@
 					android:layout_marginTop="2dp"
 					android:text="Manage your account safety settings"
 					android:textSize="13sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:focusable="false" />
 			</LinearLayout>
 		</LinearLayout>
@@ -82,7 +82,7 @@
 			android:text="SECURITY"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -109,7 +109,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -124,7 +124,7 @@
 						android:layout_height="wrap_content"
 						android:text="App Lock"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview195"
@@ -133,7 +133,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Require biometrics / PIN to open app"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<Switch
@@ -148,7 +148,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/linear250"
 				android:layout_width="match_parent"
@@ -164,7 +164,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -179,7 +179,7 @@
 						android:layout_height="wrap_content"
 						android:text="Screenshot Protection"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview197"
@@ -188,7 +188,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Block screenshots inside the app"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<Switch
@@ -210,7 +210,7 @@
 			android:text="PRIVACY"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -237,7 +237,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -252,7 +252,7 @@
 						android:layout_height="wrap_content"
 						android:text="Online Status Visible"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview200"
@@ -261,7 +261,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Others can see when you’re online"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<Switch
@@ -269,7 +269,7 @@
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:textSize="12sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:checked="true"
 					android:focusable="false" />
 			</LinearLayout>
@@ -278,7 +278,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/linear257"
 				android:layout_width="match_parent"
@@ -294,7 +294,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -309,7 +309,7 @@
 						android:layout_height="wrap_content"
 						android:text="Last Seen"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview202"
@@ -318,7 +318,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Show your last active time to others"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<Switch
@@ -334,7 +334,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/linear260"
 				android:layout_width="match_parent"
@@ -350,7 +350,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -365,7 +365,7 @@
 						android:layout_height="wrap_content"
 						android:text="Read Receipts"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview204"
@@ -374,7 +374,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Let others know when you’ve read their messages"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<Switch
@@ -397,7 +397,7 @@
 			android:text="NOTIFICATIONS"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -424,7 +424,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -439,7 +439,7 @@
 						android:layout_height="wrap_content"
 						android:text="Message Preview"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview207"
@@ -448,7 +448,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Show message content in notifications"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<Switch
@@ -471,7 +471,7 @@
 			android:text="DATA &amp; STORAGE"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -499,7 +499,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -514,7 +514,7 @@
 						android:layout_height="wrap_content"
 						android:text="Clear Chat Cache"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/txt_cache_size"
@@ -523,7 +523,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Calculating..."
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<TextView
@@ -532,7 +532,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2E3248"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 			</LinearLayout>
@@ -541,7 +541,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/row_privacy_policy"
 				android:layout_width="match_parent"
@@ -558,7 +558,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2196F3"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -573,7 +573,7 @@
 						android:layout_height="wrap_content"
 						android:text="Privacy Policy"
 						android:textSize="15sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<TextView
@@ -582,7 +582,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2E3248"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 			</LinearLayout>
@@ -598,7 +598,7 @@
 			android:text="ACCOUNT"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -626,7 +626,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#EF5350"
+					android:textColor="@color/ink_danger"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 				<LinearLayout
@@ -641,7 +641,7 @@
 						android:layout_height="wrap_content"
 						android:text="Delete My Account"
 						android:textSize="15sp"
-						android:textColor="#EF5350"
+						android:textColor="@color/ink_danger"
 						android:focusable="false" />
 					<TextView
 						android:id="@+id/textview213"
@@ -650,7 +650,7 @@
 						android:layout_marginTop="2dp"
 						android:text="Permanently remove all your data"
 						android:textSize="12sp"
-						android:textColor="#000000"
+						android:textColor="@color/ink_text"
 						android:focusable="false" />
 				</LinearLayout>
 				<TextView
@@ -659,7 +659,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2E3248"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 			</LinearLayout>
@@ -684,7 +684,7 @@
 				android:layout_marginRight="10dp"
 				android:text=""
 				android:textSize="16sp"
-				android:textColor="#7986CB"
+				android:textColor="@color/ink_accent"
 				android:focusable="false"
 				android:fontFamily="@font/material_icons" />
 			<TextView
@@ -693,7 +693,7 @@
 				android:layout_height="wrap_content"
 				android:text="Some changes (online status, last seen) take effect for new sessions."
 				android:textSize="12sp"
-				android:textColor="#000000"
+				android:textColor="@color/ink_text"
 				android:layout_weight="1"
 				android:focusable="false"
 				android:lineSpacingExtra="2dp" />

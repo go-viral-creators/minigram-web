@@ -11,7 +11,7 @@
 		android:id="@+id/skeleton_icon"
 		android:layout_width="48dp"
 		android:layout_height="48dp"
-		android:background="#E0E0E0"
+		android:background="@color/ink_line"
 		android:layout_marginEnd="12dp" />
 	<LinearLayout
 		android:id="@+id/linear4"
@@ -24,11 +24,11 @@
 			android:layout_width="140dp"
 			android:layout_height="12dp"
 			android:layout_marginBottom="8dp"
-			android:background="#E0E0E0" />
+			android:background="@color/ink_line" />
 		<View
 			android:id="@+id/skeleton_line2"
 			android:layout_width="100dp"
 			android:layout_height="12dp"
-			android:background="#E0E0E0" />
+			android:background="@color/ink_line" />
 	</LinearLayout>
 </LinearLayout>

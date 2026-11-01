@@ -24,15 +24,15 @@ import java.util.regex.MatchResult;
 public class MsgRenderer {
 
     // GitHub Dark palette for Code Blocks
-    private static final int CODE_BG    = Color.parseColor("#1A73E8");
-    private static final int CODE_TEXT  = Color.parseColor("#E3F2FD");
+    private static final int CODE_BG    = Ink.c("#1A73E8");
+    private static final int CODE_TEXT  = Ink.c("#E3F2FD");
     
     // Theme for Inline Mono Text
-    private static final int INLINE_BG  = Color.parseColor("#1A73E8");
-    private static final int INLINE_TXT = Color.parseColor("#E3F2FD");
+    private static final int INLINE_BG  = Ink.c("#1A73E8");
+    private static final int INLINE_TXT = Ink.c("#E3F2FD");
     
     // Theme for Inline Buttons
-    private static final int BTN_BG     = Color.parseColor("#1A73E8"); // Material Blue
+    private static final int BTN_BG     = Ink.c("#1A73E8"); // Material Blue
     private static final int BTN_TXT    = Color.WHITE;
 
     public static void render(Context ctx, TextView tv, String text) {
@@ -274,7 +274,7 @@ public class MsgRenderer {
         tv.setBackgroundColor(Color.TRANSPARENT);
         tv.setTypeface(Typeface.DEFAULT);
         tv.setTextSize(15f);
-        tv.setTextColor(Color.parseColor("#212121"));
+        tv.setTextColor(Ink.c("#212121"));
         tv.setHorizontallyScrolling(false);
         tv.setPadding(0, 0, 0, 0); 
         tv.setLineSpacing(0f, 1f);

@@ -38,6 +38,6 @@
 		android:layout_marginTop="12dp"
 		android:text="Loading..."
 		android:textSize="14sp"
-		android:textColor="#9E9E9E"
+		android:textColor="@color/ink_text_2"
 		android:fontFamily="sans-serif-medium" />
 </LinearLayout>

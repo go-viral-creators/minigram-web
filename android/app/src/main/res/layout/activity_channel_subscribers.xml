@@ -5,14 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/ink_surface">
 
     <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="4dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -25,7 +25,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <LinearLayout
@@ -40,13 +40,13 @@
                 android:text="Subscribers"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#000000" />
+                android:textColor="@color/ink_text" />
             <TextView
                 android:id="@+id/txt_sub_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="12sp"
-                android:textColor="#757575" />
+                android:textColor="@color/ink_text_2" />
         </LinearLayout>
 
     </LinearLayout>
@@ -57,14 +57,14 @@
         android:layout_height="wrap_content"
         android:padding="12dp"
         android:gravity="center_vertical"
-        android:background="#F5F5F7"
+        android:background="@color/ink_surface_alt"
         android:orientation="horizontal">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="search"
             android:textSize="18sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:layout_marginRight="8dp"
             android:fontFamily="@font/material_icons" />
         <EditText
@@ -75,7 +75,7 @@
             android:background="@null"
             android:hint="Search subscribers"
             android:textSize="15sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:inputType="text"
             android:maxLines="1" />
     </LinearLayout>
@@ -96,9 +96,9 @@
             android:gravity="center"
             android:text="person_add"
             android:textSize="20sp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/ink_on_accent"
             android:background="@drawable/circle_bg"
-            android:backgroundTint="#229ED9"
+            android:backgroundTint="@color/ink_accent"
             android:fontFamily="@font/material_icons" />
         <TextView
             android:layout_width="0dp"
@@ -108,9 +108,9 @@
             android:text="Add Subscribers"
             android:textSize="15sp"
             android:textStyle="bold"
-            android:textColor="#229ED9" />
+            android:textColor="@color/ink_accent" />
     </LinearLayout>
-    <View android:layout_width="match_parent" android:layout_height="8dp" android:background="#F5F5F7" />
+    <View android:layout_width="match_parent" android:layout_height="8dp" android:background="@color/ink_surface_alt" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -129,7 +129,7 @@
             android:layout_gravity="center"
             android:text="Loading…"
             android:textSize="14sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:visibility="gone" />
 
     </FrameLayout>

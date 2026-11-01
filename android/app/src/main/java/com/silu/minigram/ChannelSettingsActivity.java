@@ -285,7 +285,7 @@ public class ChannelSettingsActivity extends AppCompatActivity {
 			.create();
 		if (dialog.getWindow() != null) {
 			android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-			bg.setColor(Color.parseColor("#FFFFFF"));
+			bg.setColor(Ink.res(R.color.ink_surface));
 			bg.setCornerRadius(dp(16));
 			dialog.getWindow().setBackgroundDrawable(bg);
 		}
@@ -476,7 +476,7 @@ public class ChannelSettingsActivity extends AppCompatActivity {
 				TextView labelName = new TextView(ChannelSettingsActivity.this);
 				labelName.setText("Channel Name");
 				labelName.setTextSize(12f);
-				labelName.setTextColor(Color.parseColor("#757575"));
+				labelName.setTextColor(Ink.c("#757575"));
 				layout.addView(labelName);
 				EditText etName = new EditText(ChannelSettingsActivity.this);
 				etName.setText(curName);
@@ -488,7 +488,7 @@ public class ChannelSettingsActivity extends AppCompatActivity {
 				TextView labelDesc = new TextView(ChannelSettingsActivity.this);
 				labelDesc.setText("Bio / Description");
 				labelDesc.setTextSize(12f);
-				labelDesc.setTextColor(Color.parseColor("#757575"));
+				labelDesc.setTextColor(Ink.c("#757575"));
 				labelDesc.setPadding(0, 24, 0, 0);
 				layout.addView(labelDesc);
 				EditText etDesc = new EditText(ChannelSettingsActivity.this);
@@ -502,13 +502,13 @@ public class ChannelSettingsActivity extends AppCompatActivity {
 				TextView labelHandle = new TextView(ChannelSettingsActivity.this);
 				labelHandle.setText("Handle  (@handle · affects share link)");
 				labelHandle.setTextSize(12f);
-				labelHandle.setTextColor(Color.parseColor("#757575"));
+				labelHandle.setTextColor(Ink.c("#757575"));
 				labelHandle.setPadding(0, 24, 0, 0);
 				layout.addView(labelHandle);
 				TextView hintHandle = new TextView(ChannelSettingsActivity.this);
 				hintHandle.setText("4–20 chars: a-z, 0-9, _");
 				hintHandle.setTextSize(11f);
-				hintHandle.setTextColor(Color.parseColor("#9E9E9E"));
+				hintHandle.setTextColor(Ink.c("#9E9E9E"));
 				layout.addView(hintHandle);
 				final String oldHandle = curHandle;
 				EditText etHandle = new EditText(ChannelSettingsActivity.this);

@@ -15,7 +15,7 @@
 		android:paddingTop="8dp"
 		android:paddingRight="20dp"
 		android:paddingBottom="36dp"
-		android:background="#FFFFFF"
+		android:background="@color/ink_surface"
 		android:orientation="vertical">
 		<LinearLayout
 			android:id="@+id/linear58"
@@ -28,7 +28,7 @@
 				android:id="@+id/drag_handle"
 				android:layout_width="40dp"
 				android:layout_height="4dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear59"
@@ -60,7 +60,7 @@
 				android:text="Minigram"
 				android:textSize="24sp"
 				android:textStyle="bold"
-				android:textColor="#000000"
+				android:textColor="@color/ink_text"
 				android:focusable="false" />
 			<TextView
 				android:id="@+id/textview58"
@@ -70,7 +70,7 @@
 				android:gravity="center_horizontal|center_vertical"
 				android:text="Fast · Private · Open"
 				android:textSize="13sp"
-				android:textColor="#000000"
+				android:textColor="@color/ink_text"
 				android:focusable="false" />
 		</LinearLayout>
 		<View
@@ -84,7 +84,7 @@
 			android:text="APP INFO"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -120,7 +120,7 @@
 					android:layout_height="wrap_content"
 					android:text="Version"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:layout_weight="1"
 					android:focusable="false" />
 				<TextView
@@ -129,7 +129,7 @@
 					android:layout_height="wrap_content"
 					android:text="—"
 					android:textSize="14sp"
-					android:textColor="#7986CB"
+					android:textColor="@color/ink_accent"
 					android:gravity="end"
 					android:focusable="false" />
 			</LinearLayout>
@@ -138,7 +138,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/linear63"
 				android:layout_width="match_parent"
@@ -163,7 +163,7 @@
 					android:layout_height="wrap_content"
 					android:text="Developer"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:layout_weight="1"
 					android:focusable="false" />
 				<TextView
@@ -181,7 +181,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/row_contact"
 				android:layout_width="match_parent"
@@ -207,7 +207,7 @@
 					android:layout_height="wrap_content"
 					android:text="Contact"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:layout_weight="1"
 					android:focusable="false" />
 				<TextView
@@ -232,7 +232,7 @@
 			android:text="LINKS"
 			android:textSize="11sp"
 			android:textStyle="bold"
-			android:textColor="#424242"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:letterSpacing="0.12" />
 		<View
@@ -269,7 +269,7 @@
 					android:layout_height="wrap_content"
 					android:text="Rate on Play Store"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:layout_weight="1"
 					android:focusable="false" />
 				<TextView
@@ -278,7 +278,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2E3248"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 			</LinearLayout>
@@ -287,7 +287,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/row_share"
 				android:layout_width="match_parent"
@@ -313,7 +313,7 @@
 					android:layout_height="wrap_content"
 					android:text="Share Minigram"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:layout_weight="1"
 					android:focusable="false" />
 				<TextView
@@ -322,7 +322,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2E3248"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 			</LinearLayout>
@@ -331,7 +331,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginLeft="52dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 			<LinearLayout
 				android:id="@+id/row_terms"
 				android:layout_width="match_parent"
@@ -357,7 +357,7 @@
 					android:layout_height="wrap_content"
 					android:text="Terms &amp; Conditions"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:layout_weight="1"
 					android:focusable="false" />
 				<TextView
@@ -366,7 +366,7 @@
 					android:layout_height="wrap_content"
 					android:text=""
 					android:textSize="20sp"
-					android:textColor="#2E3248"
+					android:textColor="@color/ink_accent"
 					android:focusable="false"
 					android:fontFamily="@font/material_icons" />
 			</LinearLayout>
@@ -382,7 +382,7 @@
 			android:gravity="center_horizontal|center_vertical"
 			android:text="Made with ♥ in India\n© 2025 DDC Studio"
 			android:textSize="12sp"
-			android:textColor="#000000"
+			android:textColor="@color/ink_text"
 			android:focusable="false"
 			android:lineSpacingExtra="4dp" />
 	</LinearLayout>

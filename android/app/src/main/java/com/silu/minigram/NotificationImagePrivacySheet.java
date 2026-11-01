@@ -92,7 +92,7 @@ public class NotificationImagePrivacySheet extends BottomSheetDialogFragment {
 
         // ── Drag handle ───────────────────────────────────────────────────────
         GradientDrawable handle = new GradientDrawable();
-        handle.setColor(Color.parseColor("#E0E0E0"));
+        handle.setColor(Ink.c("#E0E0E0"));
         handle.setCornerRadius(dp(3));
         v.findViewById(R.id.drag_handle).setBackground(handle);
 
@@ -120,7 +120,7 @@ public class NotificationImagePrivacySheet extends BottomSheetDialogFragment {
 
         // ── Info tip ──────────────────────────────────────────────────────────
         GradientDrawable tipBg = new GradientDrawable();
-        tipBg.setColor(Color.parseColor("#E3F2FD"));
+        tipBg.setColor(Ink.c("#E3F2FD"));
         tipBg.setCornerRadius(dp(10));
         v.findViewById(R.id.card_info).setBackground(tipBg);
 
@@ -158,10 +158,10 @@ public class NotificationImagePrivacySheet extends BottomSheetDialogFragment {
         if (tv == null) return;
         if (blurEnabled) {
             tv.setText("Images blurred 🔒");
-            tv.setTextColor(Color.parseColor("#E53935"));
+            tv.setTextColor(Ink.c("#E53935"));
         } else {
             tv.setText("Images visible normally ✓");
-            tv.setTextColor(Color.parseColor("#388E3C"));
+            tv.setTextColor(Ink.c("#388E3C"));
         }
     }
 

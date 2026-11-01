@@ -2,7 +2,7 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
-	android:background="#FFFFFF"
+	android:background="@color/ink_surface"
 	android:scrollbars="none">
 	<LinearLayout
 		android:layout_width="match_parent"
@@ -22,7 +22,7 @@
 			<View
 				android:layout_width="40dp"
 				android:layout_height="4dp"
-				android:background="#2E3248" />
+				android:background="@color/ink_accent" />
 		</LinearLayout>
 
 		<LinearLayout
@@ -48,7 +48,7 @@
 				android:text="Data and Storage"
 				android:textSize="18sp"
 				android:textStyle="bold"
-				android:textColor="#000000"
+				android:textColor="@color/ink_text"
 				android:focusable="false" />
 		</LinearLayout>
 
@@ -60,7 +60,7 @@
 			android:text="AUTOMATIC MEDIA DOWNLOAD"
 			android:textSize="12sp"
 			android:textStyle="bold"
-			android:textColor="#8E8E93" />
+			android:textColor="@color/ink_text_2" />
 
 		<!-- Auto-download Images -->
 		<LinearLayout
@@ -75,7 +75,7 @@
 				android:layout_height="wrap_content"
 				android:text="image"
 				android:textSize="20sp"
-				android:textColor="#2196F3"
+				android:textColor="@color/ink_accent"
 				android:focusable="false"
 				android:fontFamily="@font/material_icons" />
 			<LinearLayout
@@ -88,7 +88,7 @@
 					android:layout_height="wrap_content"
 					android:text="Auto-download Images"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:focusable="false" />
 				<TextView
 					android:layout_width="wrap_content"
@@ -96,7 +96,7 @@
 					android:layout_marginTop="2dp"
 					android:text="Off by default — tap an image to download it"
 					android:textSize="12sp"
-					android:textColor="#757575"
+					android:textColor="@color/ink_text_2"
 					android:focusable="false" />
 			</LinearLayout>
 			<Switch
@@ -108,7 +108,7 @@
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
-			android:background="#F0F0F0" />
+			android:background="@color/ink_surface_alt" />
 
 		<!-- Auto-download Voice Messages -->
 		<LinearLayout
@@ -123,7 +123,7 @@
 				android:layout_height="wrap_content"
 				android:text="mic"
 				android:textSize="20sp"
-				android:textColor="#2196F3"
+				android:textColor="@color/ink_accent"
 				android:focusable="false"
 				android:fontFamily="@font/material_icons" />
 			<LinearLayout
@@ -136,7 +136,7 @@
 					android:layout_height="wrap_content"
 					android:text="Auto-download Voice Messages"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:focusable="false" />
 				<TextView
 					android:layout_width="wrap_content"
@@ -144,7 +144,7 @@
 					android:layout_marginTop="2dp"
 					android:text="Off by default — tap the download icon to play"
 					android:textSize="12sp"
-					android:textColor="#757575"
+					android:textColor="@color/ink_text_2"
 					android:focusable="false" />
 			</LinearLayout>
 			<Switch
@@ -157,7 +157,7 @@
 		<View
 			android:layout_width="match_parent"
 			android:layout_height="1dp"
-			android:background="#F0F0F0" />
+			android:background="@color/ink_surface_alt" />
 
 		<TextView
 			android:layout_width="wrap_content"
@@ -167,7 +167,7 @@
 			android:text="STORAGE"
 			android:textSize="12sp"
 			android:textStyle="bold"
-			android:textColor="#8E8E93" />
+			android:textColor="@color/ink_text_2" />
 
 		<!-- Clear Cache -->
 		<LinearLayout
@@ -186,7 +186,7 @@
 				android:layout_height="wrap_content"
 				android:text="delete_sweep"
 				android:textSize="20sp"
-				android:textColor="#2196F3"
+				android:textColor="@color/ink_accent"
 				android:focusable="false"
 				android:fontFamily="@font/material_icons" />
 			<LinearLayout
@@ -199,7 +199,7 @@
 					android:layout_height="wrap_content"
 					android:text="Clear Cache"
 					android:textSize="15sp"
-					android:textColor="#000000"
+					android:textColor="@color/ink_text"
 					android:focusable="false" />
 				<TextView
 					android:id="@+id/txt_cache_size"
@@ -208,7 +208,7 @@
 					android:layout_marginTop="2dp"
 					android:text="Calculating…"
 					android:textSize="12sp"
-					android:textColor="#757575"
+					android:textColor="@color/ink_text_2"
 					android:focusable="false" />
 			</LinearLayout>
 			<TextView
@@ -216,7 +216,7 @@
 				android:layout_height="wrap_content"
 				android:text="chevron_right"
 				android:textSize="22sp"
-				android:textColor="#BDBDBD"
+				android:textColor="@color/ink_text_2"
 				android:focusable="false"
 				android:fontFamily="@font/material_icons" />
 		</LinearLayout>

@@ -494,7 +494,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if (h.layoutLinkPreview != null) h.layoutLinkPreview.setVisibility(View.GONE);
             h.txtMsg.setVisibility(View.VISIBLE);
             h.txtMsg.setText("🚫 This message was deleted");
-            h.txtMsg.setTextColor(Color.parseColor("#9E9E9E"));
+            h.txtMsg.setTextColor(Ink.c("#9E9E9E"));
             h.txtMsg.setTypeface(null, Typeface.ITALIC);
             h.txtMsg.setMovementMethod(null);
             h.txtMsg.setOnTouchListener(null);
@@ -516,7 +516,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                         int end = sb.length();
                         sb.setSpan(new StyleSpan(Typeface.BOLD), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         if ("You".equals(replySender))
-                            sb.setSpan(new ForegroundColorSpan(Color.parseColor("#25D366")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            sb.setSpan(new ForegroundColorSpan(Ink.c("#25D366")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         sb.append(replyPrev);
                         h.txtReplyQuote.setText(sb);
                     } else {
@@ -667,7 +667,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                 if (h.txtCaption != null) {
                     h.txtCaption.setVisibility(View.VISIBLE);
                     h.txtCaption.setText("⚠  Upload failed  ·  Tap to retry");
-                    h.txtCaption.setTextColor(Color.parseColor("#FF6B6B"));
+                    h.txtCaption.setTextColor(Ink.c("#FF6B6B"));
                 }
                 final String fTempId = finalMsgId;
                 h.imgMsg.setOnClickListener(v2 -> { if (listener != null) listener.onRetryUpload(fTempId); });
@@ -779,7 +779,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if (h.txtCaption != null) {
                 if (hasCaption || Boolean.TRUE.equals(finalMsg.get("is_forwarded"))) {
                     h.txtCaption.setVisibility(View.VISIBLE);
-                    h.txtCaption.setTextColor(Color.parseColor("#FFFFFF"));
+                    h.txtCaption.setTextColor(Ink.c("#FFFFFF"));
                     MsgRenderer.render(context, h.txtCaption, caption);
                     SmartLinkMovementMethod.apply(h.txtCaption);
                     if (Boolean.TRUE.equals(finalMsg.get("is_forwarded"))) prependForwarded(h.txtCaption);
@@ -808,10 +808,10 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if ("failed".equals(uploadState)) {
                 h.txtCaption.setVisibility(View.VISIBLE);
                 h.txtCaption.setText("⚠  Upload failed  ·  Tap to retry");
-                h.txtCaption.setTextColor(Color.parseColor("#FF6B6B"));
+                h.txtCaption.setTextColor(Ink.c("#FF6B6B"));
             } else if (caption != null && !caption.isEmpty()) {
                 h.txtCaption.setVisibility(View.VISIBLE);
-                h.txtCaption.setTextColor(Color.parseColor("#FFFFFF"));
+                h.txtCaption.setTextColor(Ink.c("#FFFFFF"));
                 MsgRenderer.render(context, h.txtCaption, caption);
                 SmartLinkMovementMethod.apply(h.txtCaption);
             } else {
@@ -962,21 +962,21 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         if (hasLocalUri) {
             if ("uploading".equals(uploadState) || uploadState == null) {
                 txtTick.setText("schedule");
-                txtTick.setTextColor(Color.parseColor("#9E9E9E"));
+                txtTick.setTextColor(Ink.res(R.color.ink_on_sent_2));
             } else if ("failed".equals(uploadState)) {
                 txtTick.setText("error_outline");
-                txtTick.setTextColor(Color.parseColor("#FF6B6B"));
+                txtTick.setTextColor(Ink.c("#FF6B6B"));
             }
         } else {
             if ("read".equals(msgStatus)) {
                 txtTick.setText("done_all");
-                txtTick.setTextColor(Color.parseColor("#1A73E8"));
+                txtTick.setTextColor(Ink.res(R.color.colorReplyAccentSent));
             } else if ("delivered".equals(msgStatus)) {
                 txtTick.setText("done_all");
-                txtTick.setTextColor(Color.parseColor("#9E9E9E"));
+                txtTick.setTextColor(Ink.res(R.color.ink_on_sent_2));
             } else {
                 txtTick.setText("check");
-                txtTick.setTextColor(Color.parseColor("#9E9E9E"));
+                txtTick.setTextColor(Ink.res(R.color.ink_on_sent_2));
             }
         }
     }
@@ -1003,7 +1003,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             replyIcon.setTypeface(materialTypeface);
             replyIcon.setText("reply");
             replyIcon.setTextSize(20);
-            replyIcon.setTextColor(Color.parseColor("#1A73E8"));
+            replyIcon.setTextColor(Ink.c("#1A73E8"));
             replyIcon.setAlpha(0f);
             replyIcon.setVisibility(View.VISIBLE);
             if (rowView instanceof ViewGroup) {
@@ -1158,9 +1158,9 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         if (idx < 0) return;
         SpannableStringBuilder sb = new SpannableStringBuilder(tv.getText());
         while (idx >= 0) {
-            sb.setSpan(new BackgroundColorSpan(Color.parseColor("#FFF176")),
+            sb.setSpan(new BackgroundColorSpan(Ink.c("#FFF176")),
                 idx, idx + needle.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            sb.setSpan(new ForegroundColorSpan(Color.parseColor("#000000")),
+            sb.setSpan(new ForegroundColorSpan(Ink.c("#000000")),
                 idx, idx + needle.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             idx = lowerHay.indexOf(needle, idx + needle.length());
         }

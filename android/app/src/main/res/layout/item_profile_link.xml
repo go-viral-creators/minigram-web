@@ -19,7 +19,7 @@
 		android:gravity="center"
 		android:text="check_circle"
 		android:textSize="18sp"
-		android:textColor="#229ED9"
+		android:textColor="@color/ink_accent"
 		android:fontFamily="@font/material_icons"
 		android:visibility="gone" />
 
@@ -28,7 +28,7 @@
 		android:layout_height="wrap_content"
 		android:text="link"
 		android:textSize="20sp"
-		android:textColor="#229ED9"
+		android:textColor="@color/ink_accent"
 		android:fontFamily="@font/material_icons" />
 
 	<LinearLayout
@@ -44,7 +44,7 @@
 			android:text=""
 			android:textSize="14sp"
 			android:textStyle="bold"
-			android:textColor="#229ED9"
+			android:textColor="@color/ink_accent"
 			android:maxLines="1"
 			android:ellipsize="end" />
 		<TextView
@@ -54,7 +54,7 @@
 			android:layout_marginTop="2dp"
 			android:text=""
 			android:textSize="12sp"
-			android:textColor="#757575"
+			android:textColor="@color/ink_text_2"
 			android:maxLines="1"
 			android:ellipsize="end" />
 	</LinearLayout>

@@ -43,13 +43,13 @@ public class AboutSheet extends BottomSheetDialogFragment {
         // ── Logo gradient circle ───────────────────────────────────────────
         GradientDrawable logoBg = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{Color.parseColor("#1565C0"), Color.parseColor("#2196F3")});
+                new int[]{Ink.c("#1565C0"), Ink.c("#2196F3")});
         logoBg.setCornerRadius(dpToPx(20));
         v.findViewById(R.id.logo_circle).setBackground(logoBg);
 
         // ── Drag handle ────────────────────────────────────────────────────
         GradientDrawable handleBg = new GradientDrawable();
-        handleBg.setColor(Color.parseColor("#2E3248"));
+        handleBg.setColor(Ink.c("#2E3248"));
         handleBg.setCornerRadius(dpToPx(2));
         v.findViewById(R.id.drag_handle).setBackground(handleBg);
 
@@ -115,7 +115,7 @@ public class AboutSheet extends BottomSheetDialogFragment {
 
     private void applyCardBg(View view) {
         GradientDrawable gd = new GradientDrawable();
-        gd.setColor(Color.parseColor("#FFFFFF"));
+        gd.setColor(Ink.res(R.color.ink_surface));
         gd.setCornerRadius(dpToPx(14));
         view.setBackground(gd);
         view.setClipToOutline(true);
@@ -124,7 +124,7 @@ public class AboutSheet extends BottomSheetDialogFragment {
     private void applyRipple(View view) {
         StateListDrawable sl = new StateListDrawable();
         GradientDrawable pressed = new GradientDrawable();
-        pressed.setColor(Color.parseColor("#2A2E4A"));
+        pressed.setColor(Ink.c("#2A2E4A"));
         sl.addState(new int[]{android.R.attr.state_pressed}, pressed);
         sl.addState(new int[]{}, new GradientDrawable());
         view.setBackground(sl);

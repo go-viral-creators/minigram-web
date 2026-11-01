@@ -356,7 +356,7 @@ public class ChannelPostAdapter extends BaseAdapter {
 			if (txtMsg    != null) {
 				txtMsg.setVisibility(View.VISIBLE);
 				txtMsg.setText("🚫 This post was deleted");
-				txtMsg.setTextColor(Color.parseColor("#9E9E9E"));
+				txtMsg.setTextColor(Ink.c("#9E9E9E"));
 				txtMsg.setTypeface(null, Typeface.ITALIC);
 			}
 			if (txtTimeMsg != null && ts != null) txtTimeMsg.setText(formatTime(ts));
@@ -379,7 +379,7 @@ public class ChannelPostAdapter extends BaseAdapter {
 					sb.append(label).append("\n");
 					int end = sb.length();
 					sb.setSpan(new StyleSpan(Typeface.BOLD), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-					sb.setSpan(new ForegroundColorSpan(Color.parseColor("#1B5E20")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+					sb.setSpan(new ForegroundColorSpan(Ink.c("#1B5E20")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					sb.append(replyPrev != null ? replyPrev : "");
 					txtReply.setMaxLines(2);
 					txtReply.setText(sb);
@@ -470,7 +470,7 @@ public class ChannelPostAdapter extends BaseAdapter {
 						if (txtCaption != null) {
 							txtCaption.setVisibility(View.VISIBLE);
 							txtCaption.setText("⚠  Upload failed  ·  Tap to retry");
-							txtCaption.setTextColor(Color.parseColor("#FF6B6B"));
+							txtCaption.setTextColor(Ink.c("#FF6B6B"));
 						}
 						imgMsg.setOnClickListener(v -> { if (listener != null) listener.onRetryUpload(finalPostId); });
 					}
@@ -525,7 +525,7 @@ public class ChannelPostAdapter extends BaseAdapter {
 					txtCaption.setVisibility(hasCaption || Boolean.TRUE.equals(isForwarded) ? View.VISIBLE : View.GONE);
 					if (hasCaption) {
 						txtCaption.setText(caption);
-						txtCaption.setTextColor(Color.parseColor("#1A1A1A"));
+						txtCaption.setTextColor(Ink.c("#1A1A1A"));
 						SmartLinkMovementMethod.apply(txtCaption);
 						if (Boolean.TRUE.equals(isForwarded)) _prependForwarded(txtCaption);
 					}
@@ -549,7 +549,7 @@ public class ChannelPostAdapter extends BaseAdapter {
 				}
 				if (seekVoice != null) { seekVoice.setEnabled(false); seekVoice.setProgress(0); }
 				if (txtVoiceDuration != null) {
-					txtVoiceDuration.setTextColor(Color.parseColor("#757575"));
+					txtVoiceDuration.setTextColor(Ink.c("#757575"));
 					txtVoiceDuration.setText("Sending…");
 				}
 			} else if ("failed".equals(uploadState)) {
@@ -560,13 +560,13 @@ public class ChannelPostAdapter extends BaseAdapter {
 				}
 				if (seekVoice != null) { seekVoice.setEnabled(false); seekVoice.setProgress(0); }
 				if (txtVoiceDuration != null) {
-					txtVoiceDuration.setTextColor(Color.parseColor("#FF6B6B"));
+					txtVoiceDuration.setTextColor(Ink.c("#FF6B6B"));
 					txtVoiceDuration.setText("Failed · tap to retry");
 				}
 			} else {
 				if (btnVoicePlay != null) btnVoicePlay.setAlpha(1f);
 				if (seekVoice != null) seekVoice.setEnabled(true);
-				if (txtVoiceDuration != null) txtVoiceDuration.setTextColor(Color.parseColor("#757575"));
+				if (txtVoiceDuration != null) txtVoiceDuration.setTextColor(Ink.c("#757575"));
 				_bindVoicePlayback(finalPostId, finalVoiceUrl, finalDurationSec, btnVoicePlay, seekVoice, txtVoiceDuration);
 				if (layoutVoiceMsg != null) {
 					final TextView _btnPlayRef = btnVoicePlay;
@@ -632,7 +632,7 @@ public class ChannelPostAdapter extends BaseAdapter {
 		if (btnLike != null) {
 			btnLike.setVisibility(View.VISIBLE);
 			btnLike.setText(liked ? "favorite" : "favorite_border");
-			btnLike.setTextColor(liked ? Color.parseColor("#E53935") : Color.parseColor("#9E9E9E"));
+			btnLike.setTextColor(liked ? Ink.c("#E53935") : Ink.c("#9E9E9E"));
 			final boolean _liked = liked;
 			btnLike.setOnClickListener(v -> {
 				if (listener != null && !finalPostId.startsWith("temp_"))

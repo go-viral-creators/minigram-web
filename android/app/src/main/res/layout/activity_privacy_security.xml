@@ -5,14 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F7">
+    android:background="@color/ink_surface_alt">
 
     <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="12dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -25,7 +25,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -35,7 +35,7 @@
             android:text="Privacy and Security"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#000000" />
+            android:textColor="@color/ink_text" />
 
     </LinearLayout>
 
@@ -86,7 +86,7 @@
                 android:text="SECURITY"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#8E8E93"
+                android:textColor="@color/ink_text_2"
                 android:layout_marginBottom="6dp" />
 
             <LinearLayout
@@ -105,20 +105,20 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="lock" android:textSize="20sp" android:textColor="#2196F3"
+                        android:text="lock" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <LinearLayout
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
                         android:orientation="vertical">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="App Lock" android:textSize="15sp" android:textColor="#000000" />
+                            android:text="App Lock" android:textSize="15sp" android:textColor="@color/ink_text" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Require a PIN to open Minigram" android:textSize="12sp" android:textColor="#757575" />
+                            android:text="Require a PIN to open Minigram" android:textSize="12sp" android:textColor="@color/ink_text_2" />
                     </LinearLayout>
                     <Switch android:id="@+id/sw_app_lock" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                 </LinearLayout>
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_surface_alt" />
 
                 <!-- Screenshot Protection -->
                 <LinearLayout
@@ -129,16 +129,16 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="screenshot" android:textSize="20sp" android:textColor="#2196F3"
+                        android:text="screenshot" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <LinearLayout
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
                         android:orientation="vertical">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Screenshot Protection" android:textSize="15sp" android:textColor="#000000" />
+                            android:text="Screenshot Protection" android:textSize="15sp" android:textColor="@color/ink_text" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Block screenshots inside chats and channels" android:textSize="12sp" android:textColor="#757575" />
+                            android:text="Block screenshots inside chats and channels" android:textSize="12sp" android:textColor="@color/ink_text_2" />
                     </LinearLayout>
                     <Switch android:id="@+id/sw_screenshot" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -148,7 +148,7 @@
             <TextView
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="PRIVACY" android:textSize="12sp" android:textStyle="bold"
-                android:textColor="#8E8E93" android:layout_marginBottom="6dp" />
+                android:textColor="@color/ink_text_2" android:layout_marginBottom="6dp" />
 
             <LinearLayout
                 android:id="@+id/card_privacy"
@@ -160,50 +160,50 @@
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
                     <TextView android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="circle" android:textSize="20sp" android:textColor="#4CAF50"
+                        android:text="circle" android:textSize="20sp" android:textColor="@color/ink_ok"
                         android:fontFamily="@font/material_icons" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Online Status" android:textSize="15sp" android:textColor="#000000" />
+                            android:text="Online Status" android:textSize="15sp" android:textColor="@color/ink_text" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Let others see when you're online" android:textSize="12sp" android:textColor="#757575" />
+                            android:text="Let others see when you're online" android:textSize="12sp" android:textColor="@color/ink_text_2" />
                     </LinearLayout>
                     <Switch android:id="@+id/sw_online" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                 </LinearLayout>
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_surface_alt" />
 
                 <!-- Last Seen -->
                 <LinearLayout
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
                     <TextView android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="schedule" android:textSize="20sp" android:textColor="#4CAF50"
+                        android:text="schedule" android:textSize="20sp" android:textColor="@color/ink_ok"
                         android:fontFamily="@font/material_icons" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Last Seen" android:textSize="15sp" android:textColor="#000000" />
+                            android:text="Last Seen" android:textSize="15sp" android:textColor="@color/ink_text" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Show others when you were last active" android:textSize="12sp" android:textColor="#757575" />
+                            android:text="Show others when you were last active" android:textSize="12sp" android:textColor="@color/ink_text_2" />
                     </LinearLayout>
                     <Switch android:id="@+id/sw_last_seen" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                 </LinearLayout>
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_surface_alt" />
 
                 <!-- Read Receipts -->
                 <LinearLayout
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
                     <TextView android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="done_all" android:textSize="20sp" android:textColor="#4CAF50"
+                        android:text="done_all" android:textSize="20sp" android:textColor="@color/ink_ok"
                         android:fontFamily="@font/material_icons" />
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Read Receipts" android:textSize="15sp" android:textColor="#000000" />
+                            android:text="Read Receipts" android:textSize="15sp" android:textColor="@color/ink_text" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Let others see when you've read their messages" android:textSize="12sp" android:textColor="#757575" />
+                            android:text="Let others see when you've read their messages" android:textSize="12sp" android:textColor="@color/ink_text_2" />
                     </LinearLayout>
                     <Switch android:id="@+id/sw_read_rcpt" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -213,7 +213,7 @@
             <TextView
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="NOTIFICATIONS" android:textSize="12sp" android:textStyle="bold"
-                android:textColor="#8E8E93" android:layout_marginBottom="6dp" />
+                android:textColor="@color/ink_text_2" android:layout_marginBottom="6dp" />
 
             <LinearLayout
                 android:id="@+id/card_notif"
@@ -229,9 +229,9 @@
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp" android:orientation="vertical">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Message Preview" android:textSize="15sp" android:textColor="#000000" />
+                            android:text="Message Preview" android:textSize="15sp" android:textColor="@color/ink_text" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="Show message text in notifications" android:textSize="12sp" android:textColor="#757575" />
+                            android:text="Show message text in notifications" android:textSize="12sp" android:textColor="@color/ink_text_2" />
                     </LinearLayout>
                     <Switch android:id="@+id/sw_notif_prev" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                 </LinearLayout>
@@ -241,7 +241,7 @@
             <TextView
                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="ACCOUNT" android:textSize="12sp" android:textStyle="bold"
-                android:textColor="#8E8E93" android:layout_marginBottom="6dp" />
+                android:textColor="@color/ink_text_2" android:layout_marginBottom="6dp" />
 
             <LinearLayout
                 android:id="@+id/card_account"
@@ -253,27 +253,27 @@
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
                     <TextView android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="policy" android:textSize="20sp" android:textColor="#2196F3"
+                        android:text="policy" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Privacy Policy" android:textSize="15sp" android:textColor="#000000" />
+                        android:text="Privacy Policy" android:textSize="15sp" android:textColor="@color/ink_text" />
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="chevron_right" android:textSize="22sp" android:textColor="#BDBDBD"
+                        android:text="chevron_right" android:textSize="22sp" android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
                 </LinearLayout>
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F0F0" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_surface_alt" />
 
                 <LinearLayout
                     android:id="@+id/row_delete_account"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:padding="14dp" android:gravity="center_vertical" android:orientation="horizontal">
                     <TextView android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="delete_forever" android:textSize="20sp" android:textColor="#FF3B30"
+                        android:text="delete_forever" android:textSize="20sp" android:textColor="@color/ink_danger"
                         android:fontFamily="@font/material_icons" />
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Delete Account" android:textSize="15sp" android:textColor="#FF3B30" />
+                        android:text="Delete Account" android:textSize="15sp" android:textColor="@color/ink_danger" />
                 </LinearLayout>
             </LinearLayout>
 

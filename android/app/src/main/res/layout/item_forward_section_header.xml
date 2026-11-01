@@ -6,7 +6,7 @@
 	android:paddingRight="20dp"
 	android:paddingTop="14dp"
 	android:paddingBottom="6dp"
-	android:background="#FFFFFF"
+	android:background="@color/ink_surface"
 	android:orientation="vertical">
 
 	<TextView
@@ -16,6 +16,6 @@
 		android:text="Chats"
 		android:textSize="13sp"
 		android:textStyle="bold"
-		android:textColor="#1A73E8" />
+		android:textColor="@color/ink_accent" />
 
 </LinearLayout>

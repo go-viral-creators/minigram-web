@@ -6,14 +6,14 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical"
-	android:background="#FFFFFF">
+	android:background="@color/ink_surface">
 	<LinearLayout
 		android:id="@+id/linear118"
 		android:layout_width="match_parent"
 		android:layout_height="56dp"
 		android:paddingLeft="16dp"
 		android:paddingRight="16dp"
-		android:background="#FFFFFF"
+		android:background="@color/ink_surface"
 		android:gravity="center_vertical"
 		android:orientation="horizontal"
 		android:elevation="4dp">
@@ -24,7 +24,7 @@
 			android:background="?attr/selectableItemBackgroundBorderless"
 			android:text="arrow_back"
 			android:textSize="24sp"
-			android:textColor="#000000"
+			android:textColor="@color/ink_text"
 			android:fontFamily="@font/material_icons" />
 		<TextView
 			android:id="@+id/textview94"
@@ -34,7 +34,7 @@
 			android:text="New Channel"
 			android:textSize="20sp"
 			android:textStyle="bold"
-			android:textColor="#000000"
+			android:textColor="@color/ink_text"
 			android:layout_weight="1" />
 		<TextView
 			android:id="@+id/btn_done"
@@ -102,8 +102,8 @@
 				android:paddingTop="8dp"
 				android:paddingBottom="12dp"
 				android:textSize="16sp"
-                android:textColor="#000000"
-                android:textColorHint="#607D8B"
+                android:textColor="@color/ink_text"
+                android:textColorHint="@color/ink_text_2"
 				android:hint="Enter channel name"
 				android:singleLine="true"
 				android:background="@null" />
@@ -112,7 +112,7 @@
 				android:layout_width="match_parent"
 				android:layout_height="1dp"
 				android:layout_marginBottom="24dp"
-				android:background="#EEEEEE" />
+				android:background="@color/ink_surface_alt" />
 			<TextView
 				android:id="@+id/textview97"
 				android:layout_width="wrap_content"
@@ -127,8 +127,8 @@
 				android:paddingTop="8dp"
 				android:paddingBottom="12dp"
 				android:textSize="16sp"
-                android:textColor="#000000"
-                android:textColorHint="#607D8B"
+                android:textColor="@color/ink_text"
+                android:textColorHint="@color/ink_text_2"
 				android:hint="What is this channel about\?"
 				android:background="@null"
 				android:inputType="textMultiLine"
@@ -139,7 +139,7 @@
 				android:layout_height="wrap_content"
 				android:text="Private Channel (Invite Only)"
 				android:textSize="14sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:paddingTop="8dp"
 				android:paddingBottom="8dp" />
 			<View
@@ -148,7 +148,7 @@
 				android:layout_height="1dp"
 				android:layout_marginBottom="32dp"
 				android:layout_marginTop="8dp"
-				android:background="#EEEEEE" />
+				android:background="@color/ink_surface_alt" />
 			<LinearLayout
 				android:id="@+id/linear123"
 				android:layout_width="match_parent"
@@ -162,7 +162,7 @@
 					android:layout_height="wrap_content"
 					android:text="info"
 					android:textSize="20sp"
-					android:textColor="#757575"
+					android:textColor="@color/ink_text_2"
 					android:fontFamily="@font/material_icons" />
 				<TextView
 					android:id="@+id/textview99"
@@ -171,7 +171,7 @@
 					android:layout_marginLeft="12dp"
 					android:text="Anyone can find your channel and see what has been posted."
 					android:textSize="13sp"
-					android:textColor="#757575" />
+					android:textColor="@color/ink_text_2" />
 			</LinearLayout>
 		</LinearLayout>
 	</ScrollView>

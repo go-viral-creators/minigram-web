@@ -23,8 +23,8 @@
 		android:gravity="center"
 		android:text="mic"
 		android:textSize="28sp"
-		android:textColor="#9E9E9E"
-		android:background="#EEEEEE"
+		android:textColor="@color/ink_text_2"
+		android:background="@color/ink_surface_alt"
 		android:fontFamily="@font/material_icons"
 		android:visibility="gone" />
 
@@ -46,9 +46,9 @@
 		android:gravity="center"
 		android:text="check_circle"
 		android:textSize="18sp"
-		android:textColor="#229ED9"
+		android:textColor="@color/ink_accent"
 		android:background="@drawable/circle_bg"
-		android:backgroundTint="#FFFFFF"
+		android:backgroundTint="@color/ink_surface"
 		android:fontFamily="@font/material_icons"
 		android:visibility="gone" />
 

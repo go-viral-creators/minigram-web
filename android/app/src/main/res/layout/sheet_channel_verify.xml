@@ -2,7 +2,7 @@
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="match_parent"
 	android:layout_height="wrap_content"
-	android:background="#FFFFFF"
+	android:background="@color/ink_surface"
 	android:orientation="vertical"
 	android:paddingLeft="20dp"
 	android:paddingRight="20dp"
@@ -18,7 +18,7 @@
 		<View
 			android:layout_width="40dp"
 			android:layout_height="4dp"
-			android:background="#2E3248" />
+			android:background="@color/ink_accent" />
 	</LinearLayout>
 
 	<LinearLayout
@@ -33,7 +33,7 @@
 			android:layout_marginRight="12dp"
 			android:text="verified"
 			android:textSize="28sp"
-			android:textColor="#229ED9"
+			android:textColor="@color/ink_accent"
 			android:fontFamily="@font/material_icons" />
 		<TextView
 			android:id="@+id/txt_channel_name"
@@ -43,7 +43,7 @@
 			android:text="Verify Your Channel"
 			android:textSize="17sp"
 			android:textStyle="bold"
-			android:textColor="#000000" />
+			android:textColor="@color/ink_text" />
 	</LinearLayout>
 
 	<TextView
@@ -52,7 +52,7 @@
 		android:layout_marginBottom="18dp"
 		android:text="Get a blue tick badge on this channel so subscribers know it's authentic."
 		android:textSize="13sp"
-		android:textColor="#757575" />
+		android:textColor="@color/ink_text_2" />
 
 	<!-- Yearly -->
 	<LinearLayout
@@ -91,14 +91,14 @@
 					android:text="Yearly"
 					android:textSize="15sp"
 					android:textStyle="bold"
-					android:textColor="#212121" />
+					android:textColor="@color/ink_text" />
 				<TextView
 					android:id="@+id/txt_ch_price_yearly"
 					android:layout_width="wrap_content"
 					android:layout_height="wrap_content"
 					android:text="…"
 					android:textSize="12sp"
-					android:textColor="#616161" />
+					android:textColor="@color/ink_text_2" />
 			</LinearLayout>
 			<TextView
 				android:id="@+id/btn_ch_subscribe_yearly"
@@ -137,14 +137,14 @@
 				android:text="Monthly"
 				android:textSize="15sp"
 				android:textStyle="bold"
-				android:textColor="#212121" />
+				android:textColor="@color/ink_text" />
 			<TextView
 				android:id="@+id/txt_ch_price_monthly"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:text="…"
 				android:textSize="12sp"
-				android:textColor="#616161" />
+				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
 		<TextView
 			android:id="@+id/btn_ch_subscribe_monthly"
@@ -153,7 +153,7 @@
 			android:text="Verify"
 			android:textSize="12sp"
 			android:textStyle="bold"
-			android:textColor="#229ED9"
+			android:textColor="@color/ink_accent"
 			android:background="@drawable/btn_pro_outline_bg"
 			android:paddingLeft="18dp"
 			android:paddingRight="18dp"
@@ -169,7 +169,7 @@
 		android:gravity="center"
 		android:text=""
 		android:textSize="13sp"
-		android:textColor="#229ED9"
+		android:textColor="@color/ink_accent"
 		android:visibility="gone" />
 
 	<ProgressBar

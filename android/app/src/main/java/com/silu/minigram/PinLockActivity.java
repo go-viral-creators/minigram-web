@@ -94,7 +94,7 @@ public class PinLockActivity extends AppCompatActivity {
         btnAction   = findViewById(R.id.btn_pin_action);
 
         GradientDrawable fieldBg = new GradientDrawable();
-        fieldBg.setColor(Color.parseColor("#F0F0F0"));
+        fieldBg.setColor(Ink.c("#F0F0F0"));
         fieldBg.setCornerRadius(dp(12));
         edtPin.setBackground(fieldBg);
 

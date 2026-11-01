@@ -336,16 +336,16 @@ public class ChannelProfileActivity extends AppCompatActivity {
 
         if (isOwner) {
             iconLeaveEdit.setText("edit");
-            iconLeaveEdit.setTextColor(Color.parseColor("#229ED9"));
-            iconLeaveEdit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#E8F5FC")));
+            iconLeaveEdit.setTextColor(Ink.c("#229ED9"));
+            iconLeaveEdit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ink.c("#E8F5FC")));
             txtLeaveEditLabel.setText("Edit");
-            txtLeaveEditLabel.setTextColor(Color.parseColor("#229ED9"));
+            txtLeaveEditLabel.setTextColor(Ink.c("#229ED9"));
         } else {
             iconLeaveEdit.setText("logout");
-            iconLeaveEdit.setTextColor(Color.parseColor("#FF3B30"));
-            iconLeaveEdit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#FDEAEA")));
+            iconLeaveEdit.setTextColor(Ink.c("#FF3B30"));
+            iconLeaveEdit.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ink.c("#FDEAEA")));
             txtLeaveEditLabel.setText("Leave");
-            txtLeaveEditLabel.setTextColor(Color.parseColor("#FF3B30"));
+            txtLeaveEditLabel.setTextColor(Ink.c("#FF3B30"));
         }
     }
 
@@ -444,8 +444,8 @@ public class ChannelProfileActivity extends AppCompatActivity {
     private void _selectTab(int tab) {
         if (selectionMode) _exitSelectionMode();
         activeTab = tab;
-        int grey = Color.parseColor("#9E9E9E");
-        int blue = Color.parseColor("#229ED9");
+        int grey = Ink.c("#9E9E9E");
+        int blue = Ink.c("#229ED9");
         txtTabMedia.setTextColor(grey); txtTabMedia.setTypeface(null, android.graphics.Typeface.NORMAL);
         txtTabLinks.setTextColor(grey); txtTabLinks.setTypeface(null, android.graphics.Typeface.NORMAL);
         txtTabVoice.setTextColor(grey); txtTabVoice.setTypeface(null, android.graphics.Typeface.NORMAL);

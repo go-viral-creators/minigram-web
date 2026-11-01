@@ -17,7 +17,7 @@
 		android:text=""
 		android:textSize="12sp"
 		android:textStyle="bold"
-		android:textColor="#229ED9" />
+		android:textColor="@color/ink_accent" />
 
 	<TextView
 		android:id="@+id/txt_post_text"
@@ -28,7 +28,7 @@
 		android:textSize="14sp"
 		android:maxLines="3"
 		android:ellipsize="end"
-		android:textColor="#424242" />
+		android:textColor="@color/ink_text" />
 
 	<TextView
 		android:id="@+id/txt_post_time"
@@ -37,6 +37,6 @@
 		android:layout_marginTop="6dp"
 		android:text=""
 		android:textSize="11sp"
-		android:textColor="#9E9E9E" />
+		android:textColor="@color/ink_text_2" />
 
 </LinearLayout>

@@ -29,7 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="15sp"
-            android:textColor="#000000" />
+            android:textColor="@color/ink_text" />
 
         <TextView
             android:id="@+id/txt_handle"
@@ -37,7 +37,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:textSize="12sp"
-            android:textColor="#757575" />
+            android:textColor="@color/ink_text_2" />
 
     </LinearLayout>
 
@@ -52,9 +52,9 @@
         android:text="Invite"
         android:textSize="13sp"
         android:textStyle="bold"
-        android:textColor="#229ED9"
+        android:textColor="@color/ink_accent"
         android:background="@drawable/plan_card_bg"
-        android:backgroundTint="#E8F5FC"
+        android:backgroundTint="@color/ink_accent_soft"
         android:visibility="gone" />
 
 </LinearLayout>

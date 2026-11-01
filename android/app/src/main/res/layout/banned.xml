@@ -5,7 +5,7 @@
 	android:orientation="vertical"
 	android:gravity="center"
 	android:padding="32dp"
-	android:background="#FFFFFF">
+	android:background="@color/ink_surface">
 
 	<TextView
 		android:layout_width="96dp"
@@ -13,7 +13,7 @@
 		android:gravity="center"
 		android:text="block"
 		android:textSize="52sp"
-		android:textColor="#E53935"
+		android:textColor="@color/ink_danger"
 		android:background="@drawable/circle_bg_light"
 		android:fontFamily="@font/material_icons" />
 
@@ -24,7 +24,7 @@
 		android:text="Account Banned"
 		android:textSize="22sp"
 		android:textStyle="bold"
-		android:textColor="#212121" />
+		android:textColor="@color/ink_text" />
 
 	<TextView
 		android:layout_width="match_parent"
@@ -33,7 +33,7 @@
 		android:gravity="center"
 		android:text="Your account has been banned for violating Minigram's terms of use. If you believe this is a mistake, please contact support."
 		android:textSize="14sp"
-		android:textColor="#757575" />
+		android:textColor="@color/ink_text_2" />
 
 	<TextView
 		android:id="@+id/btn_exit_app"

@@ -105,8 +105,8 @@ public class UserProfileSheet extends BottomSheetDialogFragment {
                         boolean online = "online".equals(status);
                         txtStatus.setText(online ? "● Online" : "● Offline");
                         txtStatus.setTextColor(online
-                                ? Color.parseColor("#4CAF50")
-                                : Color.parseColor("#9E9E9E"));
+                                ? Ink.c("#4CAF50")
+                                : Ink.c("#9E9E9E"));
 
                         AvatarHelper.load(requireContext(), imgAv, photo, name);
 

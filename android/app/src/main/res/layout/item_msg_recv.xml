@@ -46,7 +46,7 @@
 				android:layout_width="3dp"
 				android:layout_height="match_parent"
 				android:layout_marginRight="8dp"
-				android:background="#1A73E8" />
+				android:background="@color/ink_accent" />
 			<TextView
 				android:id="@+id/txt_reply_quote"
 				android:layout_width="wrap_content"
@@ -155,7 +155,7 @@
 				android:layout_marginLeft="6dp"
 				android:text="0:00"
 				android:textSize="11sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:focusable="false" />
 		</LinearLayout>
 		<TextView
@@ -168,7 +168,7 @@
 			android:paddingLeft="4dp"
 			android:paddingRight="4dp"
 			android:textSize="14sp"
-			android:textColor="#1A1A1A"
+			android:textColor="@color/ink_text"
 			android:clickable="false"
 			android:visibility="gone"
 			android:focusable="false" />
@@ -183,7 +183,7 @@
 			android:paddingRight="4dp"
 			android:text="Message"
 			android:textSize="15sp"
-			android:textColor="#1A1A1A"
+			android:textColor="@color/ink_text"
 			android:clickable="false"
 			android:focusable="false" />
 		<LinearLayout
@@ -194,7 +194,7 @@
 			android:layout_marginRight="6dp"
 			android:layout_marginTop="4dp"
 			android:orientation="vertical"
-			android:background="#F0F2F5"
+			android:background="@color/ink_surface_alt"
 			android:visibility="gone">
 			<ImageView
 				android:id="@+id/img_link_preview"
@@ -214,7 +214,7 @@
 					android:text=""
 					android:textSize="10sp"
 					android:textAllCaps="true"
-					android:textColor="#9E9E9E" />
+					android:textColor="@color/ink_text_2" />
 				<TextView
 					android:id="@+id/txt_link_preview_title"
 					android:layout_width="match_parent"
@@ -225,7 +225,7 @@
 					android:textStyle="bold"
 					android:maxLines="2"
 					android:ellipsize="end"
-					android:textColor="#1A1A1A" />
+					android:textColor="@color/ink_text" />
 				<TextView
 					android:id="@+id/txt_link_preview_desc"
 					android:layout_width="match_parent"
@@ -235,7 +235,7 @@
 					android:textSize="12sp"
 					android:maxLines="2"
 					android:ellipsize="end"
-					android:textColor="#616161" />
+					android:textColor="@color/ink_text_2" />
 			</LinearLayout>
 		</LinearLayout>
 		<TextView
@@ -247,7 +247,7 @@
 			android:text="edited"
 			android:textSize="10sp"
 			android:textStyle="italic"
-			android:textColor="#8E8E8E"
+			android:textColor="@color/ink_text_2"
 			android:visibility="gone"
 			android:focusable="false" />
 		<TextView
@@ -284,7 +284,7 @@
 				android:layout_marginRight="4dp"
 				android:text="push_pin"
 				android:textSize="12sp"
-				android:textColor="#1A73E8"
+				android:textColor="@color/ink_accent"
 				android:visibility="gone"
 				android:fontFamily="@font/material_icons"
 				android:focusable="false" />
@@ -294,7 +294,7 @@
 				android:layout_height="wrap_content"
 				android:text="12:00"
 				android:textSize="10sp"
-				android:textColor="#8E8E8E"
+				android:textColor="@color/ink_text_2"
 				android:focusable="false" />
 		</LinearLayout>
 	</LinearLayout>

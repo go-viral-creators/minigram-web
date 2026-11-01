@@ -458,7 +458,7 @@ public class MyProfileActivity extends AppCompatActivity {
                     txtInfoBio.setText(bio != null && !bio.isEmpty() ? bio : "No bio yet — add one from Edit Info");
 
                     txtStatusDot.setBackgroundResource(R.drawable.circle_bg_light);
-                    txtStatusDot.getBackground().setTint(online ? Color.parseColor("#4CAF50") : Color.parseColor("#BDBDBD"));
+                    txtStatusDot.getBackground().setTint(online ? Ink.c("#4CAF50") : Ink.c("#BDBDBD"));
 
                     AvatarHelper.load(MyProfileActivity.this, imgAvatar, photo, displayName);
                 }
@@ -471,8 +471,8 @@ public class MyProfileActivity extends AppCompatActivity {
     private void _selectTab(int tab) {
         if (selectionMode) _exitSelectionMode(); // Telegram: switching tabs drops selection
         activeTab = tab;
-        int grey = Color.parseColor("#9E9E9E");
-        int blue = Color.parseColor("#229ED9");
+        int grey = Ink.c("#9E9E9E");
+        int blue = Ink.c("#229ED9");
         txtTabMedia.setTextColor(grey); txtTabMedia.setTypeface(null, android.graphics.Typeface.NORMAL);
         txtTabLinks.setTextColor(grey); txtTabLinks.setTypeface(null, android.graphics.Typeface.NORMAL);
         txtTabVoice.setTextColor(grey); txtTabVoice.setTypeface(null, android.graphics.Typeface.NORMAL);

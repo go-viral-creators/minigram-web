@@ -4,7 +4,7 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F7">
+    android:background="@color/ink_surface_alt">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:paddingLeft="4dp"
-            android:background="#FFFFFF"
+            android:background="@color/ink_surface"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:elevation="4dp">
@@ -29,7 +29,7 @@
                 android:gravity="center"
                 android:text="arrow_back"
                 android:textSize="24sp"
-                android:textColor="#000000"
+                android:textColor="@color/ink_text"
                 android:fontFamily="@font/material_icons" />
 
             <TextView
@@ -39,7 +39,7 @@
                 android:text="Channel Info"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#000000" />
+                android:textColor="@color/ink_text" />
 
         </LinearLayout>
 
@@ -73,7 +73,7 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:gravity="center_horizontal"
-                        android:background="#FFFFFF"
+                        android:background="@color/ink_surface"
                         android:paddingTop="28dp"
                         android:paddingBottom="20dp"
                         android:paddingLeft="24dp"
@@ -99,7 +99,7 @@
                                 android:layout_height="wrap_content"
                                 android:textSize="21sp"
                                 android:textStyle="bold"
-                                android:textColor="#000000"
+                                android:textColor="@color/ink_text"
                                 android:maxLines="2"
                                 android:gravity="center" />
 
@@ -119,7 +119,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:textSize="13sp"
-                            android:textColor="#757575" />
+                            android:textColor="@color/ink_text_2" />
 
                         <TextView
                             android:id="@+id/txt_handle"
@@ -127,7 +127,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:textSize="14sp"
-                            android:textColor="#229ED9" />
+                            android:textColor="@color/ink_accent" />
 
                         <!-- Not subscribed yet (never shown to the owner): one
                              prominent CTA. -->
@@ -140,8 +140,8 @@
                             android:text="Join Channel"
                             android:textSize="15sp"
                             android:textStyle="bold"
-                            android:textColor="#FFFFFF"
-                            android:backgroundTint="#229ED9"
+                            android:textColor="@color/ink_on_accent"
+                            android:backgroundTint="@color/ink_accent"
                             android:background="@drawable/plan_card_bg"
                             android:visibility="gone" />
 
@@ -166,13 +166,13 @@
                                     android:id="@+id/icon_mute"
                                     android:layout_width="44dp" android:layout_height="44dp"
                                     android:gravity="center" android:text="notifications" android:textSize="20sp"
-                                    android:textColor="#229ED9" android:background="@drawable/circle_bg"
-                                    android:backgroundTint="#E8F5FC" android:fontFamily="@font/material_icons" />
+                                    android:textColor="@color/ink_accent" android:background="@drawable/circle_bg"
+                                    android:backgroundTint="@color/ink_accent_soft" android:fontFamily="@font/material_icons" />
                                 <TextView
                                     android:id="@+id/txt_mute_label"
                                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                                     android:layout_marginTop="4dp" android:text="Mute" android:textSize="12sp"
-                                    android:textColor="#229ED9" />
+                                    android:textColor="@color/ink_accent" />
                             </LinearLayout>
 
                             <LinearLayout
@@ -183,12 +183,12 @@
                                 <TextView
                                     android:layout_width="44dp" android:layout_height="44dp"
                                     android:gravity="center" android:text="search" android:textSize="20sp"
-                                    android:textColor="#229ED9" android:background="@drawable/circle_bg"
-                                    android:backgroundTint="#E8F5FC" android:fontFamily="@font/material_icons" />
+                                    android:textColor="@color/ink_accent" android:background="@drawable/circle_bg"
+                                    android:backgroundTint="@color/ink_accent_soft" android:fontFamily="@font/material_icons" />
                                 <TextView
                                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                                     android:layout_marginTop="4dp" android:text="Search" android:textSize="12sp"
-                                    android:textColor="#229ED9" />
+                                    android:textColor="@color/ink_accent" />
                             </LinearLayout>
 
                             <LinearLayout
@@ -199,12 +199,12 @@
                                 <TextView
                                     android:layout_width="44dp" android:layout_height="44dp"
                                     android:gravity="center" android:text="share" android:textSize="20sp"
-                                    android:textColor="#229ED9" android:background="@drawable/circle_bg"
-                                    android:backgroundTint="#E8F5FC" android:fontFamily="@font/material_icons" />
+                                    android:textColor="@color/ink_accent" android:background="@drawable/circle_bg"
+                                    android:backgroundTint="@color/ink_accent_soft" android:fontFamily="@font/material_icons" />
                                 <TextView
                                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                                     android:layout_marginTop="4dp" android:text="Share" android:textSize="12sp"
-                                    android:textColor="#229ED9" />
+                                    android:textColor="@color/ink_accent" />
                             </LinearLayout>
 
                             <!-- Leave (subscriber) / Edit Channel (owner) —
@@ -219,13 +219,13 @@
                                     android:id="@+id/icon_leave_edit"
                                     android:layout_width="44dp" android:layout_height="44dp"
                                     android:gravity="center" android:text="logout" android:textSize="20sp"
-                                    android:textColor="#FF3B30" android:background="@drawable/circle_bg"
+                                    android:textColor="@color/ink_danger" android:background="@drawable/circle_bg"
                                     android:backgroundTint="#FDEAEA" android:fontFamily="@font/material_icons" />
                                 <TextView
                                     android:id="@+id/txt_leave_edit_label"
                                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                                     android:layout_marginTop="4dp" android:text="Leave" android:textSize="12sp"
-                                    android:textColor="#FF3B30" />
+                                    android:textColor="@color/ink_danger" />
                             </LinearLayout>
 
                         </LinearLayout>
@@ -240,7 +240,7 @@
                         android:layout_marginLeft="16dp"
                         android:layout_marginRight="16dp"
                         android:background="@drawable/plan_card_bg"
-                        android:backgroundTint="#FFFFFF"
+                        android:backgroundTint="@color/ink_surface"
                         android:padding="16dp"
                         android:orientation="vertical"
                         android:visibility="gone">
@@ -249,7 +249,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textSize="15sp"
-                            android:textColor="#000000"
+                            android:textColor="@color/ink_text"
                             android:lineSpacingExtra="2dp" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -257,7 +257,7 @@
                             android:layout_marginTop="4dp"
                             android:text="Description"
                             android:textSize="12sp"
-                            android:textColor="#9E9E9E" />
+                            android:textColor="@color/ink_text_2" />
                     </LinearLayout>
 
                     <!-- ── Blur Notification Image ──────────────────────────── -->
@@ -269,13 +269,13 @@
                         android:layout_marginLeft="16dp"
                         android:layout_marginRight="16dp"
                         android:background="@drawable/plan_card_bg"
-                        android:backgroundTint="#FFFFFF"
+                        android:backgroundTint="@color/ink_surface"
                         android:padding="14dp"
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
                         <TextView
                             android:layout_width="28dp" android:layout_height="wrap_content"
-                            android:text="blur_on" android:textSize="20sp" android:textColor="#229ED9"
+                            android:text="blur_on" android:textSize="20sp" android:textColor="@color/ink_accent"
                             android:fontFamily="@font/material_icons" />
                         <LinearLayout
                             android:layout_width="0dp" android:layout_height="wrap_content"
@@ -283,10 +283,10 @@
                             android:orientation="vertical">
                             <TextView
                                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:text="Blur Notification Image" android:textSize="14sp" android:textColor="#000000" />
+                                android:text="Blur Notification Image" android:textSize="14sp" android:textColor="@color/ink_text" />
                             <TextView
                                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:text="Hide post images in notification previews" android:textSize="11sp" android:textColor="#757575" />
+                                android:text="Hide post images in notification previews" android:textSize="11sp" android:textColor="@color/ink_text_2" />
                         </LinearLayout>
                         <Switch android:id="@+id/sw_blur" android:layout_width="wrap_content" android:layout_height="wrap_content" />
                     </LinearLayout>
@@ -302,7 +302,7 @@
                         android:layout_marginLeft="16dp"
                         android:layout_marginRight="16dp"
                         android:background="@drawable/plan_card_bg"
-                        android:backgroundTint="#FFFFFF"
+                        android:backgroundTint="@color/ink_surface"
                         android:foreground="?attr/selectableItemBackground"
                         android:padding="14dp"
                         android:gravity="center_vertical"
@@ -310,20 +310,20 @@
                         android:visibility="gone">
                         <TextView
                             android:layout_width="28dp" android:layout_height="wrap_content"
-                            android:text="group" android:textSize="20sp" android:textColor="#229ED9"
+                            android:text="group" android:textSize="20sp" android:textColor="@color/ink_accent"
                             android:fontFamily="@font/material_icons" />
                         <TextView
                             android:layout_width="0dp" android:layout_height="wrap_content"
                             android:layout_weight="1" android:layout_marginLeft="10dp"
-                            android:text="Subscribers" android:textSize="14sp" android:textColor="#000000" />
+                            android:text="Subscribers" android:textSize="14sp" android:textColor="@color/ink_text" />
                         <TextView
                             android:id="@+id/txt_subscribers_count"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:layout_marginRight="8dp"
-                            android:textSize="14sp" android:textColor="#757575" />
+                            android:textSize="14sp" android:textColor="@color/ink_text_2" />
                         <TextView
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="chevron_right" android:textSize="22sp" android:textColor="#BDBDBD"
+                            android:text="chevron_right" android:textSize="22sp" android:textColor="@color/ink_text_2"
                             android:fontFamily="@font/material_icons" />
                     </LinearLayout>
 
@@ -335,7 +335,7 @@
                         android:layout_marginLeft="16dp"
                         android:layout_marginRight="16dp"
                         android:background="@drawable/plan_card_bg"
-                        android:backgroundTint="#FFFFFF"
+                        android:backgroundTint="@color/ink_surface"
                         android:orientation="horizontal">
 
                         <LinearLayout
@@ -345,7 +345,7 @@
                             android:background="?attr/selectableItemBackground">
                             <TextView android:id="@+id/txt_tab_media" android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" android:text="Media"
-                                android:textSize="13sp" android:textColor="#229ED9" android:textStyle="bold" />
+                                android:textSize="13sp" android:textColor="@color/ink_accent" android:textStyle="bold" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -355,7 +355,7 @@
                             android:background="?attr/selectableItemBackground">
                             <TextView android:id="@+id/txt_tab_links" android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" android:text="Links"
-                                android:textSize="13sp" android:textColor="#9E9E9E" />
+                                android:textSize="13sp" android:textColor="@color/ink_text_2" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -365,7 +365,7 @@
                             android:background="?attr/selectableItemBackground">
                             <TextView android:id="@+id/txt_tab_voice" android:layout_width="wrap_content"
                                 android:layout_height="wrap_content" android:text="Voice"
-                                android:textSize="13sp" android:textColor="#9E9E9E" />
+                                android:textSize="13sp" android:textColor="@color/ink_text_2" />
                         </LinearLayout>
 
                     </LinearLayout>
@@ -374,7 +374,7 @@
                         android:layout_width="0dp"
                         android:layout_height="2dp"
                         android:layout_marginLeft="16dp"
-                        android:background="#229ED9" />
+                        android:background="@color/ink_accent" />
 
                 <!-- ── Tab content — now INSIDE the scroll, sized to its
                      content so the whole page scrolls as one. The Activity
@@ -385,7 +385,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:minHeight="220dp"
-                    android:background="#FFFFFF">
+                    android:background="@color/ink_surface">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recycler_tab_content"
@@ -422,7 +422,7 @@
                         android:id="@+id/txt_tab_empty_label"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:text="Nothing here yet"
-                        android:textSize="13sp" android:textColor="#9E9E9E" />
+                        android:textSize="13sp" android:textColor="@color/ink_text_2" />
                 </LinearLayout>
 
                 </FrameLayout>
@@ -440,7 +440,7 @@
         android:id="@+id/layout_selection_bar"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="#229ED9"
+        android:background="@color/ink_accent"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="6dp"

@@ -297,7 +297,7 @@ public class TelegramMediaPicker extends BottomSheetDialogFragment {
             android.graphics.drawable.GradientDrawable circle =
                 new android.graphics.drawable.GradientDrawable();
             circle.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-            circle.setColor(Color.parseColor("#1A73E8"));
+            circle.setColor(Ink.c("#1A73E8"));
             txtSelCount.setBackground(circle);
             txtSelCount.setTextColor(Color.WHITE);
         }

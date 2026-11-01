@@ -68,7 +68,11 @@ public class ChatlistActivity extends AppCompatActivity {
 	private boolean officialChannelChecked = false;
 	
 	// ── Views ─────────────────────────────────────────────────────────────────
-	private LinearLayout       linear80, linear82, btn_new_chat, linear83, linear84, layout_channel_subtabs, linear85;
+	private LinearLayout       linear80, linear82, btn_new_chat, linear83, linear84, layout_channel_subtabs, linear85, linearDiscover;
+	private View indChats, indDiscover, indChannels, indSettings;
+	private TextView iconDiscover, textviewDiscover;
+	/** Chat-list filter: false = All, true = Unread only. */
+	private boolean unreadOnly = false;
 	private FrameLayout        frame_layout81;
 	private TextView           textview72, icon_search, icon_menu, icon_fab,
 	icon_chats,  textview73,
@@ -279,6 +283,13 @@ public class ChatlistActivity extends AppCompatActivity {
 		btn_new_chat           = findViewById(R.id.btn_new_chat);
 		icon_fab               = findViewById(R.id.icon_fab);
 		linear83               = findViewById(R.id.linear83);
+		linearDiscover         = findViewById(R.id.linear_discover);
+		indChats               = findViewById(R.id.ind_chats);
+		indDiscover            = findViewById(R.id.ind_discover);
+		indChannels            = findViewById(R.id.ind_channels);
+		indSettings            = findViewById(R.id.ind_settings);
+		iconDiscover           = findViewById(R.id.icon_discover);
+		textviewDiscover       = findViewById(R.id.textview_discover);
 		linear84               = findViewById(R.id.linear84);
 		linear85               = findViewById(R.id.linear85);
 		icon_chats             = findViewById(R.id.icon_chats);
@@ -380,8 +391,10 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	private void wireListeners() {
 		linear83.setOnClickListener(v -> switchTab(0));
+		linearDiscover.setOnClickListener(v -> startActivity(new Intent(this, DiscoverActivity.class)));
 		linear84.setOnClickListener(v -> switchTab(1));
-		linear85.setOnClickListener(v -> switchTab(2));
+		linear85.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+		_bindFilterChips();
 		
 		icon_search.setOnClickListener(v -> openSearchForCurrentTab());
 		textview72 .setOnClickListener(v -> openSearchForCurrentTab());
@@ -398,8 +411,8 @@ public class ChatlistActivity extends AppCompatActivity {
 		
 		listview_chats.setOnItemClickListener((parent, view, pos, id) -> {
 			if (currentTab == 0) {
-				if (pos < 0 || pos >= chatList.size()) return;
-				HashMap<String, Object> chat = chatList.get(pos);
+				if (pos < 0 || pos >= shownChats().size()) return;
+				HashMap<String, Object> chat = shownChats().get(pos);
 				String chatId = (String) chat.get("chatId");
 				cancelNotification(chatId);
 				startActivity(new Intent(this, ChatActivity.class)
@@ -421,8 +434,8 @@ public class ChatlistActivity extends AppCompatActivity {
 		});
 		
 		listview_chats.setOnItemLongClickListener((parent, view, pos, id) -> {
-			if (currentTab == 0 && pos >= 0 && pos < chatList.size()) {
-				HashMap<String, Object> chat = chatList.get(pos);
+			if (currentTab == 0 && pos >= 0 && pos < shownChats().size()) {
+				HashMap<String, Object> chat = shownChats().get(pos);
 				showChatOptions((String) chat.get("chatId"), (String) chat.get("peer_uid"));
 				return true;
 			} else if (currentTab == 1 && pos >= 0 && pos < filteredChannelList.size()) {
@@ -446,7 +459,7 @@ public class ChatlistActivity extends AppCompatActivity {
 		listview_chats.setAdapter(skeletonAdapter);
 		startShimmer();
 		
-		switchTab(0);
+		switchTab(getIntent().getIntExtra(InkNav.EXTRA_TAB, 0));
 		// Populate from disk BEFORE the first load so cached peers render
 		// immediately rather than waiting on a network round trip.
 		_loadPeerInfoCache();
@@ -556,24 +569,63 @@ public class ChatlistActivity extends AppCompatActivity {
 	//  Tab switching
 	// ═════════════════════════════════════════════════════════════════════════
 	
+	/** Highlights one of the 4 bottom-nav items: 0 Chats, 1 Discover, 2 Channels, 3 Settings. */
+	private void _applyNav(int sel) {
+		View[] ind = {indChats, indDiscover, indChannels, indSettings};
+		TextView[] ic = {icon_chats, iconDiscover, icon_channels, icon_profile};
+		TextView[] tx = {textview73, textviewDiscover, textview74, textview75};
+		int on = Ink.res(R.color.ink_text), off = Ink.res(R.color.ink_text_2);
+		for (int i = 0; i < 4; i++) {
+			boolean s = i == sel;
+			ind[i].setVisibility(s ? View.VISIBLE : View.INVISIBLE);
+			ic[i].setTextColor(s ? on : off);
+			tx[i].setTextColor(s ? on : off);
+			tx[i].setTypeface(null, s ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+		}
+	}
+
+	private void _bindFilterChips() {
+		com.google.android.material.chip.ChipGroup g = findViewById(R.id.chip_group_filter);
+		if (g == null) return;
+		g.setOnCheckedStateChangeListener((group, ids) -> {
+			if (ids.isEmpty()) return;
+			int id = ids.get(0);
+			if (id == R.id.chip_channels) {
+				switchTab(1);
+				group.check(R.id.chip_all);
+				return;
+			}
+			unreadOnly = (id == R.id.chip_unread);
+			if (currentTab == 0) updateChatTabView();
+		});
+	}
+
+	/** The rows currently shown on the Chats tab (All, or only chats with unread messages). */
+	private ArrayList<HashMap<String, Object>> shownChats() {
+		if (!unreadOnly) return chatList;
+		ArrayList<HashMap<String, Object>> out = new ArrayList<>();
+		for (HashMap<String, Object> c : chatList) {
+			Object u = c.get("unread");
+			if (u instanceof Long && (Long) u > 0) out.add(c);
+		}
+		return out;
+	}
+
+	@Override protected void onNewIntent(Intent intent) {
+		super.onNewIntent(intent);
+		setIntent(intent);
+		switchTab(intent.getIntExtra(InkNav.EXTRA_TAB, 0));
+	}
+
 	private void switchTab(int tab) {
 		currentTab = tab;
 		
-		// Reset bottom nav colours
-		int blue = Color.parseColor("#2196F3");
-		int grey = Color.parseColor("#9E9E9E");
-		icon_chats   .setTextColor(grey); textview73.setTextColor(grey);
-		icon_channels.setTextColor(grey); textview74.setTextColor(grey);
-		icon_profile .setTextColor(grey); textview75.setTextColor(grey);
-		textview73.setTypeface(null, android.graphics.Typeface.NORMAL);
-		textview74.setTypeface(null, android.graphics.Typeface.NORMAL);
-		textview75.setTypeface(null, android.graphics.Typeface.NORMAL);
+		_applyNav(tab == 0 ? 0 : tab == 1 ? 2 : 1);
 		
 		if (tab == 0) {
-			icon_chats.setTextColor(blue); textview73.setTextColor(blue);
-			textview73.setTypeface(null, android.graphics.Typeface.BOLD);
 			hideSubtabs();
 			_showMainListContent();
+			_setFiltersVisible(true);
 			listview_chats.setPadding(0, dp(8), 0, 0);
 			listview_chats.setClipToPadding(false);
 			updateChatTabView();
@@ -581,9 +633,8 @@ public class ChatlistActivity extends AppCompatActivity {
 			icon_fab.setText("edit");
 			
 		} else if (tab == 1) {
-			icon_channels.setTextColor(blue); textview74.setTextColor(blue);
-			textview74.setTypeface(null, android.graphics.Typeface.BOLD);
 			_showMainListContent();
+			_setFiltersVisible(false);
 			showSubtabs();
 			// paddingTop = 52dp (sub-tab height) + 8dp gap
 			listview_chats.setPadding(0, dp(60), 0, 0);
@@ -596,8 +647,6 @@ public class ChatlistActivity extends AppCompatActivity {
 		} else {
 			// Updates — real Fragment, loaded once and then just shown/hidden
 			// (same idea as Chats/Channels swapping their own content view).
-			icon_profile.setTextColor(blue); textview75.setTextColor(blue);
-			textview75.setTypeface(null, android.graphics.Typeface.BOLD);
 			hideSubtabs();
 			listview_chats.setVisibility(View.GONE);
 			btn_new_chat.setVisibility(View.GONE);
@@ -611,6 +660,13 @@ public class ChatlistActivity extends AppCompatActivity {
 				}
 			}
 		}
+	}
+
+	private void _setFiltersVisible(boolean v) {
+		View f = findViewById(R.id.layout_chat_filters);
+		if (f != null) f.setVisibility(v ? View.VISIBLE : View.GONE);
+		TextView t = findViewById(R.id.textview72);
+		if (t != null) t.setText(v ? "Chats" : "Channels");
 	}
 
 	/** Chats/Channels both live in listview_chats — Updates hides it. */
@@ -652,7 +708,7 @@ public class ChatlistActivity extends AppCompatActivity {
 			tab_my_channels.setTextColor(Color.WHITE);
 			tab_my_channels.setTypeface(null, android.graphics.Typeface.BOLD);
 			tab_subscribed .setBackgroundResource(R.drawable.tab_pill_inactive_bg);
-			tab_subscribed .setTextColor(Color.parseColor("#5A5A5A"));
+			tab_subscribed .setTextColor(Ink.c("#5A5A5A"));
 			tab_subscribed .setTypeface(null, android.graphics.Typeface.NORMAL);
 		} else {
 			// Subscribed active
@@ -660,7 +716,7 @@ public class ChatlistActivity extends AppCompatActivity {
 			tab_subscribed .setTextColor(Color.WHITE);
 			tab_subscribed .setTypeface(null, android.graphics.Typeface.BOLD);
 			tab_my_channels.setBackgroundResource(R.drawable.tab_pill_inactive_bg);
-			tab_my_channels.setTextColor(Color.parseColor("#5A5A5A"));
+			tab_my_channels.setTextColor(Ink.c("#5A5A5A"));
 			tab_my_channels.setTypeface(null, android.graphics.Typeface.NORMAL);
 		}
 	}
@@ -1126,13 +1182,13 @@ public class ChatlistActivity extends AppCompatActivity {
 	}
 	
 	private class ChatAdapter extends BaseAdapter {
-		@Override public int    getCount()        { return chatList.size(); }
-		@Override public Object getItem(int p)    { return chatList.get(p); }
+		@Override public int    getCount()        { return shownChats().size(); }
+		@Override public Object getItem(int p)    { return shownChats().get(p); }
 		@Override public long   getItemId(int p)  { return p; }
 		@Override public View getView(int pos, View cv, ViewGroup parent) {
 			if (cv == null) cv = LayoutInflater.from(ChatlistActivity.this)
 			.inflate(R.layout.item_chat, parent, false);
-			HashMap<String, Object> chat = chatList.get(pos);
+			HashMap<String, Object> chat = shownChats().get(pos);
 			String name    = (String) chat.get("peer_name");
 			String photo   = (String) chat.get("peer_photo");
 			String lastMsg = (String) chat.get("last_msg");

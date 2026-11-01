@@ -100,11 +100,11 @@ public class ChannelReplyAdapter extends BaseAdapter {
         if (txtText != null) {
             if (isDeleted) {
                 txtText.setText("🚫 Reply deleted");
-                txtText.setTextColor(Color.parseColor("#757575"));
+                txtText.setTextColor(Ink.c("#757575"));
                 txtText.setTypeface(null, Typeface.ITALIC);
             } else {
                 txtText.setText(text);
-                txtText.setTextColor(Color.parseColor("#424242"));
+                txtText.setTextColor(Ink.c("#424242"));
                 txtText.setTypeface(null, Typeface.NORMAL);
             }
         }

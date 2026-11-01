@@ -366,7 +366,7 @@ public class ChannelPostRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if (h.txtMsg != null) {
                 h.txtMsg.setVisibility(View.VISIBLE);
                 h.txtMsg.setText("🚫 This post was deleted");
-                h.txtMsg.setTextColor(Color.parseColor("#9E9E9E"));
+                h.txtMsg.setTextColor(Ink.c("#9E9E9E"));
                 h.txtMsg.setTypeface(null, Typeface.ITALIC);
             }
             if (h.txtTimeMsg != null && ts != null) h.txtTimeMsg.setText(formatTime(ts));
@@ -389,7 +389,7 @@ public class ChannelPostRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                     sb.append(label).append("\n");
                     int end = sb.length();
                     sb.setSpan(new StyleSpan(Typeface.BOLD), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    sb.setSpan(new ForegroundColorSpan(Color.parseColor("#1B5E20")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    sb.setSpan(new ForegroundColorSpan(Ink.c("#1B5E20")), 0, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     sb.append(replyPrev != null ? replyPrev : "");
                     h.txtReply.setMaxLines(2);
                     h.txtReply.setText(sb);
@@ -435,7 +435,7 @@ public class ChannelPostRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         if (h.btnLike != null) {
             h.btnLike.setVisibility(View.VISIBLE);
             h.btnLike.setText(liked ? "favorite" : "favorite_border");
-            h.btnLike.setTextColor(liked ? Color.parseColor("#E53935") : Color.parseColor("#9E9E9E"));
+            h.btnLike.setTextColor(liked ? Ink.c("#E53935") : Ink.c("#9E9E9E"));
             final boolean _liked = liked;
             h.btnLike.setOnClickListener(v -> {
                 if (listener != null && !finalPostId.startsWith("temp_"))
@@ -570,7 +570,7 @@ public class ChannelPostRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                 if (h.txtCaption != null) {
                     h.txtCaption.setVisibility(View.VISIBLE);
                     h.txtCaption.setText("⚠  Upload failed  ·  Tap to retry");
-                    h.txtCaption.setTextColor(Color.parseColor("#FF6B6B"));
+                    h.txtCaption.setTextColor(Ink.c("#FF6B6B"));
                 }
                 h.imgMsg.setOnClickListener(v -> { if (listener != null) listener.onRetryUpload(finalPostId); });
             }
@@ -622,7 +622,7 @@ public class ChannelPostRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             h.txtCaption.setVisibility(hasCaption || Boolean.TRUE.equals(isForwarded) ? View.VISIBLE : View.GONE);
             if (hasCaption) {
                 h.txtCaption.setText(caption);
-                h.txtCaption.setTextColor(Color.parseColor("#1A1A1A"));
+                h.txtCaption.setTextColor(Ink.c("#1A1A1A"));
                 SmartLinkMovementMethod.apply(h.txtCaption);
                 if (Boolean.TRUE.equals(isForwarded)) _prependForwarded(h.txtCaption);
             }

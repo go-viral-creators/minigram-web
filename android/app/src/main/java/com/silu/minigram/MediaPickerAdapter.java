@@ -100,7 +100,7 @@ public class MediaPickerAdapter extends BaseAdapter {
         // ─────────────────────────────────────────────────────────────────────
         if (pos == 0) {
             imgCell.setImageDrawable(null);
-            imgCell.setBackgroundColor(Color.parseColor("#1E1E1E"));
+            imgCell.setBackgroundColor(Ink.c("#1E1E1E"));
 
             cameraIcon.setVisibility(View.VISIBLE);
             cameraLabel.setVisibility(View.VISIBLE);
@@ -125,7 +125,7 @@ public class MediaPickerAdapter extends BaseAdapter {
         // ─────────────────────────────────────────────────────────────────────
         cameraIcon.setVisibility(View.GONE);
         cameraLabel.setVisibility(View.GONE);
-        imgCell.setBackgroundColor(Color.parseColor("#2C2C2E"));
+        imgCell.setBackgroundColor(Ink.c("#2C2C2E"));
 
         Uri uri        = imageUris.get(pos - 1);
         boolean isSel  = selectedUris.contains(uri);
@@ -147,7 +147,7 @@ public class MediaPickerAdapter extends BaseAdapter {
             // Blue border
             GradientDrawable border = new GradientDrawable();
             border.setShape(GradientDrawable.RECTANGLE);
-            border.setStroke(dp(3), Color.parseColor("#1A73E8"));
+            border.setStroke(dp(3), Ink.c("#1A73E8"));
             convertView.setBackground(border);
             scrim.setVisibility(View.VISIBLE);
             convertView.setAlpha(1f);
@@ -160,7 +160,7 @@ public class MediaPickerAdapter extends BaseAdapter {
             // Programmatic blue circle bg for badge
             GradientDrawable circle = new GradientDrawable();
             circle.setShape(GradientDrawable.OVAL);
-            circle.setColor(Color.parseColor("#1A73E8"));
+            circle.setColor(Ink.c("#1A73E8"));
             circle.setStroke(dp(1), Color.WHITE);
             badgeCount.setBackground(circle);
             badgeCount.setTextColor(Color.WHITE);

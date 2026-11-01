@@ -72,8 +72,8 @@ public class ImageCaptionActivity extends AppCompatActivity {
     private boolean drawMode    = false;
 
     private final int[] PALETTE = {
-        Color.RED, Color.parseColor("#FF9800"), Color.YELLOW,
-        Color.GREEN, Color.CYAN, Color.BLUE, Color.parseColor("#9C27B0"),
+        Color.RED, Ink.c("#FF9800"), Color.YELLOW,
+        Color.GREEN, Color.CYAN, Color.BLUE, Ink.c("#9C27B0"),
         Color.WHITE, Color.BLACK
     };
 
@@ -166,7 +166,7 @@ public class ImageCaptionActivity extends AppCompatActivity {
             border.setShape(GradientDrawable.RECTANGLE);
             border.setCornerRadius(dp(6));
             border.setStroke(dp(i == currentIndex ? 3 : 1),
-                i == currentIndex ? Color.parseColor("#2196F3") : Color.parseColor("#757575"));
+                i == currentIndex ? Ink.c("#2196F3") : Ink.c("#757575"));
             wrapper.setBackground(border);
             wrapper.setClipToOutline(true);
 
@@ -196,7 +196,7 @@ public class ImageCaptionActivity extends AppCompatActivity {
             border.setShape(GradientDrawable.RECTANGLE);
             border.setCornerRadius(dp(6));
             border.setStroke(dp(i == currentIndex ? 3 : 1),
-                i == currentIndex ? Color.parseColor("#2196F3") : Color.parseColor("#757575"));
+                i == currentIndex ? Ink.c("#2196F3") : Ink.c("#757575"));
             child.setBackground(border);
         }
     }
@@ -266,7 +266,7 @@ public class ImageCaptionActivity extends AppCompatActivity {
         com.yalantis.ucrop.UCrop.Options opts = new com.yalantis.ucrop.UCrop.Options();
         opts.setToolbarColor(Color.BLACK);
         opts.setStatusBarColor(Color.BLACK);
-        opts.setActiveControlsWidgetColor(Color.parseColor("#2196F3"));
+        opts.setActiveControlsWidgetColor(Ink.c("#2196F3"));
         opts.setToolbarWidgetColor(Color.WHITE);
         opts.setToolbarTitle("Crop Image");
 

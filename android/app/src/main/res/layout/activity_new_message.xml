@@ -5,13 +5,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/ink_surface">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="4dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -24,7 +24,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -34,7 +34,7 @@
             android:text="New Message"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#000000" />
+            android:textColor="@color/ink_text" />
 
     </LinearLayout>
 
@@ -43,14 +43,14 @@
         android:layout_height="wrap_content"
         android:padding="12dp"
         android:gravity="center_vertical"
-        android:background="#F5F5F7"
+        android:background="@color/ink_surface_alt"
         android:orientation="horizontal">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="search"
             android:textSize="18sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:layout_marginRight="8dp"
             android:fontFamily="@font/material_icons" />
         <EditText
@@ -61,7 +61,7 @@
             android:background="@null"
             android:hint="Search by name or @handle"
             android:textSize="15sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:inputType="text"
             android:maxLines="1" />
     </LinearLayout>
@@ -72,7 +72,7 @@
         android:layout_height="wrap_content"
         android:padding="16dp"
         android:gravity="center_vertical"
-        android:background="#F5F5F7"
+        android:background="@color/ink_surface_alt"
         android:orientation="horizontal"
         android:visibility="gone">
         <TextView
@@ -81,9 +81,9 @@
             android:gravity="center"
             android:text="contacts"
             android:textSize="22sp"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/ink_on_accent"
             android:background="@drawable/circle_bg"
-            android:backgroundTint="#229ED9"
+            android:backgroundTint="@color/ink_accent"
             android:fontFamily="@font/material_icons" />
         <LinearLayout
             android:layout_width="0dp"
@@ -97,14 +97,14 @@
                 android:text="Find friends on Minigram"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:textColor="#000000" />
+                android:textColor="@color/ink_text" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:text="Allow contacts access to see who's already here, and invite the rest"
                 android:textSize="12sp"
-                android:textColor="#757575" />
+                android:textColor="@color/ink_text_2" />
         </LinearLayout>
         <TextView
             android:id="@+id/btn_allow_contacts"
@@ -118,9 +118,9 @@
             android:text="Allow"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/ink_on_accent"
             android:background="@drawable/plan_card_bg"
-            android:backgroundTint="#229ED9" />
+            android:backgroundTint="@color/ink_accent" />
     </LinearLayout>
 
     <TextView
@@ -134,7 +134,7 @@
         android:text="RECENT CHATS"
         android:textSize="12sp"
         android:textStyle="bold"
-        android:textColor="#8E8E93"
+        android:textColor="@color/ink_text_2"
         android:visibility="gone" />
 
     <FrameLayout
@@ -156,7 +156,7 @@
             android:layout_marginRight="32dp"
             android:gravity="center"
             android:textSize="14sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:visibility="gone" />
 
     </FrameLayout>

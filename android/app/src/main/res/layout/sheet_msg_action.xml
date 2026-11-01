@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/ink_surface">
 
     <!-- Reactions row (horizontally scrollable, Telegram-style) -->
     <HorizontalScrollView
@@ -42,7 +42,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Copy row -->
     <LinearLayout
@@ -65,7 +65,7 @@
             android:layout_height="24dp"
             android:text="content_copy"
             android:textSize="22sp"
-            android:textColor="#424242"
+            android:textColor="@color/ink_text"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -76,13 +76,13 @@
             android:layout_marginStart="12dp"
             android:text="Copy"
             android:textSize="15.5sp"
-            android:textColor="#212121" />
+            android:textColor="@color/ink_text" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Reply row -->
     <LinearLayout
@@ -105,7 +105,7 @@
             android:layout_height="24dp"
             android:text="reply"
             android:textSize="22sp"
-            android:textColor="#424242"
+            android:textColor="@color/ink_text"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -116,13 +116,13 @@
             android:layout_marginStart="12dp"
             android:text="Reply"
             android:textSize="15.5sp"
-            android:textColor="#212121" />
+            android:textColor="@color/ink_text" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Forward row -->
     <LinearLayout
@@ -145,7 +145,7 @@
             android:layout_height="24dp"
             android:text="forward"
             android:textSize="22sp"
-            android:textColor="#424242"
+            android:textColor="@color/ink_text"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -156,13 +156,13 @@
             android:layout_marginStart="12dp"
             android:text="Forward"
             android:textSize="15.5sp"
-            android:textColor="#212121" />
+            android:textColor="@color/ink_text" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Pin / Unpin row -->
     <LinearLayout
@@ -185,7 +185,7 @@
             android:layout_height="24dp"
             android:text="push_pin"
             android:textSize="22sp"
-            android:textColor="#424242"
+            android:textColor="@color/ink_text"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -196,13 +196,13 @@
             android:layout_marginStart="12dp"
             android:text="Pin Message"
             android:textSize="15.5sp"
-            android:textColor="#212121" />
+            android:textColor="@color/ink_text" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Edit row (own text only) -->
     <LinearLayout
@@ -226,7 +226,7 @@
             android:layout_height="24dp"
             android:text="edit"
             android:textSize="22sp"
-            android:textColor="#1976D2"
+            android:textColor="@color/ink_accent"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -237,7 +237,7 @@
             android:layout_marginStart="12dp"
             android:text="Edit Message"
             android:textSize="15.5sp"
-            android:textColor="#1976D2" />
+            android:textColor="@color/ink_accent" />
     </LinearLayout>
 
     <!-- Separator between normal actions and delete actions -->
@@ -245,7 +245,7 @@
         android:id="@+id/separator"
         android:layout_width="match_parent"
         android:layout_height="8dp"
-        android:background="#F5F5F5" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Delete for me row -->
     <LinearLayout
@@ -268,7 +268,7 @@
             android:layout_height="24dp"
             android:text="delete_outline"
             android:textSize="22sp"
-            android:textColor="#E53935"
+            android:textColor="@color/ink_danger"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -279,13 +279,13 @@
             android:layout_marginStart="12dp"
             android:text="Delete for Me"
             android:textSize="15.5sp"
-            android:textColor="#E53935" />
+            android:textColor="@color/ink_danger" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#F0F0F0" />
+        android:background="@color/ink_surface_alt" />
 
     <!-- Delete for everyone row (own messages only) -->
     <LinearLayout
@@ -309,7 +309,7 @@
             android:layout_height="24dp"
             android:text="delete_forever"
             android:textSize="22sp"
-            android:textColor="#B71C1C"
+            android:textColor="@color/ink_danger"
             android:gravity="center"
             android:fontFamily="@font/material_icons" />
 
@@ -320,7 +320,7 @@
             android:layout_marginStart="12dp"
             android:text="Delete for Everyone"
             android:textSize="15.5sp"
-            android:textColor="#B71C1C" />
+            android:textColor="@color/ink_danger" />
     </LinearLayout>
 
 </LinearLayout>

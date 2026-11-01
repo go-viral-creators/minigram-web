@@ -3,7 +3,7 @@ android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/ink_surface">
 
     <!-- Search Toolbar -->
     <LinearLayout
@@ -12,7 +12,7 @@ android:id="@+id/main"
         android:paddingLeft="8dp"
         android:paddingRight="8dp"
         android:gravity="center_vertical"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:elevation="4dp">
 
         <EditText
@@ -27,8 +27,8 @@ android:id="@+id/main"
             android:paddingRight="14dp"
             android:hint="Search by name or @username"
             android:textSize="15sp"
-            android:textColor="#212121"
-            android:textColorHint="#9E9E9E"
+            android:textColor="@color/ink_text"
+            android:textColorHint="@color/ink_text_2"
             android:singleLine="true"
             android:imeOptions="actionSearch"
             android:inputType="text" />
@@ -39,7 +39,7 @@ android:id="@+id/main"
             android:layout_height="wrap_content"
             android:text="Cancel"
             android:textSize="14sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:textStyle="bold"
             android:paddingLeft="8dp"
             android:paddingRight="4dp" />
@@ -63,7 +63,7 @@ android:id="@+id/main"
             android:layout_marginLeft="10dp"
             android:text="Searching..."
             android:textSize="14sp"
-            android:textColor="#757575" />
+            android:textColor="@color/ink_text_2" />
     </LinearLayout>
 
     <!-- Default view (shown while the query box is empty): recent searches
@@ -99,7 +99,7 @@ android:id="@+id/main"
                     android:text="RECENT SEARCHES"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    android:textColor="#8E8E93" />
+                    android:textColor="@color/ink_text_2" />
                 <TextView
                     android:id="@+id/btn_clear_history"
                     android:layout_width="wrap_content"
@@ -108,7 +108,7 @@ android:id="@+id/main"
                     android:text="CLEAR"
                     android:textSize="12sp"
                     android:textStyle="bold"
-                    android:textColor="#E53935"
+                    android:textColor="@color/ink_danger"
                     android:background="?attr/selectableItemBackground" />
             </LinearLayout>
 
@@ -130,7 +130,7 @@ android:id="@+id/main"
                 android:text="MOST POPULAR CHANNELS"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#8E8E93"
+                android:textColor="@color/ink_text_2"
                 android:visibility="gone" />
 
             <LinearLayout
@@ -147,7 +147,7 @@ android:id="@+id/main"
                 android:paddingTop="20dp"
                 android:text="Start typing to search"
                 android:textSize="14sp"
-                android:textColor="#BDBDBD"
+                android:textColor="@color/ink_text_2"
                 android:visibility="gone" />
 
         </LinearLayout>
@@ -161,7 +161,7 @@ android:id="@+id/main"
         android:paddingTop="40dp"
         android:text="No users found"
         android:textSize="15sp"
-        android:textColor="#9E9E9E"
+        android:textColor="@color/ink_text_2"
         android:gravity="center"
         android:visibility="gone" />
 

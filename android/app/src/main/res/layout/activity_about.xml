@@ -5,14 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F5F7">
+    android:background="@color/ink_surface_alt">
 
     <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="4dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -25,7 +25,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -35,7 +35,7 @@
             android:text="About Minigram"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#000000" />
+            android:textColor="@color/ink_text" />
 
     </LinearLayout>
 
@@ -56,7 +56,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:gravity="center_horizontal"
-                android:background="#FFFFFF"
+                android:background="@color/ink_surface"
                 android:paddingTop="28dp"
                 android:paddingBottom="24dp">
 
@@ -74,7 +74,7 @@
                     android:text="Minigram"
                     android:textSize="22sp"
                     android:textStyle="bold"
-                    android:textColor="#000000" />
+                    android:textColor="@color/ink_text" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -82,7 +82,7 @@
                     android:layout_marginTop="4dp"
                     android:text="Fast · Private · Open"
                     android:textSize="13sp"
-                    android:textColor="#757575" />
+                    android:textColor="@color/ink_text_2" />
 
             </LinearLayout>
 
@@ -96,7 +96,7 @@
                 android:text="APP INFO"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#8E8E93" />
+                android:textColor="@color/ink_text_2" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -104,7 +104,7 @@
                 android:layout_marginLeft="16dp"
                 android:layout_marginRight="16dp"
                 android:background="@drawable/plan_card_bg"
-                android:backgroundTint="#FFFFFF"
+                android:backgroundTint="@color/ink_surface"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -115,19 +115,19 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="info" android:textSize="20sp" android:textColor="#229ED9"
+                        android:text="info" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Version" android:textSize="14sp" android:textColor="#000000" />
+                        android:text="Version" android:textSize="14sp" android:textColor="@color/ink_text" />
                     <TextView
                         android:id="@+id/txt_version"
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="—" android:textSize="14sp" android:textColor="#757575" />
+                        android:text="—" android:textSize="14sp" android:textColor="@color/ink_text_2" />
                 </LinearLayout>
                 <View android:layout_width="match_parent" android:layout_height="1dp"
-                    android:layout_marginLeft="52dp" android:background="#F0F0F0" />
+                    android:layout_marginLeft="52dp" android:background="@color/ink_surface_alt" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -137,18 +137,18 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="code" android:textSize="20sp" android:textColor="#229ED9"
+                        android:text="code" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Developer" android:textSize="14sp" android:textColor="#000000" />
+                        android:text="Developer" android:textSize="14sp" android:textColor="@color/ink_text" />
                     <TextView
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="DDC Studio" android:textSize="14sp" android:textColor="#757575" />
+                        android:text="DDC Studio" android:textSize="14sp" android:textColor="@color/ink_text_2" />
                 </LinearLayout>
                 <View android:layout_width="match_parent" android:layout_height="1dp"
-                    android:layout_marginLeft="52dp" android:background="#F0F0F0" />
+                    android:layout_marginLeft="52dp" android:background="@color/ink_surface_alt" />
 
                 <LinearLayout
                     android:id="@+id/row_contact"
@@ -160,15 +160,15 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="mail" android:textSize="20sp" android:textColor="#229ED9"
+                        android:text="mail" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Contact" android:textSize="14sp" android:textColor="#000000" />
+                        android:text="Contact" android:textSize="14sp" android:textColor="@color/ink_text" />
                     <TextView
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="minigram783@gmail.com" android:textSize="13sp" android:textColor="#757575" />
+                        android:text="minigram783@gmail.com" android:textSize="13sp" android:textColor="@color/ink_text_2" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -182,7 +182,7 @@
                 android:text="LINKS"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:textColor="#8E8E93" />
+                android:textColor="@color/ink_text_2" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -190,7 +190,7 @@
                 android:layout_marginLeft="16dp"
                 android:layout_marginRight="16dp"
                 android:background="@drawable/plan_card_bg"
-                android:backgroundTint="#FFFFFF"
+                android:backgroundTint="@color/ink_surface"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -203,19 +203,19 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="star" android:textSize="20sp" android:textColor="#229ED9"
+                        android:text="star" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Rate on Play Store" android:textSize="14sp" android:textColor="#000000" />
+                        android:text="Rate on Play Store" android:textSize="14sp" android:textColor="@color/ink_text" />
                     <TextView
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="chevron_right" android:textSize="22sp" android:textColor="#BDBDBD"
+                        android:text="chevron_right" android:textSize="22sp" android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
                 </LinearLayout>
                 <View android:layout_width="match_parent" android:layout_height="1dp"
-                    android:layout_marginLeft="52dp" android:background="#F0F0F0" />
+                    android:layout_marginLeft="52dp" android:background="@color/ink_surface_alt" />
 
                 <LinearLayout
                     android:id="@+id/row_share"
@@ -227,19 +227,19 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="share" android:textSize="20sp" android:textColor="#229ED9"
+                        android:text="share" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Share Minigram" android:textSize="14sp" android:textColor="#000000" />
+                        android:text="Share Minigram" android:textSize="14sp" android:textColor="@color/ink_text" />
                     <TextView
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="chevron_right" android:textSize="22sp" android:textColor="#BDBDBD"
+                        android:text="chevron_right" android:textSize="22sp" android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
                 </LinearLayout>
                 <View android:layout_width="match_parent" android:layout_height="1dp"
-                    android:layout_marginLeft="52dp" android:background="#F0F0F0" />
+                    android:layout_marginLeft="52dp" android:background="@color/ink_surface_alt" />
 
                 <LinearLayout
                     android:id="@+id/row_terms"
@@ -251,15 +251,15 @@
                     android:orientation="horizontal">
                     <TextView
                         android:layout_width="28dp" android:layout_height="wrap_content"
-                        android:text="description" android:textSize="20sp" android:textColor="#229ED9"
+                        android:text="description" android:textSize="20sp" android:textColor="@color/ink_accent"
                         android:fontFamily="@font/material_icons" />
                     <TextView
                         android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:layout_marginLeft="10dp"
-                        android:text="Terms &amp; Conditions" android:textSize="14sp" android:textColor="#000000" />
+                        android:text="Terms &amp; Conditions" android:textSize="14sp" android:textColor="@color/ink_text" />
                     <TextView
                         android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="chevron_right" android:textSize="22sp" android:textColor="#BDBDBD"
+                        android:text="chevron_right" android:textSize="22sp" android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
                 </LinearLayout>
             </LinearLayout>
@@ -272,7 +272,7 @@
                 android:gravity="center"
                 android:text="Made with ♥ in India&#10;© 2025 DDC Studio"
                 android:textSize="12sp"
-                android:textColor="#9E9E9E"
+                android:textColor="@color/ink_text_2"
                 android:lineSpacingExtra="2dp" />
 
         </LinearLayout>

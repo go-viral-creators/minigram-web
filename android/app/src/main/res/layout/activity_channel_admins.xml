@@ -5,14 +5,14 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/ink_surface">
 
     <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="12dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -25,7 +25,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -35,7 +35,7 @@
             android:text="Channel Admins"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#000000" />
+            android:textColor="@color/ink_text" />
 
     </LinearLayout>
 
@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:padding="12dp"
         android:gravity="center_vertical"
-        android:background="#F5F5F7"
+        android:background="@color/ink_surface_alt"
         android:orientation="horizontal">
 
         <TextView
@@ -53,7 +53,7 @@
             android:layout_height="wrap_content"
             android:text="search"
             android:textSize="18sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:layout_marginRight="8dp"
             android:fontFamily="@font/material_icons" />
 
@@ -65,7 +65,7 @@
             android:background="@null"
             android:hint="Search subscribers"
             android:textSize="15sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:inputType="text"
             android:maxLines="1" />
 
@@ -78,7 +78,7 @@
         android:padding="14dp"
         android:text="People given posting rights can send text, photo, and voice posts to this channel — everything else (settings, pinning, moderation) stays owner-only."
         android:textSize="12sp"
-        android:textColor="#757575" />
+        android:textColor="@color/ink_text_2" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -99,7 +99,7 @@
             android:layout_gravity="center"
             android:text="Loading…"
             android:textSize="14sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:visibility="gone" />
 
     </FrameLayout>

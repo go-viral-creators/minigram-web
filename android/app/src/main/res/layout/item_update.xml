@@ -35,7 +35,7 @@
 				android:layout_height="wrap_content"
 				android:text="campaign"
 				android:textSize="16sp"
-				android:textColor="#229ED9"
+				android:textColor="@color/ink_accent"
 				android:fontFamily="@font/material_icons" />
 			<TextView
 				android:layout_width="wrap_content"
@@ -44,7 +44,7 @@
 				android:text="Minigram"
 				android:textSize="12sp"
 				android:textStyle="bold"
-				android:textColor="#229ED9" />
+				android:textColor="@color/ink_accent" />
 			<TextView
 				android:id="@+id/txt_update_time"
 				android:layout_width="0dp"
@@ -53,7 +53,7 @@
 				android:gravity="right"
 				android:text=""
 				android:textSize="11sp"
-				android:textColor="#9E9E9E" />
+				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
 
 		<TextView
@@ -64,7 +64,7 @@
 			android:text=""
 			android:textSize="16sp"
 			android:textStyle="bold"
-			android:textColor="#212121" />
+			android:textColor="@color/ink_text" />
 
 		<TextView
 			android:id="@+id/txt_update_body"
@@ -74,7 +74,7 @@
 			android:text=""
 			android:textSize="14sp"
 			android:lineSpacingExtra="2dp"
-			android:textColor="#616161" />
+			android:textColor="@color/ink_text_2" />
 
 		<TextView
 			android:id="@+id/txt_update_link"
@@ -84,7 +84,7 @@
 			android:text="Learn more  →"
 			android:textSize="13sp"
 			android:textStyle="bold"
-			android:textColor="#229ED9"
+			android:textColor="@color/ink_accent"
 			android:visibility="gone" />
 
 	</LinearLayout>

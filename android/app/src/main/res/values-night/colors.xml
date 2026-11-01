@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ink & Paper palette (dark) -->
+    <color name="ink_bg">#141218</color>
+    <color name="ink_surface">#1D1A24</color>
+    <color name="ink_surface_alt">#26222F</color>
+    <color name="ink_accent">#A5B4FC</color>
+    <color name="ink_on_accent">#141218</color>
+    <color name="ink_accent_soft">#2A2750</color>
+    <color name="ink_sent">#3730A3</color>
+    <color name="ink_on_sent">#FFFFFF</color>
+    <color name="ink_text">#F2EFE8</color>
+    <color name="ink_text_2">#A8A398</color>
+    <color name="ink_line">#33303C</color>
+    <color name="ink_ok">#4ADE80</color>
+    <color name="ink_ok_soft">#173325</color>
+    <color name="ink_danger">#F87171</color>
+    <color name="colorHighlight">#40A5B4FC</color>
+    <color name="colorSelected">#26A5B4FC</color>
+    <color name="ink_on_sent_2">#C7C9F0</color>
+</resources>

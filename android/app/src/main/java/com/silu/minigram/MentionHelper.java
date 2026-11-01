@@ -97,7 +97,7 @@ public final class MentionHelper {
     // ── Tuning ───────────────────────────────────────────────────────────────
 
     /** Link ka colour — app ke baaki accent blue se match karta hai. */
-    private static final int MENTION_COLOR = Color.parseColor("#1A73E8");
+    private static final int MENTION_COLOR = Ink.c("#1A73E8");
 
     /** true = user mention tap par UserProfileSheet; false = seedha chat. */
     private static final boolean OPEN_PROFILE_SHEET_FOR_USERS = false;

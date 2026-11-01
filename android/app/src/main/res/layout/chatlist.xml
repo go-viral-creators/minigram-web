@@ -6,52 +6,137 @@
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
 	android:orientation="vertical"
-	android:background="#F7F8FA">
+	android:background="@color/ink_bg">
 
-	<!-- ══ TOP HEADER ══════════════════════════════════════════════════════ -->
+	<!-- TOP HEADER: serif title + two outlined round buttons -->
 	<LinearLayout
 		android:id="@+id/linear80"
 		android:layout_width="match_parent"
-		android:layout_height="60dp"
-		android:paddingLeft="20dp"
-		android:paddingRight="8dp"
-		android:background="#FFFFFF"
+		android:layout_height="wrap_content"
+		android:paddingStart="20dp"
+		android:paddingEnd="16dp"
+		android:paddingTop="12dp"
+		android:paddingBottom="4dp"
+		android:background="@color/ink_bg"
 		android:gravity="center_vertical"
-		android:orientation="horizontal"
-		android:elevation="2dp">
+		android:orientation="horizontal">
 
 		<TextView
 			android:id="@+id/textview72"
 			android:layout_width="0dp"
 			android:layout_height="wrap_content"
-			android:text="Minigram"
-			android:textSize="22sp"
-			android:textStyle="bold"
-			android:textColor="#0D0D0D"
-			android:letterSpacing="-0.02"
-			android:layout_weight="1" />
+			android:layout_weight="1"
+			android:text="Chats"
+			android:accessibilityHeading="true"
+			android:textAppearance="@style/TextAppearance.Ink.Display" />
 
 		<TextView
 			android:id="@+id/icon_search"
-			android:layout_width="44dp"
-			android:layout_height="44dp"
-			android:background="?attr/selectableItemBackgroundBorderless"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:background="@drawable/btn_round_outline"
+			android:contentDescription="Search"
 			android:gravity="center"
 			android:text="search"
 			android:textSize="22sp"
-			android:textColor="#444444"
+			android:textColor="@color/ink_text"
 			android:fontFamily="@font/material_icons" />
 
 		<TextView
 			android:id="@+id/icon_menu"
-			android:layout_width="44dp"
-			android:layout_height="44dp"
-			android:background="?attr/selectableItemBackgroundBorderless"
+			android:layout_width="48dp"
+			android:layout_height="48dp"
+			android:layout_marginStart="10dp"
+			android:background="@drawable/btn_round_outline"
+			android:contentDescription="More options"
 			android:gravity="center"
 			android:text="more_vert"
 			android:textSize="22sp"
-			android:textColor="#444444"
+			android:textColor="@color/ink_text"
 			android:fontFamily="@font/material_icons" />
+	</LinearLayout>
+
+	<!-- Filter chips + encryption banner (chat list only) -->
+	<LinearLayout
+		android:id="@+id/layout_chat_filters"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:background="@color/ink_bg">
+
+		<HorizontalScrollView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:scrollbars="none"
+			android:clipToPadding="false"
+			android:paddingStart="20dp"
+			android:paddingEnd="20dp">
+
+			<com.google.android.material.chip.ChipGroup
+				android:id="@+id/chip_group_filter"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				app:singleSelection="true"
+				app:selectionRequired="true"
+				app:chipSpacingHorizontal="10dp">
+
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chip_all"
+					style="@style/Widget.Ink.Chip"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:checked="true"
+					android:text="All" />
+
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chip_unread"
+					style="@style/Widget.Ink.Chip"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Unread" />
+
+				<com.google.android.material.chip.Chip
+					android:id="@+id/chip_channels"
+					style="@style/Widget.Ink.Chip"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Channels" />
+			</com.google.android.material.chip.ChipGroup>
+		</HorizontalScrollView>
+
+		<LinearLayout
+			android:id="@+id/banner_e2ee"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="20dp"
+			android:layout_marginEnd="20dp"
+			android:layout_marginTop="12dp"
+			android:layout_marginBottom="8dp"
+			android:background="@drawable/card_bg"
+			android:gravity="center_vertical"
+			android:minHeight="48dp"
+			android:orientation="horizontal"
+			android:padding="12dp"
+			android:visibility="gone">
+
+			<TextView
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:fontFamily="@font/material_icons"
+				android:text="verified_user"
+				android:textColor="@color/ink_ok"
+				android:textSize="22sp"
+				android:importantForAccessibility="no" />
+
+			<TextView
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_marginStart="12dp"
+				android:layout_weight="1"
+				android:text="Messages are end-to-end encrypted. Keys never leave this phone."
+				android:textColor="@color/ink_text_2"
+				android:textSize="13sp" />
+		</LinearLayout>
 	</LinearLayout>
 
 	<!-- ══ CONTENT AREA ════════════════════════════════════════════════════ -->
@@ -87,11 +172,13 @@
 			android:layout_width="56dp"
 			android:layout_height="56dp"
 			android:layout_margin="20dp"
-			android:background="@drawable/circle_primary_bg"
+			android:background="@drawable/fab_ink_bg"
 			android:gravity="center"
 			android:layout_gravity="bottom|end"
-            android:visibility="gone"
-			android:elevation="8dp"
+			android:visibility="gone"
+			android:elevation="6dp"
+			android:contentDescription="New chat"
+			android:clickable="true"
 			android:focusable="true">
 			<TextView
 				android:id="@+id/icon_fab"
@@ -99,7 +186,7 @@
 				android:layout_height="wrap_content"
 				android:text="search"
 				android:textSize="22sp"
-				android:textColor="#FFFFFF"
+				android:textColor="@color/ink_on_accent"
 				android:fontFamily="@font/material_icons" />
 		</LinearLayout>
 
@@ -115,7 +202,7 @@
     android:layout_width="match_parent"
     android:layout_height="52dp"
     android:layout_gravity="top"
-    android:background="#FFFFFF"
+    android:background="@color/ink_surface"
     android:elevation="2dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
@@ -182,33 +269,40 @@
 	     library attributes like this one on a manually-added view tag, which
 	     caused a crash ("ad size ... must be set before loadAd"). -->
 
-	<!-- ══ BOTTOM NAV BAR ══════════════════════════════════════════════════ -->
+	<!-- BOTTOM NAV: Chats · Discover · Channels · Settings (48dp+ touch targets, top indicator) -->
+	<View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_text" android:alpha="0.9" />
 	<LinearLayout
 		android:id="@+id/linear82"
 		android:layout_width="match_parent"
-		android:layout_height="64dp"
-		android:background="#FFFFFF"
-		android:gravity="center_vertical"
-		android:orientation="horizontal"
-		android:elevation="12dp">
-
-		<!-- Chats -->
+		android:layout_height="68dp"
+		android:background="@color/ink_bg"
+		android:orientation="horizontal">
 		<LinearLayout
 			android:id="@+id/linear83"
 			android:layout_width="0dp"
 			android:layout_height="match_parent"
-			android:gravity="center"
-			android:orientation="vertical"
 			android:layout_weight="1"
+			android:gravity="center_horizontal"
+			android:orientation="vertical"
+			android:contentDescription="Chats"
+			android:clickable="true"
+			android:focusable="true"
 			android:background="?attr/selectableItemBackground">
-
+			<View
+				android:id="@+id/ind_chats"
+				android:layout_width="28dp"
+				android:layout_height="3dp"
+				android:background="@color/ink_accent"
+				android:visibility="invisible" />
 			<TextView
 				android:id="@+id/icon_chats"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:text="chat_bubble"
-				android:textSize="22sp"
-				android:textColor="#2196F3"
+				android:layout_marginTop="10dp"
+				android:text="chat_bubble_outline"
+				android:textSize="24sp"
+				android:textColor="@color/ink_text_2"
+				android:importantForAccessibility="no"
 				android:fontFamily="@font/material_icons" />
 			<TextView
 				android:id="@+id/textview73"
@@ -216,66 +310,116 @@
 				android:layout_height="wrap_content"
 				android:layout_marginTop="2dp"
 				android:text="Chats"
-				android:textSize="11sp"
-				android:textStyle="bold"
-				android:textColor="#2196F3" />
+				android:textSize="12sp"
+				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
-
-		<!-- Groups / Channels -->
+		<LinearLayout
+			android:id="@+id/linear_discover"
+			android:layout_width="0dp"
+			android:layout_height="match_parent"
+			android:layout_weight="1"
+			android:gravity="center_horizontal"
+			android:orientation="vertical"
+			android:contentDescription="Discover"
+			android:clickable="true"
+			android:focusable="true"
+			android:background="?attr/selectableItemBackground">
+			<View
+				android:id="@+id/ind_discover"
+				android:layout_width="28dp"
+				android:layout_height="3dp"
+				android:background="@color/ink_accent"
+				android:visibility="invisible" />
+			<TextView
+				android:id="@+id/icon_discover"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="10dp"
+				android:text="explore"
+				android:textSize="24sp"
+				android:textColor="@color/ink_text_2"
+				android:importantForAccessibility="no"
+				android:fontFamily="@font/material_icons" />
+			<TextView
+				android:id="@+id/textview_discover"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="2dp"
+				android:text="Discover"
+				android:textSize="12sp"
+				android:textColor="@color/ink_text_2" />
+		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear84"
 			android:layout_width="0dp"
 			android:layout_height="match_parent"
-			android:gravity="center"
-			android:orientation="vertical"
 			android:layout_weight="1"
+			android:gravity="center_horizontal"
+			android:orientation="vertical"
+			android:contentDescription="Channels"
+			android:clickable="true"
+			android:focusable="true"
 			android:background="?attr/selectableItemBackground">
-
+			<View
+				android:id="@+id/ind_channels"
+				android:layout_width="28dp"
+				android:layout_height="3dp"
+				android:background="@color/ink_accent"
+				android:visibility="invisible" />
 			<TextView
 				android:id="@+id/icon_channels"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:text="groups"
-				android:textSize="22sp"
-				android:textColor="#9E9E9E"
+				android:layout_marginTop="10dp"
+				android:text="campaign"
+				android:textSize="24sp"
+				android:textColor="@color/ink_text_2"
+				android:importantForAccessibility="no"
 				android:fontFamily="@font/material_icons" />
 			<TextView
 				android:id="@+id/textview74"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:layout_marginTop="2dp"
-				android:text="Groups"
-				android:textSize="11sp"
-				android:textColor="#9E9E9E" />
+				android:text="Channels"
+				android:textSize="12sp"
+				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
-
-		<!-- Updates -->
 		<LinearLayout
 			android:id="@+id/linear85"
 			android:layout_width="0dp"
 			android:layout_height="match_parent"
-			android:gravity="center"
-			android:orientation="vertical"
 			android:layout_weight="1"
+			android:gravity="center_horizontal"
+			android:orientation="vertical"
+			android:contentDescription="Settings"
+			android:clickable="true"
+			android:focusable="true"
 			android:background="?attr/selectableItemBackground">
-
+			<View
+				android:id="@+id/ind_settings"
+				android:layout_width="28dp"
+				android:layout_height="3dp"
+				android:background="@color/ink_accent"
+				android:visibility="invisible" />
 			<TextView
 				android:id="@+id/icon_profile"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:text="campaign"
-				android:textSize="22sp"
-				android:textColor="#9E9E9E"
+				android:layout_marginTop="10dp"
+				android:text="settings"
+				android:textSize="24sp"
+				android:textColor="@color/ink_text_2"
+				android:importantForAccessibility="no"
 				android:fontFamily="@font/material_icons" />
 			<TextView
 				android:id="@+id/textview75"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:layout_marginTop="2dp"
-				android:text="Updates"
-				android:textSize="11sp"
-				android:textColor="#9E9E9E" />
+				android:text="Settings"
+				android:textSize="12sp"
+				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
-
 	</LinearLayout>
 </LinearLayout>

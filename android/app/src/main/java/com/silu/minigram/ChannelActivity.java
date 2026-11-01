@@ -673,7 +673,7 @@ public class ChannelActivity extends AppCompatActivity {
 			int end = str.indexOf(' ');
 			if (end == -1) end = str.length();
 			if (end > 0) {
-				s.setSpan(new CommandDimSpan(Color.parseColor("#9E9E9E")), 0, end,
+				s.setSpan(new CommandDimSpan(Ink.c("#9E9E9E")), 0, end,
 					Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 			}
 		}
@@ -1011,7 +1011,7 @@ public class ChannelActivity extends AppCompatActivity {
 
 	private final android.view.ActionMode.Callback postActionModeCallback = new android.view.ActionMode.Callback() {
 		@Override public boolean onCreateActionMode(android.view.ActionMode mode, android.view.Menu menu) {
-			int tint = Color.parseColor("#229ED9");
+			int tint = Ink.c("#229ED9");
 			// Same icon font as the rest of the app (see FontIconDrawable).
 			boolean canForward = isOwner || !restrictForwarding;
 			if (canForward) _addPostMenuIcon(menu, 1, "Forward", "reply", tint);
@@ -1655,7 +1655,7 @@ public class ChannelActivity extends AppCompatActivity {
 			btn_subscribe.setVisibility(View.VISIBLE);
 			if (txt_subscribe_label != null)
 			txt_subscribe_label.setText("SUBSCRIBE to this Channel");
-			btn_subscribe.setBackgroundColor(Color.parseColor("#1A73E8"));
+			btn_subscribe.setBackgroundColor(Ink.c("#1A73E8"));
 		}
 	}
 	
@@ -2329,7 +2329,7 @@ public class ChannelActivity extends AppCompatActivity {
 		GradientDrawable pill = new GradientDrawable();
 		pill.setShape(GradientDrawable.RECTANGLE);
 		pill.setCornerRadius(dp(30));
-		pill.setColor(Color.parseColor("#075E54"));
+		pill.setColor(Ink.c("#075E54"));
 		newPostBubble.setBackground(pill);
 		newPostBubble.setElevation(dp(8));
 

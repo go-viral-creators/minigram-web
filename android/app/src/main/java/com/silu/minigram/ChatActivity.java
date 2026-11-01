@@ -596,7 +596,7 @@ public class ChatActivity extends AppCompatActivity {
         GradientDrawable pill = new GradientDrawable();
         pill.setShape(GradientDrawable.RECTANGLE);
         pill.setCornerRadius(dp(30));
-        pill.setColor(Color.parseColor("#075E54"));
+        pill.setColor(Ink.c("#075E54"));
         newMsgBubble.setBackground(pill);
         newMsgBubble.setElevation(dp(8));
 
@@ -1306,7 +1306,7 @@ public class ChatActivity extends AppCompatActivity {
                     if (isPeerTyping) {
                         if (txt_status != null) {
                             txt_status.setText("typing...");
-                            txt_status.setTextColor(Color.parseColor("#4CAF50")); 
+                            txt_status.setTextColor(Ink.c("#4CAF50")); 
                         }
                     } else {
                         database.getReference("users").child(peerUid).child("status")
@@ -1327,11 +1327,11 @@ public class ChatActivity extends AppCompatActivity {
         boolean online = "online".equals(status);
         if (online) {
             txt_status.setText("online");
-            txt_status.setTextColor(Color.parseColor("#4CAF50"));
+            txt_status.setTextColor(Ink.c("#4CAF50"));
             return;
         }
         txt_status.setText("offline");
-        txt_status.setTextColor(Color.parseColor("#9E9E9E"));
+        txt_status.setTextColor(Ink.c("#9E9E9E"));
         if (peerUid == null || database == null) return;
         database.getReference("users").child(peerUid).child("last_active_ts")
             .addListenerForSingleValueEvent(new ValueEventListener() {
@@ -1696,7 +1696,7 @@ public class ChatActivity extends AppCompatActivity {
             int end = str.indexOf(' ');
             if (end == -1) end = str.length();
             if (end > 0) {
-                s.setSpan(new CommandDimSpan(Color.parseColor("#9E9E9E")), 0, end,
+                s.setSpan(new CommandDimSpan(Ink.c("#9E9E9E")), 0, end,
                     Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             }
         }
@@ -2087,7 +2087,7 @@ public class ChatActivity extends AppCompatActivity {
             // drawable assets — those were the one place in the UI with a
             // different icon style and weight, which is why this toolbar
             // looked out of place.
-            int tint = Color.parseColor("#229ED9");
+            int tint = Ink.c("#229ED9");
             _addMenuIcon(menu, 1, "Forward",  "reply",        tint);
             _addMenuIcon(menu, 3, "Copy",     "content_copy", tint);
             _addMenuIcon(menu, 2, "Delete",   "delete",       tint);
@@ -2205,7 +2205,7 @@ public class ChatActivity extends AppCompatActivity {
                         isPeerTyping = Boolean.TRUE.equals(snap.getValue(Boolean.class));
                         if (isPeerTyping && txt_status != null) {
                             txt_status.setText("typing...");
-                            txt_status.setTextColor(Color.parseColor("#4CAF50"));
+                            txt_status.setTextColor(Ink.c("#4CAF50"));
                         } else if (peerUid != null && database != null) {
                             database.getReference("users").child(peerUid).child("status")
                                 .addListenerForSingleValueEvent(new ValueEventListener() {

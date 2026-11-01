@@ -655,7 +655,7 @@ public class UserSearchActivity extends AppCompatActivity {
                 Glide.with(UserSearchActivity.this).load(c.imageUrl).circleCrop().into(img);
             else {
                 img.setImageResource(R.drawable.ic_person); // fallback
-                img.setColorFilter(Color.parseColor("#2196F3"));
+                img.setColorFilter(Ink.c("#2196F3"));
             }
 
             return convertView;
@@ -676,7 +676,7 @@ public class UserSearchActivity extends AppCompatActivity {
         String lQuery= query.toLowerCase();
         int idx = lText.indexOf(lQuery);
         if (idx >= 0) {
-            sp.setSpan(new BackgroundColorSpan(Color.parseColor("#FFF59D")),
+            sp.setSpan(new BackgroundColorSpan(Ink.c("#FFF59D")),
                     idx, idx + query.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             sp.setSpan(new StyleSpan(Typeface.BOLD),
                     idx, idx + query.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);

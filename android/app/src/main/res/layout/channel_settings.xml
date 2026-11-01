@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#FFFFFF">
+    android:background="@color/ink_surface">
 
     <!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
     <LinearLayout
@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="12dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -26,7 +26,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#000000"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -37,7 +37,7 @@
             android:text="Channel Info"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#000000" />
+            android:textColor="@color/ink_text" />
 
     </LinearLayout>
 
@@ -104,7 +104,7 @@
                     android:text="Channel Name"
                     android:textSize="20sp"
                     android:textStyle="bold"
-                    android:textColor="#000000"
+                    android:textColor="@color/ink_text"
                     android:gravity="center" />
 
                 <!-- Bio — visible only when description is set -->
@@ -115,7 +115,7 @@
                     android:layout_marginTop="6dp"
                     android:text=""
                     android:textSize="13sp"
-                    android:textColor="#616161"
+                    android:textColor="@color/ink_text_2"
                     android:gravity="center"
                     android:maxLines="3"
                     android:ellipsize="end"
@@ -151,7 +151,7 @@
                         android:layout_height="24dp"
                         android:text="edit"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -168,14 +168,14 @@
                             android:layout_height="wrap_content"
                             android:text="Edit Channel Info"
                             android:textSize="16sp"
-                            android:textColor="#000000" />
+                            android:textColor="@color/ink_text" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Name, bio, handle"
                             android:textSize="12sp"
-                            android:textColor="#9E9E9E" />
+                            android:textColor="@color/ink_text_2" />
 
                     </LinearLayout>
 
@@ -185,7 +185,7 @@
                         android:layout_height="wrap_content"
                         android:text="chevron_right"
                         android:textSize="28sp"
-                        android:textColor="#BDBDBD"
+                        android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
 
                 </LinearLayout>
@@ -209,7 +209,7 @@
                         android:layout_height="24dp"
                         android:text="group"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -221,7 +221,7 @@
                         android:layout_weight="1"
                         android:text="Subscribers"
                         android:textSize="16sp"
-                        android:textColor="#000000" />
+                        android:textColor="@color/ink_text" />
 
                     <TextView
                         android:id="@+id/txt_sub_count"
@@ -230,7 +230,7 @@
                         android:text="0"
                         android:textSize="13sp"
                         android:textStyle="bold"
-                        android:textColor="#2196F3" />
+                        android:textColor="@color/ink_accent" />
 
                 </LinearLayout>
 
@@ -253,7 +253,7 @@
                         android:layout_height="24dp"
                         android:text="lock"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -271,7 +271,7 @@
                             android:layout_height="wrap_content"
                             android:text="Channel Type"
                             android:textSize="16sp"
-                            android:textColor="#000000" />
+                            android:textColor="@color/ink_text" />
 
                         <TextView
                             android:id="@+id/textview148"
@@ -279,7 +279,7 @@
                             android:layout_height="wrap_content"
                             android:text="Public · Anyone can find"
                             android:textSize="12sp"
-                            android:textColor="#9E9E9E" />
+                            android:textColor="@color/ink_text_2" />
 
                     </LinearLayout>
 
@@ -289,7 +289,7 @@
                         android:layout_height="wrap_content"
                         android:text="chevron_right"
                         android:textSize="28sp"
-                        android:textColor="#BDBDBD"
+                        android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
 
                 </LinearLayout>
@@ -315,7 +315,7 @@
                         android:layout_height="24dp"
                         android:text="block"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -331,7 +331,7 @@
                             android:layout_height="wrap_content"
                             android:text="Restrict Forwarding"
                             android:textSize="16sp"
-                            android:textColor="#000000" />
+                            android:textColor="@color/ink_text" />
 
                         <TextView
                             android:id="@+id/txt_restrict_forward_sub"
@@ -339,7 +339,7 @@
                             android:layout_height="wrap_content"
                             android:text="Subscribers can forward posts"
                             android:textSize="12sp"
-                            android:textColor="#9E9E9E" />
+                            android:textColor="@color/ink_text_2" />
 
                     </LinearLayout>
 
@@ -374,7 +374,7 @@
                         android:layout_height="24dp"
                         android:text="forum"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -390,7 +390,7 @@
                             android:layout_height="wrap_content"
                             android:text="Allow Subscriber Messages"
                             android:textSize="16sp"
-                            android:textColor="#000000" />
+                            android:textColor="@color/ink_text" />
 
                         <TextView
                             android:id="@+id/txt_allow_replies_sub"
@@ -398,7 +398,7 @@
                             android:layout_height="wrap_content"
                             android:text="Subscribers can reply to posts"
                             android:textSize="12sp"
-                            android:textColor="#9E9E9E" />
+                            android:textColor="@color/ink_text_2" />
 
                     </LinearLayout>
 
@@ -430,7 +430,7 @@
                         android:layout_height="24dp"
                         android:text="admin_panel_settings"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -441,14 +441,14 @@
                         android:layout_weight="1"
                         android:text="Channel Admins"
                         android:textSize="16sp"
-                        android:textColor="#000000" />
+                        android:textColor="@color/ink_text" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="chevron_right"
                         android:textSize="22sp"
-                        android:textColor="#BDBDBD"
+                        android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
 
                 </LinearLayout>
@@ -472,7 +472,7 @@
                         android:layout_height="24dp"
                         android:text="share"
                         android:textSize="22sp"
-                        android:textColor="#757575"
+                        android:textColor="@color/ink_text_2"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -484,14 +484,14 @@
                         android:layout_weight="1"
                         android:text="Share Channel Link"
                         android:textSize="16sp"
-                        android:textColor="#000000" />
+                        android:textColor="@color/ink_text" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="chevron_right"
                         android:textSize="28sp"
-                        android:textColor="#BDBDBD"
+                        android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
 
                 </LinearLayout>
@@ -513,7 +513,7 @@
                         android:layout_height="24dp"
                         android:text="verified"
                         android:textSize="22sp"
-                        android:textColor="#229ED9"
+                        android:textColor="@color/ink_accent"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -525,14 +525,14 @@
                         android:layout_weight="1"
                         android:text="Verify Channel (Blue Tick)"
                         android:textSize="16sp"
-                        android:textColor="#000000" />
+                        android:textColor="@color/ink_text" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="chevron_right"
                         android:textSize="28sp"
-                        android:textColor="#BDBDBD"
+                        android:textColor="@color/ink_text_2"
                         android:fontFamily="@font/material_icons" />
 
                 </LinearLayout>
@@ -546,7 +546,7 @@
                     android:layout_marginBottom="8dp"
                     android:layout_marginLeft="20dp"
                     android:layout_marginRight="20dp"
-                    android:background="#EEEEEE" />
+                    android:background="@color/ink_surface_alt" />
 
                 <!-- Delete Channel -->
                 <LinearLayout
@@ -567,7 +567,7 @@
                         android:layout_height="24dp"
                         android:text="delete_forever"
                         android:textSize="22sp"
-                        android:textColor="#F44336"
+                        android:textColor="@color/ink_danger"
                         android:gravity="center"
                         android:fontFamily="@font/material_icons" />
 
@@ -578,7 +578,7 @@
                         android:layout_marginLeft="18dp"
                         android:text="Delete Channel"
                         android:textSize="16sp"
-                        android:textColor="#F44336" />
+                        android:textColor="@color/ink_danger" />
 
                 </LinearLayout>
 

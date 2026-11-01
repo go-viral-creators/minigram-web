@@ -34,13 +34,13 @@
 				android:layout_width="3dp"
 				android:layout_height="match_parent"
 				android:layout_marginRight="8dp"
-				android:background="#388E3C" />
+				android:background="@color/ink_ok" />
 			<TextView
 				android:id="@+id/txt_reply_quote"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
 				android:textSize="12sp"
-				android:textColor="#1B5E20"
+				android:textColor="@color/ink_ok"
 				android:maxLines="2"
 				android:ellipsize="end"
 				android:focusable="false" />
@@ -140,7 +140,7 @@
 				android:layout_marginLeft="6dp"
 				android:text="0:00"
 				android:textSize="11sp"
-				android:textColor="#757575"
+				android:textColor="@color/ink_text_2"
 				android:focusable="false" />
 		</LinearLayout>
 		<TextView
@@ -190,7 +190,7 @@
 			android:layout_marginRight="8dp"
 			android:layout_marginTop="4dp"
 			android:orientation="vertical"
-			android:background="#F0F2F5"
+			android:background="@color/ink_surface_alt"
 			android:visibility="gone">
 			<ImageView
 				android:id="@+id/img_link_preview"
@@ -210,7 +210,7 @@
 					android:text=""
 					android:textSize="10sp"
 					android:textAllCaps="true"
-					android:textColor="#9E9E9E" />
+					android:textColor="@color/ink_text_2" />
 				<TextView
 					android:id="@+id/txt_link_preview_title"
 					android:layout_width="match_parent"
@@ -221,7 +221,7 @@
 					android:textStyle="bold"
 					android:maxLines="2"
 					android:ellipsize="end"
-					android:textColor="#1A1A1A" />
+					android:textColor="@color/ink_text" />
 				<TextView
 					android:id="@+id/txt_link_preview_desc"
 					android:layout_width="match_parent"
@@ -231,7 +231,7 @@
 					android:textSize="12sp"
 					android:maxLines="2"
 					android:ellipsize="end"
-					android:textColor="#616161" />
+					android:textColor="@color/ink_text_2" />
 			</LinearLayout>
 		</LinearLayout>
 		<TextView
@@ -242,7 +242,7 @@
 			android:text="edited"
 			android:textSize="10sp"
 			android:textStyle="italic"
-			android:textColor="#8E8E8E"
+			android:textColor="@color/ink_text_2"
 			android:singleLine="true"
 			android:visibility="gone"
 			android:focusable="false" />
@@ -263,7 +263,7 @@
 				android:layout_marginRight="4dp"
 				android:text="push_pin"
 				android:textSize="12sp"
-				android:textColor="#1A73E8"
+				android:textColor="@color/ink_accent"
 				android:fontFamily="@font/material_icons"
 				android:visibility="gone"
 				android:focusable="false" />
@@ -274,7 +274,7 @@
 				android:layout_marginRight="4dp"
 				android:text="12:00"
 				android:textSize="10sp"
-				android:textColor="#8E8E8E"
+				android:textColor="@color/ink_text_2"
 				android:singleLine="true"
 				android:focusable="false" />
 		</LinearLayout>
@@ -311,7 +311,7 @@
 			android:background="?attr/selectableItemBackgroundBorderless"
 			android:text="favorite_border"
 			android:textSize="18sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:fontFamily="@font/material_icons"
 			android:focusable="true" />
 		<TextView
@@ -320,7 +320,7 @@
 			android:layout_height="wrap_content"
 			android:layout_marginRight="8dp"
 			android:textSize="11sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:focusable="false" />
 		<TextView
 			android:id="@+id/btn_reply"
@@ -330,7 +330,7 @@
 			android:background="?attr/selectableItemBackgroundBorderless"
 			android:text="chat_bubble_outline"
 			android:textSize="18sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:fontFamily="@font/material_icons"
 			android:focusable="true" />
 		<TextView
@@ -339,7 +339,7 @@
 			android:layout_height="wrap_content"
 			android:layout_marginRight="8dp"
 			android:textSize="11sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:focusable="false" />
 		<TextView
 			android:id="@+id/txt_view_count"
@@ -347,7 +347,7 @@
 			android:layout_height="wrap_content"
 			android:text="0"
 			android:textSize="11sp"
-			android:textColor="#9E9E9E"
+			android:textColor="@color/ink_text_2"
 			android:drawablePadding="2dp"
 			android:fontFamily="sans-serif"
 			android:visibility="gone"

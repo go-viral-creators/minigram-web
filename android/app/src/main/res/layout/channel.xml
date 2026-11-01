@@ -28,7 +28,7 @@
         android:layout_height="?attr/actionBarSize"
         android:paddingLeft="8dp"
         android:paddingRight="8dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp">
@@ -41,7 +41,7 @@
             android:gravity="center"
             android:text="arrow_back"
             android:textSize="24sp"
-            android:textColor="#212121"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <ImageView
@@ -76,7 +76,7 @@
                     android:text="Channel Name"
                     android:textSize="15sp"
                     android:textStyle="bold"
-                    android:textColor="#212121"
+                    android:textColor="@color/ink_text"
                     android:maxLines="1"
                     android:ellipsize="end" />
                 <ImageView
@@ -94,7 +94,7 @@
                 android:layout_height="wrap_content"
                 android:text="0 subscribers"
                 android:textSize="11sp"
-                android:textColor="#757575" />
+                android:textColor="@color/ink_text_2" />
 
             <TextView
                 android:id="@+id/txt_channel_bio"
@@ -102,7 +102,7 @@
                 android:layout_height="wrap_content"
                 android:text=""
                 android:textSize="11sp"
-                android:textColor="#9E9E9E"
+                android:textColor="@color/ink_text_2"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:visibility="gone" />
@@ -117,7 +117,7 @@
             android:gravity="center"
             android:text="search"
             android:textSize="22sp"
-            android:textColor="#212121"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -128,7 +128,7 @@
             android:gravity="center"
             android:text="notifications"
             android:textSize="22sp"
-            android:textColor="#212121"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -139,7 +139,7 @@
             android:gravity="center"
             android:text="settings"
             android:textSize="22sp"
-            android:textColor="#212121"
+            android:textColor="@color/ink_text"
             android:fontFamily="@font/material_icons"
             android:visibility="gone" />
 
@@ -154,7 +154,7 @@
         android:paddingRight="8dp"
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="2dp"
@@ -167,7 +167,7 @@
             android:gravity="center"
             android:text="search"
             android:textSize="20sp"
-            android:textColor="#9E9E9E"
+            android:textColor="@color/ink_text_2"
             android:fontFamily="@font/material_icons" />
 
         <EditText
@@ -178,8 +178,8 @@
             android:background="@null"
             android:hint="Search in channel..."
             android:textSize="15sp"
-            android:textColorHint="#607D8B"
-            android:textColor="#212121"
+            android:textColorHint="@color/ink_text_2"
+            android:textColor="@color/ink_text"
             android:imeOptions="actionSearch"
             android:singleLine="true"
             android:inputType="text" />
@@ -192,7 +192,7 @@
             android:gravity="center"
             android:text="close"
             android:textSize="20sp"
-            android:textColor="#757575"
+            android:textColor="@color/ink_text_2"
             android:fontFamily="@font/material_icons" />
 
     </LinearLayout>
@@ -206,7 +206,7 @@
         android:paddingRight="4dp"
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
-        android:background="#E3F2FD"
+        android:background="@color/ink_accent_soft"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone">
@@ -218,7 +218,7 @@
             android:gravity="center"
             android:text="push_pin"
             android:textSize="16sp"
-            android:textColor="#1A73E8"
+            android:textColor="@color/ink_accent"
             android:fontFamily="@font/material_icons" />
 
         <TextView
@@ -228,7 +228,7 @@
             android:layout_weight="1"
             android:text="Pinned message"
             android:textSize="13sp"
-            android:textColor="#1A73E8"
+            android:textColor="@color/ink_accent"
             android:maxLines="1"
             android:ellipsize="end" />
 
@@ -239,7 +239,7 @@
             android:gravity="center"
             android:text="close"
             android:textSize="18sp"
-            android:textColor="#757575"
+            android:textColor="@color/ink_text_2"
             android:fontFamily="@font/material_icons" />
 
     </LinearLayout>
@@ -303,7 +303,7 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:orientation="vertical"
-            android:background="#FFFFFF"
+            android:background="@color/ink_surface"
             android:visibility="visible">
             <ProgressBar
                 android:layout_width="40dp"
@@ -314,7 +314,7 @@
                 android:layout_marginTop="12dp"
                 android:text="Loading posts..."
                 android:textSize="13sp"
-                android:textColor="#9E9E9E" />
+                android:textColor="@color/ink_text_2" />
         </LinearLayout>
 
         <!-- Shown when the channel genuinely has zero posts -->
@@ -338,7 +338,7 @@
                 android:layout_marginTop="10dp"
                 android:text="No posts yet"
                 android:textSize="14sp"
-                android:textColor="#9E9E9E" />
+                android:textColor="@color/ink_text_2" />
         </LinearLayout>
     </FrameLayout>
 
@@ -361,7 +361,7 @@
             android:layout_width="3dp"
             android:layout_height="36dp"
             android:layout_marginRight="10dp"
-            android:background="#388E3C" />
+            android:background="@color/ink_ok" />
 
         <!-- Reply preview text -->
         <TextView
@@ -384,7 +384,7 @@
             android:gravity="center"
             android:text="close"
             android:textSize="20sp"
-            android:textColor="#757575"
+            android:textColor="@color/ink_text_2"
             android:fontFamily="@font/material_icons" />
 
     </LinearLayout>
@@ -398,7 +398,7 @@
         android:paddingRight="4dp"
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
-        android:background="#F0F2F5"
+        android:background="@color/ink_surface_alt"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone">
@@ -428,7 +428,7 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:textColor="#1A1A1A" />
+                android:textColor="@color/ink_text" />
             <TextView
                 android:id="@+id/txt_compose_link_preview_desc"
                 android:layout_width="match_parent"
@@ -437,7 +437,7 @@
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:textColor="#757575" />
+                android:textColor="@color/ink_text_2" />
         </LinearLayout>
         <TextView
             android:id="@+id/btn_cancel_compose_preview"
@@ -447,7 +447,7 @@
             android:gravity="center_horizontal|center_vertical"
             android:text="close"
             android:textSize="16sp"
-            android:textColor="#757575"
+            android:textColor="@color/ink_text_2"
             android:fontFamily="@font/material_icons" />
     </LinearLayout>
 
@@ -461,7 +461,7 @@
         android:paddingRight="8dp"
         android:paddingTop="6dp"
         android:paddingBottom="6dp"
-        android:background="#FFFFFF"
+        android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:elevation="4dp"
@@ -476,7 +476,7 @@
             android:gravity="center"
             android:text="attach_file"
             android:textSize="24sp"
-            android:textColor="#757575"
+            android:textColor="@color/ink_text_2"
             android:fontFamily="@font/material_icons" />
 
         <!-- Voice recording indicator (shown instead of edit_msg while recording) -->
@@ -505,7 +505,7 @@
                 android:layout_height="wrap_content"
                 android:text="0:00"
                 android:textSize="15sp"
-                android:textColor="#1A1A1A" />
+                android:textColor="@color/ink_text" />
             <LinearLayout
                 android:id="@+id/layout_slide_to_cancel"
                 android:layout_width="0dp"
@@ -518,7 +518,7 @@
                     android:layout_height="wrap_content"
                     android:text="keyboard_arrow_left"
                     android:textSize="18sp"
-                    android:textColor="#9E9E9E"
+                    android:textColor="@color/ink_text_2"
                     android:fontFamily="@font/material_icons" />
                 <TextView
                     android:layout_width="wrap_content"
@@ -526,7 +526,7 @@
                     android:layout_marginLeft="2dp"
                     android:text="Slide to cancel"
                     android:textSize="13sp"
-                    android:textColor="#9E9E9E" />
+                    android:textColor="@color/ink_text_2" />
             </LinearLayout>
         </LinearLayout>
 
@@ -545,8 +545,8 @@
             android:paddingBottom="8dp"
             android:hint="Message..."
             android:textSize="15sp"
-            android:textColorHint="#607D8B"
-            android:textColor="#212121"
+            android:textColorHint="@color/ink_text_2"
+            android:textColor="@color/ink_text"
             android:minLines="1"
             android:maxLines="5"
             android:inputType="textMultiLine|textCapSentences"
@@ -579,7 +579,7 @@
         android:id="@+id/btn_subscribe"
         android:layout_width="match_parent"
         android:layout_height="52dp"
-        android:background="#1A73E8"
+        android:background="@color/ink_accent"
         android:gravity="center"
         android:orientation="horizontal"
         android:elevation="4dp">

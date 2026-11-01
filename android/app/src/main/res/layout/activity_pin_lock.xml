@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="#FFFFFF"
+    android:background="@color/ink_surface"
     android:padding="32dp">
 
     <TextView
@@ -15,7 +15,7 @@
         android:text="lock"
         android:textSize="40sp"
         android:gravity="center"
-        android:textColor="#2196F3"
+        android:textColor="@color/ink_accent"
         android:background="@drawable/bg_logo_splash"
         android:fontFamily="@font/material_icons" />
 
@@ -27,7 +27,7 @@
         android:text="Enter PIN"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:textColor="#000000" />
+        android:textColor="@color/ink_text" />
 
     <TextView
         android:id="@+id/txt_pin_subtitle"
@@ -36,7 +36,7 @@
         android:layout_marginTop="6dp"
         android:text="Enter your PIN to unlock Minigram"
         android:textSize="14sp"
-        android:textColor="#757575"
+        android:textColor="@color/ink_text_2"
         android:gravity="center" />
 
     <EditText
@@ -48,7 +48,7 @@
         android:maxLength="6"
         android:textSize="24sp"
         android:letterSpacing="0.5"
-        android:textColor="#000000"
+        android:textColor="@color/ink_text"
         android:paddingStart="16dp"
         android:paddingEnd="16dp" />
 
@@ -59,7 +59,7 @@
         android:layout_marginTop="10dp"
         android:text=""
         android:textSize="13sp"
-        android:textColor="#FF3B30"
+        android:textColor="@color/ink_danger"
         android:visibility="gone" />
 
     <Button
@@ -69,7 +69,7 @@
         android:layout_marginTop="24dp"
         android:text="Unlock"
         android:textAllCaps="false"
-        android:textColor="#FFFFFF"
-        android:backgroundTint="#2196F3" />
+        android:textColor="@color/ink_on_accent"
+        android:backgroundTint="@color/ink_accent" />
 
 </LinearLayout>

@@ -140,7 +140,7 @@ public class CreateChannelActivity extends AppCompatActivity {
 
         // Divider
         View divider = new View(this);
-        divider.setBackgroundColor(Color.parseColor("#EEEEEE"));
+        divider.setBackgroundColor(Ink.c("#EEEEEE"));
         LinearLayout.LayoutParams dvLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, dp); // 1dp
         dvLp.topMargin    = 8 * dp;
@@ -150,14 +150,14 @@ public class CreateChannelActivity extends AppCompatActivity {
         TextView label = new TextView(this);
         label.setText("Channel Handle (unique @handle)");
         label.setTextSize(12f);
-        label.setTextColor(Color.parseColor("#212121"));
+        label.setTextColor(Ink.c("#212121"));
         label.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
 
         // Hint note
         TextView hint = new TextView(this);
         hint.setText("4–20 chars: a-z, 0-9, _ only  ·  e.g. techworld");
         hint.setTextSize(11f);
-        hint.setTextColor(Color.parseColor("#212121"));
+        hint.setTextColor(Ink.c("#212121"));
         hint.setPadding(0, 2 * dp, 0, 4 * dp);
 
         // EditText
@@ -204,12 +204,12 @@ public class CreateChannelActivity extends AppCompatActivity {
                 }
                 if (!_isValidHandle(handle)) {
                     tvHandleResult.setVisibility(View.VISIBLE);
-                    tvHandleResult.setTextColor(Color.parseColor("#E53935"));
+                    tvHandleResult.setTextColor(Ink.c("#E53935"));
                     tvHandleResult.setText("✗ 4–20 chars: a-z, 0-9, _ only");
                     return;
                 }
                 tvHandleResult.setVisibility(View.VISIBLE);
-                tvHandleResult.setTextColor(Color.parseColor("#9E9E9E"));
+                tvHandleResult.setTextColor(Ink.c("#9E9E9E"));
                 tvHandleResult.setText("Checking availability...");
 
                 handleCheckRunnable = () -> _checkHandleLive(handle);
@@ -229,16 +229,16 @@ public class CreateChannelActivity extends AppCompatActivity {
                             .toLowerCase(Locale.ENGLISH).replaceAll("\\s+", "");
                     if (!current.equals(handle)) return; // user kept typing, ignore stale result
                     if (snap.exists()) {
-                        tvHandleResult.setTextColor(Color.parseColor("#E53935"));
+                        tvHandleResult.setTextColor(Ink.c("#E53935"));
                         tvHandleResult.setText("✗ @" + handle + " is already taken");
                     } else {
-                        tvHandleResult.setTextColor(Color.parseColor("#2E7D32"));
+                        tvHandleResult.setTextColor(Ink.c("#2E7D32"));
                         tvHandleResult.setText("✓ @" + handle + " is available");
                     }
                 }
                 @Override
                 public void onCancelled(@NonNull DatabaseError error) {
-                    tvHandleResult.setTextColor(Color.parseColor("#E53935"));
+                    tvHandleResult.setTextColor(Ink.c("#E53935"));
                     tvHandleResult.setText("Couldn't check — network error");
                 }
             });
