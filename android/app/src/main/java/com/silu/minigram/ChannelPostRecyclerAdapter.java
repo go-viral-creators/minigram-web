@@ -698,7 +698,7 @@ public class ChannelPostRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         int paddingLeft = bubbleContainer.getPaddingLeft();
         int paddingRight = bubbleContainer.getPaddingRight();
 
-        int maxWidth = screenWidth - dp(56) - dp(12) - dp(5) - dp(5) - paddingLeft - paddingRight;
+        int maxWidth = screenWidth - dp(62) - paddingLeft - paddingRight;
 
         int minHeight = dp(120);
         int maxHeight = (int) (context.getResources().getDisplayMetrics().heightPixels * 0.55f);

@@ -25,13 +25,13 @@
     <LinearLayout
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="64dp"
         android:paddingLeft="8dp"
         android:paddingRight="8dp"
         android:background="@color/ink_surface"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:elevation="4dp">
+        android:elevation="2dp">
 
         <TextView
             android:id="@+id/btn_back"
@@ -46,8 +46,8 @@
 
         <ImageView
             android:id="@+id/img_channel_photo"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:layout_marginLeft="4dp"
             android:padding="2dp"
             android:background="@drawable/circle_bg_light"
@@ -74,7 +74,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Channel Name"
-                    android:textSize="15sp"
+                    android:textSize="17sp"
                     android:textStyle="bold"
                     android:textColor="@color/ink_text"
                     android:maxLines="1"
@@ -93,7 +93,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="0 subscribers"
-                android:textSize="11sp"
+                android:textSize="13sp"
                 android:textColor="@color/ink_text_2" />
 
             <TextView
@@ -575,20 +575,24 @@
     </LinearLayout>
 
     <!-- ── 7. Subscribe banner (NON-OWNER only) ───────────────────────────── -->
-    <LinearLayout
+    <LinearLayout android:clickable="true" android:focusable="true"
         android:id="@+id/btn_subscribe"
         android:layout_width="match_parent"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="12dp"
         android:layout_height="52dp"
-        android:background="@color/ink_accent"
+        android:background="@drawable/btn_accent_pill"
         android:gravity="center"
         android:orientation="horizontal"
-        android:elevation="4dp">
+        android:elevation="6dp">
 
         <TextView
             android:id="@+id/txt_subscribe_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Subscribe"
+            android:text="Join channel"
             android:textSize="15sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF" />

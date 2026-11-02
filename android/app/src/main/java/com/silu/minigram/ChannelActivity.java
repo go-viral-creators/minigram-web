@@ -1654,8 +1654,8 @@ public class ChannelActivity extends AppCompatActivity {
 		} else {
 			btn_subscribe.setVisibility(View.VISIBLE);
 			if (txt_subscribe_label != null)
-			txt_subscribe_label.setText("SUBSCRIBE to this Channel");
-			btn_subscribe.setBackgroundColor(Ink.c("#1A73E8"));
+			txt_subscribe_label.setText("Join channel");
+			btn_subscribe.setBackgroundResource(R.drawable.btn_accent_pill);
 		}
 	}
 	

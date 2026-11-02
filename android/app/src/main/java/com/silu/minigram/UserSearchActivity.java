@@ -147,6 +147,13 @@ public class UserSearchActivity extends AppCompatActivity {
     // ─────────────────────────────────────────────────────────────────────────
     private void setupListeners() {
         btnCancel.setOnClickListener(v -> finish());
+        final View clearQ = findViewById(R.id.btn_clear_query);
+        clearQ.setOnClickListener(v -> { etSearch.setText(""); etSearch.requestFocus(); });
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { clearQ.setVisibility(s.length() > 0 ? View.VISIBLE : View.GONE); }
+            @Override public void afterTextChanged(Editable s) {}
+        });
 
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int st, int c, int a) {}

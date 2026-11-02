@@ -672,19 +672,15 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void showHeaderMenu(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor);
-        popup.getMenu().add(0, 1, 0, "View Profile");
-        popup.getMenu().add(0, 3, 0, isMuted ? "\uD83D\uDD14 Unmute" : "\uD83D\uDD15 Mute");
-        popup.getMenu().add(0, 2, 0, "Export Chat");
-        popup.getMenu().add(0, 4, 0, "\uD83D\uDD12 Verify encryption");
-        popup.setOnMenuItemClickListener(item -> {
-            if (item.getItemId() == 4) { _openVerify(); return true; }
-            if      (item.getItemId() == 1) _showPeerProfile();
-            else if (item.getItemId() == 3) _toggleMute();
-            else if (item.getItemId() == 2) showExportDialog();
-            return true;
-        });
-        popup.show();
+        InkMenu.show(this, anchor,
+            new String[]{"person_outline", isMuted ? "notifications" : "notifications_off", "file_download", "lock_outline"},
+            new String[]{"View profile", isMuted ? "Unmute" : "Mute", "Export chat", "Verify encryption"},
+            i -> {
+                if (i == 0) _showPeerProfile();
+                else if (i == 1) _toggleMute();
+                else if (i == 2) showExportDialog();
+                else _openVerify();
+            });
     }
 
     private void _toggleMute() {

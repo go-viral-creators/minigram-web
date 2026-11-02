@@ -7,10 +7,10 @@
 	android:gravity="end"
 	android:paddingTop="2dp"
 	android:paddingBottom="2dp"
-	android:paddingLeft="56dp"
-	android:paddingRight="12dp"
+	android:paddingLeft="48dp"
+	android:paddingRight="14dp"
 	android:orientation="vertical">
-	<LinearLayout
+	<com.silu.minigram.BubbleLayout
 		android:id="@+id/bubble_container"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
@@ -18,7 +18,11 @@
 		android:orientation="vertical"
 		android:minWidth="60dp"
 		android:elevation="1dp"
-		android:clipToOutline="true">
+		android:clipToOutline="true"
+		android:paddingLeft="12dp"
+		android:paddingRight="12dp"
+		android:paddingTop="8dp"
+		android:paddingBottom="8dp">
 		<LinearLayout
 			android:id="@+id/layout_reply_quote"
 			android:layout_width="match_parent"
@@ -53,9 +57,7 @@
 				android:id="@+id/img_msg"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginLeft="5dp"
 				android:layout_marginTop="5dp"
-				android:layout_marginRight="5dp"
 				android:src="@drawable/default_image"
 				android:scaleType="fitXY"
 				android:adjustViewBounds="false"
@@ -107,8 +109,6 @@
 			android:layout_width="200dp"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="2dp"
-			android:paddingLeft="10dp"
-			android:paddingRight="10dp"
 			android:paddingTop="8dp"
 			android:paddingBottom="8dp"
 			android:gravity="center_vertical"
@@ -147,9 +147,7 @@
 			android:id="@+id/txt_caption"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:paddingLeft="8dp"
 			android:paddingTop="6dp"
-			android:paddingRight="8dp"
 			android:paddingBottom="2dp"
 			android:textSize="14sp"
 			android:autoLink="web|email|phone"
@@ -165,12 +163,8 @@
 			android:id="@+id/txt_msg"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="8dp"
 			android:layout_marginTop="8dp"
-			android:layout_marginRight="8dp"
-			android:paddingLeft="8dp"
 			android:paddingTop="8dp"
-			android:paddingRight="8dp"
 			android:paddingBottom="2dp"
 			android:textSize="15sp"
 			android:autoLink="web|email|phone"
@@ -186,8 +180,6 @@
 			android:id="@+id/layout_link_preview"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="8dp"
-			android:layout_marginRight="8dp"
 			android:layout_marginTop="4dp"
 			android:orientation="vertical"
 			android:background="@color/ink_surface_alt"
@@ -238,7 +230,6 @@
 			android:id="@+id/txt_edited_label"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:paddingLeft="8dp"
 			android:text="edited"
 			android:textSize="10sp"
 			android:textStyle="italic"
@@ -284,7 +275,6 @@
 				android:layout_height="wrap_content"
 				android:layout_marginTop="4dp"
                 android:layout_marginBottom="4dp"
-				android:layout_marginLeft="4dp"
 				android:paddingLeft="8dp"
 				android:paddingRight="8dp"
 				android:paddingTop="3dp"
@@ -294,7 +284,7 @@
 				android:textSize="13sp"
 				android:visibility="gone"
 				android:focusable="false" />
-	</LinearLayout>
+	</com.silu.minigram.BubbleLayout>
 	<LinearLayout
 		android:id="@+id/linear10"
 		android:layout_width="wrap_content"

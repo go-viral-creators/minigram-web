@@ -63,6 +63,15 @@ public class ChatlistActivity extends AppCompatActivity {
 	// leaks + duplicate callbacks when the activity is recreated).
 	private DatabaseReference chatsRef, channelsRef, updateRef;
 	private ValueEventListener chatsListener, channelsListener, updateListener;
+	private com.google.firebase.database.Query chatsQuery;
+	private int chatsLimit = 30;
+	private boolean chatsHasMore, loadingMoreChats;
+	private final java.util.HashSet<String> peerFetched = new java.util.HashSet<>();
+	private final HashMap<Integer, int[]> savedScroll = new HashMap<>();
+	private android.widget.ListAdapter shownAdapter;
+	private String emptyKey = "";
+	private EmptyStateAdapter emptyAdapter;
+	private final Handler refreshHandler = new Handler(android.os.Looper.getMainLooper());
 	
 	private long    backPressedTime        = 0L;
 	private boolean officialChannelChecked = false;
@@ -248,7 +257,7 @@ public class ChatlistActivity extends AppCompatActivity {
 		super.onDestroy();
 		if (bannerAd != null) bannerAd.destroy();
 		if (bannerProRef != null && bannerProListener != null) bannerProRef.removeEventListener(bannerProListener);
-		if (chatsRef != null && chatsListener != null) chatsRef.removeEventListener(chatsListener);
+		if (chatsQuery != null && chatsListener != null) chatsQuery.removeEventListener(chatsListener);
 		if (channelsRef != null && channelsListener != null) channelsRef.removeEventListener(channelsListener);
 		if (updateRef != null && updateListener != null) updateRef.removeEventListener(updateListener);
 		for (String cid : subCountListeners.keySet()) {
@@ -470,24 +479,19 @@ public class ChatlistActivity extends AppCompatActivity {
 	// ═════════════════════════════════════════════════════════════════════════
 	
 	private void showPopupMenu() {
-		PopupMenu popup = new PopupMenu(this, icon_menu);
-		popup.getMenu().add(0, 1, 0, "New chat");
-		popup.getMenu().add(0, 2, 1, "New channel");
-		popup.getMenu().add(0, 3, 2, "Mark all as read");
-		popup.getMenu().add(0, 4, 3, "Invite friends");
-		popup.setOnMenuItemClickListener(item -> {
-			switch (item.getItemId()) {
-				case 1: startActivity(new Intent(this, NewMessageActivity.class)); break;
-				case 2: startActivity(new Intent(this, CreateChannelActivity.class)); break;
-				case 3: markAllRead(); break;
-				case 4:
-					startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain")
-						.putExtra(Intent.EXTRA_TEXT, "Join me on Minigram \u2014 private chats and channels. https://play.google.com/store/apps/details?id=com.silu.minigram"), "Invite friends"));
-					break;
-			}
-			return true;
-		});
-		popup.show();
+		InkMenu.show(this, icon_menu,
+			new String[]{"edit", "campaign", "done_all", "person_add"},
+			new String[]{"New chat", "New channel", "Mark all as read", "Invite friends"},
+			i -> {
+				switch (i) {
+					case 0: startActivity(new Intent(this, NewMessageActivity.class)); break;
+					case 1: startActivity(new Intent(this, CreateChannelActivity.class)); break;
+					case 2: markAllRead(); break;
+					default:
+						startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain")
+							.putExtra(Intent.EXTRA_TEXT, "Join me on Minigram \u2014 private chats and channels. https://play.google.com/store/apps/details?id=com.silu.minigram"), "Invite friends"));
+				}
+			});
 	}
 
 	private void markAllRead() {
@@ -675,6 +679,8 @@ public class ChatlistActivity extends AppCompatActivity {
 	}
 
 	private void switchTab(int tab) {
+		if ((currentTab == InkNav.CHATS || currentTab == InkNav.CHANNELS) && listview_chats != null && listview_chats.getAdapter() != null && (shownAdapter == chatAdapter || shownAdapter == channelAdapter))
+			savedScroll.put(currentTab * 10 + 2, new int[]{listview_chats.getFirstVisiblePosition(), topOffset()});
 		currentTab = tab;
 		_applyNav(tab == InkNav.CHATS ? 0 : tab == InkNav.DISCOVER ? 1 : tab == InkNav.SETTINGS ? 3 : 2);
 		boolean hosted = tab == InkNav.DISCOVER || tab == InkNav.SETTINGS;
@@ -711,8 +717,7 @@ public class ChatlistActivity extends AppCompatActivity {
 			listview_chats.setClipToPadding(false);
 			applySubTabPillStyle();
 			updateChannelTabView();
-			btn_new_chat.setVisibility(View.VISIBLE);
-			icon_fab.setText("add");
+			btn_new_chat.setVisibility(View.GONE);
 		} else {
 			// Updates — real Fragment, loaded once and then just shown/hidden
 			hideSubtabs();
@@ -829,48 +834,74 @@ public class ChatlistActivity extends AppCompatActivity {
 	//  Tab content renderers
 	// ═════════════════════════════════════════════════════════════════════════
 	
-	private void updateChatTabView() {
-		stopShimmer();
-		if (!chatsLoaded) { listview_chats.setAdapter(skeletonAdapter); startShimmer(); return; }
-		if (chatList.isEmpty()) {
-			listview_chats.setAdapter(new EmptyStateAdapter(
-			"No chats yet",
-			"Search for a user to start chatting",
-			v -> startActivity(new Intent(this, UserSearchActivity.class)
-			.putExtra(UserSearchActivity.EXTRA_MODE, UserSearchActivity.MODE_USER))));
-		} else {
-			listview_chats.setAdapter(chatAdapter);
-			chatAdapter.notifyDataSetChanged();
-		}
-	}
-	
+	private void updateChatTabView()    { renderList(); }
 	private void updateChannelTabView() {
-		stopShimmer();
 		filteredChannelList.clear();
 		filteredChannelList.addAll(getFilteredChannelList());
-		
-		if (!channelsLoaded) { listview_chats.setAdapter(skeletonAdapter); startShimmer(); return; }
-		
-		if (filteredChannelList.isEmpty()) {
-			String title, sub;
-			View.OnClickListener action;
-			if (channelSubTab == 0) {
-				title  = "No channels created yet";
-				sub    = "Tap + to create your first channel";
-				action = v -> startActivity(new Intent(this, CreateChannelActivity.class));
-			} else {
-				title  = "No subscribed channels";
-				sub    = "Search and subscribe to a channel";
-				action = v -> startActivity(new Intent(this, UserSearchActivity.class)
-				.putExtra(UserSearchActivity.EXTRA_MODE, UserSearchActivity.MODE_CHANNEL));
-			}
-			listview_chats.setAdapter(new EmptyStateAdapter(title, sub, action));
+		renderList();
+	}
+
+	/**
+	 * Single place that decides what the list shows. The adapter is only swapped when the KIND of content
+	 * changes (skeleton / empty / chats / channels); data refreshes just notify, so scroll position stays put.
+	 */
+	private void renderList() {
+		if (currentTab != InkNav.CHATS && currentTab != InkNav.CHANNELS) return;
+		android.widget.ListAdapter want;
+		String key = "";
+		if (currentTab == InkNav.CHATS) {
+			if (!chatsLoaded) want = skeletonAdapter;
+			else if (shownChats().isEmpty()) {
+				key = unreadOnly ? "chats-unread" : "chats";
+				want = emptyFor(key, unreadOnly ? "No unread chats" : "No chats yet",
+					unreadOnly ? "You are all caught up." : "Search for a person to start chatting",
+					v -> startActivity(new Intent(this, UserSearchActivity.class)
+						.putExtra(UserSearchActivity.EXTRA_MODE, UserSearchActivity.MODE_USER)));
+			} else want = chatAdapter;
 		} else {
-			listview_chats.setAdapter(channelAdapter);
-			channelAdapter.notifyDataSetChanged();
+			if (!channelsLoaded) want = skeletonAdapter;
+			else if (filteredChannelList.isEmpty()) {
+				key = "ch" + channelSubTab;
+				want = channelSubTab == 0
+					? emptyFor(key, "No channels created yet", "Create one from the \u22EE menu, or tap below.",
+						v -> startActivity(new Intent(this, CreateChannelActivity.class)))
+					: emptyFor(key, "No subscribed channels", "Search and subscribe to a channel",
+						v -> startActivity(new Intent(this, UserSearchActivity.class)
+							.putExtra(UserSearchActivity.EXTRA_MODE, UserSearchActivity.MODE_CHANNEL)));
+			} else want = channelAdapter;
+		}
+		if (want == skeletonAdapter) startShimmer(); else stopShimmer();
+		if (shownAdapter != want || listview_chats.getAdapter() != want) {
+			savedScroll.put(currentTab * 10 + 1, new int[]{listview_chats.getFirstVisiblePosition(), topOffset()});
+			shownAdapter = want;
+			listview_chats.setAdapter(want);
+			int[] s = savedScroll.get(currentTab * 10 + 2);
+			if (s != null && (want == chatAdapter || want == channelAdapter)) listview_chats.setSelectionFromTop(s[0], s[1]);
+		} else if (want instanceof BaseAdapter) {
+			((BaseAdapter) want).notifyDataSetChanged();
 		}
 	}
-	
+
+	private int topOffset() {
+		View c = listview_chats.getChildAt(0);
+		return c == null ? 0 : c.getTop() - listview_chats.getPaddingTop();
+	}
+
+	private EmptyStateAdapter emptyFor(String key, String title, String sub, View.OnClickListener a) {
+		if (emptyAdapter == null || !key.equals(emptyKey)) { emptyAdapter = new EmptyStateAdapter(title, sub, a); emptyKey = key; }
+		return emptyAdapter;
+	}
+
+	/** Coalesces bursts of live updates (subscriber counts, peer info) into one refresh. */
+	private void scheduleRefresh() {
+		refreshHandler.removeCallbacks(refreshRunnable);
+		refreshHandler.postDelayed(refreshRunnable, 120);
+	}
+	private final Runnable refreshRunnable = () -> {
+		if (isFinishing() || isDestroyed()) return;
+		if (currentTab == InkNav.CHANNELS) updateChannelTabView(); else if (currentTab == InkNav.CHATS) renderList();
+	};
+
 	// ═════════════════════════════════════════════════════════════════════════
 	//  Shimmer
 	// ═════════════════════════════════════════════════════════════════════════
@@ -899,17 +930,31 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	private void loadChats() {
 		chatsRef = database.getReference("user_chats").child(myUid);
-		chatsListener = chatsRef
-		.orderByChild("last_time")
-		.addValueEventListener(new ValueEventListener() {
+		attachChatsQuery();
+		listview_chats.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+			@Override public void onScrollStateChanged(android.widget.AbsListView v, int s) {}
+			@Override public void onScroll(android.widget.AbsListView v, int first, int visible, int total) {
+				if (currentTab == InkNav.CHATS && chatsHasMore && !loadingMoreChats && chatsLoaded
+					&& total > 0 && first + visible >= total - 5) {
+					loadingMoreChats = true;
+					chatsLimit += 30;
+					attachChatsQuery();
+				}
+			}
+		});
+	}
+
+	/** Newest {@code chatsLimit} chats, live. Scrolling near the end raises the limit (pagination). */
+	private void attachChatsQuery() {
+		if (chatsQuery != null && chatsListener != null) chatsQuery.removeEventListener(chatsListener);
+		chatsQuery = chatsRef.orderByChild("last_time").limitToLast(chatsLimit);
+		chatsListener = new ValueEventListener() {
 			@Override public void onDataChange(@NonNull DataSnapshot snap) {
-				chatList.clear();
+				ArrayList<HashMap<String, Object>> fresh = new ArrayList<>();
 				for (DataSnapshot child : snap.getChildren()) {
 					String peerUid = child.child("peer_uid").getValue(String.class);
-					// Ghost entry skip + Firebase se clean
 					if (peerUid == null || peerUid.trim().isEmpty()) {
-						database.getReference("user_chats")
-						.child(myUid).child(child.getKey()).removeValue();
+						database.getReference("user_chats").child(myUid).child(child.getKey()).removeValue();
 						continue;
 					}
 					HashMap<String, Object> chat = new HashMap<>();
@@ -918,52 +963,53 @@ public class ChatlistActivity extends AppCompatActivity {
 					chat.put("last_msg",   child.child("last_msg") .getValue(String.class));
 					chat.put("last_time",  child.child("last_time").getValue(Long.class));
 					chat.put("unread",     child.child("unread")   .getValue(Long.class));
-
-					// Already resolved this peer before (in this session)? Use it
-					// immediately — no blank flash, and no repeat network fetch.
 					HashMap<String, Object> cached = peerInfoCache.get(peerUid);
-					if (cached != null) {
-						chat.put("peer_name",   cached.get("peer_name"));
-						chat.put("peer_photo",  cached.get("peer_photo"));
-						chat.put("peer_is_pro", cached.get("peer_is_pro"));
-					} else {
-						chat.put("peer_name",  "");
-						chat.put("peer_photo", "");
-						chat.put("peer_is_pro", false);
-					}
-					chatList.add(0, chat);
+					chat.put("peer_name",   cached != null ? cached.get("peer_name")  : "");
+					chat.put("peer_photo",  cached != null ? cached.get("peer_photo") : "");
+					chat.put("peer_is_pro", cached != null ? cached.get("peer_is_pro") : false);
+					fresh.add(chat);
 				}
-				// Resolve peer names/photos — only for peers not already cached.
-				for (HashMap<String, Object> chat : chatList) {
-					String pUid = (String) chat.get("peer_uid");
-					if (pUid == null) continue;
-					// Cached peers already rendered above from disk — they're
-					// refreshed quietly here rather than skipped, so a changed
-					// name/photo still lands without the user waiting on a
-					// download for people already on screen.
-					database.getReference("users").child(pUid)
-					.addListenerForSingleValueEvent(new ValueEventListener() {
-						@Override public void onDataChange(@NonNull DataSnapshot us) {
-							if (!us.exists()) return;
-							HashMap<String, Object> info = new HashMap<>();
-							info.put("peer_name",   us.child("fullname") .getValue(String.class));
-							info.put("peer_photo",  us.child("photo_url").getValue(String.class));
-							info.put("peer_is_pro", Boolean.TRUE.equals(us.child("is_pro").getValue(Boolean.class)));
-							peerInfoCache.put(pUid, info);
-							_savePeerInfo(pUid, info);
-							chat.put("peer_name",   info.get("peer_name"));
-							chat.put("peer_photo",  info.get("peer_photo"));
-							chat.put("peer_is_pro", info.get("peer_is_pro"));
-							if (chatAdapter != null) chatAdapter.notifyDataSetChanged();
-						}
-						@Override public void onCancelled(@NonNull DatabaseError e) {}
-					});
-				}
+				// newest first, explicitly (ties broken by id so the order never flickers)
+				java.util.Collections.sort(fresh, (a, b) -> {
+					long x = a.get("last_time") instanceof Long ? (Long) a.get("last_time") : 0L;
+					long y = b.get("last_time") instanceof Long ? (Long) b.get("last_time") : 0L;
+					if (x != y) return x < y ? 1 : -1;
+					return String.valueOf(a.get("chatId")).compareTo(String.valueOf(b.get("chatId")));
+				});
+				chatsHasMore = snap.getChildrenCount() >= chatsLimit;
+				loadingMoreChats = false;
+				chatList.clear();
+				chatList.addAll(fresh);
 				chatsLoaded = true;
-				if (currentTab == 0) updateChatTabView();
-				if (chatAdapter != null) chatAdapter.notifyDataSetChanged();
+				for (HashMap<String, Object> chat : chatList) resolvePeer(chat);
+				if (currentTab == InkNav.CHATS) renderList();
 			}
-			@Override public void onCancelled(@NonNull DatabaseError e) {}
+			@Override public void onCancelled(@NonNull DatabaseError e) { loadingMoreChats = false; }
+		};
+		chatsQuery.addValueEventListener(chatsListener);
+	}
+
+	/** Fetches a peer's name/photo once per session; rows already rendered from the disk cache are refreshed quietly. */
+	private void resolvePeer(HashMap<String, Object> chat) {
+		final String pUid = (String) chat.get("peer_uid");
+		if (pUid == null || !peerFetched.add(pUid)) return;
+		database.getReference("users").child(pUid).addListenerForSingleValueEvent(new ValueEventListener() {
+			@Override public void onDataChange(@NonNull DataSnapshot us) {
+				if (!us.exists()) return;
+				HashMap<String, Object> info = new HashMap<>();
+				info.put("peer_name",   us.child("fullname") .getValue(String.class));
+				info.put("peer_photo",  us.child("photo_url").getValue(String.class));
+				info.put("peer_is_pro", Boolean.TRUE.equals(us.child("is_pro").getValue(Boolean.class)));
+				peerInfoCache.put(pUid, info);
+				_savePeerInfo(pUid, info);
+				for (HashMap<String, Object> c : chatList) {
+					if (pUid.equals(c.get("peer_uid"))) {
+						c.put("peer_name", info.get("peer_name")); c.put("peer_photo", info.get("peer_photo")); c.put("peer_is_pro", info.get("peer_is_pro"));
+					}
+				}
+				scheduleRefresh();
+			}
+			@Override public void onCancelled(@NonNull DatabaseError e) { peerFetched.remove(pUid); }
 		});
 	}
 	
@@ -1045,90 +1091,85 @@ public class ChatlistActivity extends AppCompatActivity {
 
 	private void loadChannels() {
 		channelsRef = database.getReference("user_channels").child(myUid);
-		channelsListener = channelsRef
-		.addValueEventListener(new ValueEventListener() {
+		channelsListener = channelsRef.addValueEventListener(new ValueEventListener() {
 			@Override public void onDataChange(@NonNull DataSnapshot snap) {
-				channelList.clear();
-				final int[] total    = {0};
-				final int[] resolved = {0};
-				for (DataSnapshot child : snap.getChildren()) total[0]++;
-				
-				if (total[0] == 0) {
+				final ArrayList<String> ids = new ArrayList<>();
+				for (DataSnapshot child : snap.getChildren()) if (child.getKey() != null) ids.add(child.getKey());
+				if (!officialChannelChecked) { officialChannelChecked = true; autoSubscribeOfficialChannel(); }
+
+				// Drop live count listeners of channels I have left.
+				for (String old : new ArrayList<>(subCountListeners.keySet())) {
+					if (ids.contains(old)) continue;
+					DatabaseReference r = subCountRefs.remove(old);
+					ValueEventListener l = subCountListeners.remove(old);
+					if (r != null && l != null) r.removeEventListener(l);
+					channelInfoCache.remove(old);
+				}
+				if (ids.isEmpty()) {
+					channelList.clear();
 					channelsLoaded = true;
-					if (!officialChannelChecked) { officialChannelChecked = true; autoSubscribeOfficialChannel(); }
-					if (currentTab == 1) updateChannelTabView();
+					if (currentTab == InkNav.CHANNELS) updateChannelTabView();
 					return;
 				}
-				
-				for (DataSnapshot child : snap.getChildren()) {
-					String channelId = child.getKey();
-					if (channelId == null) { checkAllResolved(total, resolved); continue; }
-
-					database.getReference("channels").child(channelId)
-					.addListenerForSingleValueEvent(new ValueEventListener() {
+				final int[] left = {ids.size()};
+				for (String channelId : ids) {
+					database.getReference("channels").child(channelId).addListenerForSingleValueEvent(new ValueEventListener() {
 						@Override public void onDataChange(@NonNull DataSnapshot cs) {
-							if (!cs.exists()) { checkAllResolved(total, resolved); return; }
-							
-							HashMap<String, Object> ch = new HashMap<>();
-							ch.put("channelId", channelId);
-							ch.put("name",      cs.child("name")     .getValue(String.class));
-							ch.put("photo_url", cs.child("photo_url").getValue(String.class));
-							ch.put("owner_uid", cs.child("owner_uid").getValue(String.class));
-							ch.put("description", cs.child("description").getValue(String.class));
-							ch.put("is_verified", Boolean.TRUE.equals(cs.child("is_verified").getValue(Boolean.class)));
-							ch.put("subscriber_count", cs.child("subscriber_count").getValue(Long.class));
-							channelInfoCache.put(channelId, ch);
-							channelList.add(ch);
-
-							// Real-time sub count — detach any PREVIOUS listener for this
-							// channel first (this outer block re-runs on every refire of
-							// the user_channels listener; without this, a new live
-							// listener stacked up on top of the old one every single
-							// time — a compounding leak that gets the app slower the
-							// longer a session runs).
-							ValueEventListener oldListener = subCountListeners.get(channelId);
-							DatabaseReference   oldRef      = subCountRefs.get(channelId);
-							if (oldListener != null && oldRef != null) {
-								oldRef.removeEventListener(oldListener);
-							}
-
-							DatabaseReference subRef = database.getReference("channel_subscribers").child(channelId);
-							ValueEventListener subListener = new ValueEventListener() {
-								@Override public void onDataChange(@NonNull DataSnapshot subSnap) {
-									long real = subSnap.getChildrenCount();
-									ch.put("subscriber_count", real);
-									Long stored = cs.child("subscriber_count").getValue(Long.class);
-									if (stored == null || stored != real)
-									database.getReference("channels").child(channelId)
-									.child("subscriber_count").setValue(real);
-									if (channelAdapter != null) channelAdapter.notifyDataSetChanged();
-									if (currentTab == 1) updateChannelTabView();
-								}
-								@Override public void onCancelled(@NonNull DatabaseError e) {}
-							};
-							subRef.addValueEventListener(subListener);
-							subCountListeners.put(channelId, subListener);
-							subCountRefs.put(channelId, subRef);
-
-							checkAllResolved(total, resolved);
+							if (cs.exists()) {
+								HashMap<String, Object> ch = channelInfoCache.get(channelId);
+								if (ch == null) { ch = new HashMap<>(); channelInfoCache.put(channelId, ch); }
+								ch.put("channelId", channelId);
+								ch.put("name",        cs.child("name").getValue(String.class));
+								ch.put("photo_url",   cs.child("photo_url").getValue(String.class));
+								ch.put("owner_uid",   cs.child("owner_uid").getValue(String.class));
+								ch.put("description", cs.child("description").getValue(String.class));
+								ch.put("is_verified", Boolean.TRUE.equals(cs.child("is_verified").getValue(Boolean.class)));
+								ch.put("subscriber_count", cs.child("subscriber_count").getValue(Long.class));
+								attachSubCount(channelId, ch, cs.child("subscriber_count").getValue(Long.class));
+							} else channelInfoCache.remove(channelId);
+							if (--left[0] == 0) finishChannels(ids);
 						}
-						@Override public void onCancelled(@NonNull DatabaseError e) { checkAllResolved(total, resolved); }
+						@Override public void onCancelled(@NonNull DatabaseError e) { if (--left[0] == 0) finishChannels(ids); }
 					});
 				}
-				
-				if (!officialChannelChecked) { officialChannelChecked = true; autoSubscribeOfficialChannel(); }
 			}
 			@Override public void onCancelled(@NonNull DatabaseError e) {}
 		});
 	}
-	
-	private void checkAllResolved(int[] total, int[] resolved) {
-		resolved[0]++;
-		if (resolved[0] >= total[0]) {
-			channelsLoaded = true;
-			if (currentTab == 1) updateChannelTabView();
-			if (channelAdapter != null) channelAdapter.notifyDataSetChanged();
-		}
+
+	/** One live subscriber-count listener per channel (never stacked on re-fires). */
+	private void attachSubCount(final String channelId, final HashMap<String, Object> ch, final Long stored) {
+		if (subCountListeners.containsKey(channelId)) return;
+		DatabaseReference subRef = database.getReference("channel_subscribers").child(channelId);
+		ValueEventListener l = new ValueEventListener() {
+			@Override public void onDataChange(@NonNull DataSnapshot subSnap) {
+				long real = subSnap.getChildrenCount();
+				ch.put("subscriber_count", real);
+				if (myUid != null && myUid.equals(ch.get("owner_uid")) && (stored == null || stored != real))
+					database.getReference("channels").child(channelId).child("subscriber_count").setValue(real);
+				scheduleRefresh();
+			}
+			@Override public void onCancelled(@NonNull DatabaseError e) {}
+		};
+		subRef.addValueEventListener(l);
+		subCountListeners.put(channelId, l);
+		subCountRefs.put(channelId, subRef);
+	}
+
+	/** Rebuilds the visible list in one step: A-Z by name, so nothing jumps around. */
+	private void finishChannels(ArrayList<String> ids) {
+		ArrayList<HashMap<String, Object>> fresh = new ArrayList<>();
+		for (String id : ids) { HashMap<String, Object> c = channelInfoCache.get(id); if (c != null) fresh.add(c); }
+		java.util.Collections.sort(fresh, (a, b) -> {
+			String x = a.get("name") == null ? "" : ((String) a.get("name")).toLowerCase(Locale.getDefault());
+			String y = b.get("name") == null ? "" : ((String) b.get("name")).toLowerCase(Locale.getDefault());
+			int c = x.compareTo(y);
+			return c != 0 ? c : String.valueOf(a.get("channelId")).compareTo(String.valueOf(b.get("channelId")));
+		});
+		channelList.clear();
+		channelList.addAll(fresh);
+		channelsLoaded = true;
+		if (currentTab == InkNav.CHANNELS) updateChannelTabView();
 	}
 	
 	private void autoSubscribeOfficialChannel() {

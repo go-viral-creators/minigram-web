@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="20dp">
+    <TextView
+        android:id="@+id/mi_icon"
+        android:layout_width="24dp"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/material_icons"
+        android:importantForAccessibility="no"
+        android:textColor="@color/ink_text_2"
+        android:textSize="22sp" />
+    <TextView
+        android:id="@+id/mi_label"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_weight="1"
+        android:textColor="@color/ink_text"
+        android:textSize="16sp" />
+</LinearLayout>
