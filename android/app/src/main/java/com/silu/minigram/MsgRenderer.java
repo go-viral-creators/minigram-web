@@ -279,8 +279,7 @@ public class MsgRenderer {
     private static void resetStyle(TextView tv) {
         tv.setBackgroundResource(0);
         tv.setBackgroundColor(Color.TRANSPARENT);
-        Typeface inter = androidx.core.content.res.ResourcesCompat.getFont(tv.getContext(), R.font.inter);
-        tv.setTypeface(inter != null ? inter : Typeface.DEFAULT);
+        tv.setTypeface(Appearance.typeface(tv.getContext()));
         tv.setTextSize(Appearance.textSp(tv.getContext()));
         tv.setTextColor(defaultColor != 0 ? defaultColor : Ink.res(R.color.ink_text));
         tv.setHorizontallyScrolling(false);

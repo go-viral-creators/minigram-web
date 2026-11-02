@@ -38,7 +38,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/card_bg"
+                android:background="@drawable/plan_card_highlight_bg"
                 android:contentDescription="Open my profile"
                 android:clickable="true"
                 android:focusable="true"
@@ -47,11 +47,11 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <FrameLayout android:layout_width="56dp" android:layout_height="56dp">
+                <FrameLayout android:layout_width="68dp" android:layout_height="68dp">
                     <ImageView
                         android:id="@+id/img_settings_avatar"
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
+                        android:layout_width="68dp"
+                        android:layout_height="68dp"
                         android:importantForAccessibility="no"
                         android:scaleType="centerCrop" />
                     <ImageView
@@ -75,8 +75,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textColor="@color/ink_text"
-                        android:textSize="20sp"
-                        android:textStyle="bold" />
+                        android:textSize="22sp"
+                        android:fontFamily="@font/newsreader" />
                     <TextView
                         android:id="@+id/txt_settings_username"
                         android:layout_width="wrap_content"

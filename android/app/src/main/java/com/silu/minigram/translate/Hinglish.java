@@ -83,6 +83,27 @@ public final class Hinglish {
         return out.toString();
     }
 
+    /** Dictionary words that are also common English words, so they do not prove a text is Hinglish. */
+    private static final java.util.Set<String> AMBIGUOUS = new java.util.HashSet<>(java.util.Arrays.asList(
+        "to","do","me","is","hi","the","main","par","kar","le","de","us","na","ho","pe","tu","ye","kam","bata","pehle","is","as","a","i","or","in","un","ya","sab","wo"));
+
+    /**
+     * True when a Latin-script text is probably Romanised Hindi. ML Kit often labels such text "en" or "und",
+     * so this checks how many tokens are unmistakably Hindi function words / common words.
+     */
+    public static boolean looksRoman(String text) {
+        if (text == null) return false;
+        int tokens = 0, strong = 0;
+        for (String raw : text.toLowerCase(Locale.ROOT).split("[^a-z]+")) {
+            if (raw.isEmpty()) continue;
+            tokens++;
+            if (WORDS.containsKey(raw) && !AMBIGUOUS.contains(raw)) strong++;
+        }
+        if (tokens == 0) return false;
+        if (tokens <= 2) return strong >= 1 && strong * 2 >= tokens;
+        return strong >= 2 && strong * 100 >= tokens * 30;
+    }
+
     /** Language-ID codes that mean "Hindi written in Latin letters". */
     public static boolean isRomanHindi(String langCode) {
         return langCode != null && langCode.toLowerCase(Locale.ROOT).startsWith("hi-latn");

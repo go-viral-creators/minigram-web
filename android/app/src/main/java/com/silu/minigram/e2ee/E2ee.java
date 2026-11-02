@@ -280,7 +280,7 @@ public final class E2ee {
             }
             Object key = msg.get("e2ee_media_key");
             String type = String.valueOf(msg.get("type"));
-            String url = "voice".equals(type) ? str(msg.get("voice_url")) : "image".equals(type) ? str(msg.get("image_url")) : "";
+            String url = "voice".equals(type) ? str(msg.get("voice_url")) : ("image".equals(type) || "file".equals(type)) ? str(msg.get("image_url")) : "";
             if (!url.isEmpty()) { p.put("mu", url); p.put("mk", key != null ? key.toString() : ""); }
             pub.remove("e2ee_media_key"); pub.remove("local_uri");
             if (pub.containsKey("image_url")) pub.put("image_url", "");

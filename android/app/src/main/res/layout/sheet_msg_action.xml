@@ -1,326 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/container_actions"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:paddingBottom="12dp"
     android:background="@color/ink_surface">
 
-    <!-- Reactions row (horizontally scrollable, Telegram-style) -->
+    <View android:layout_width="40dp" android:layout_height="4dp" android:layout_gravity="center_horizontal" android:layout_marginTop="10dp" android:background="@drawable/circle_bg_light" />
+
+    <!-- Reactions -->
     <HorizontalScrollView
         android:id="@+id/scroll_reactions"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:paddingTop="12dp"
-        android:paddingBottom="8dp"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp">
-        <LinearLayout
-            android:id="@+id/row_reactions"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-            <TextView android:id="@+id/react_love"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="❤️" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_like"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👍" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/channel_card_bg"
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp"
+        android:scrollbars="none">
+        <LinearLayout android:id="@+id/row_reactions" android:layout_width="wrap_content" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal" android:paddingTop="4dp" android:paddingBottom="4dp">
+            <TextView android:id="@+id/react_love" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="❤️" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_like" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👍" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
             <TextView android:id="@+id/react_dislike" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👎" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
             <TextView android:id="@+id/react_laugh" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😂" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_wow"   android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😮" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_sad"   android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😢" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_wow" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😮" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_sad" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😢" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
             <TextView android:id="@+id/react_angry" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😡" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_fire"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🔥" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_clap"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👏" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_fire" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🔥" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_clap" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="👏" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
             <TextView android:id="@+id/react_party" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🎉" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
             <TextView android:id="@+id/react_think" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🤔" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
             <TextView android:id="@+id/react_heart_eyes" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="😍" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_pray"  android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🙏" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
-            <TextView android:id="@+id/react_100"   android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="💯" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_pray" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="🙏" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
+            <TextView android:id="@+id/react_100" android:layout_width="46dp" android:layout_height="46dp" android:gravity="center" android:text="💯" android:textSize="26sp" android:background="?attr/selectableItemBackgroundBorderless" />
         </LinearLayout>
     </HorizontalScrollView>
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ink_surface_alt" />
 
-    <!-- Copy row -->
-    <LinearLayout
-        android:id="@+id/row_copy"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
-
-        <TextView
-            android:id="@+id/icon_copy"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="content_copy"
-            android:textSize="22sp"
-            android:textColor="@color/ink_text"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_copy"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Copy"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_text" />
+    <!-- Quick actions -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:paddingStart="8dp" android:paddingEnd="8dp" android:orientation="horizontal">
+        <LinearLayout android:id="@+id/row_reply" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_reply" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="reply" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_reply" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Reply" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_copy" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_copy" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="content_copy" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_copy" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Copy" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_forward" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_forward" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="forward" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_forward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Forward" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_share" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_share" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="share" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_share" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Share" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingStart="8dp" android:paddingEnd="8dp" android:orientation="horizontal">
+        <LinearLayout android:id="@+id/row_pin" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_pin" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="push_pin" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_pin" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Pin" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_select" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_select" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="check_circle_outline" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_select" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Select" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_info" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_info" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="info_outline" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_info" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Info" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/row_edit" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center_horizontal" android:orientation="vertical" android:paddingTop="10dp" android:paddingBottom="10dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+            <TextView android:id="@+id/icon_edit" android:layout_width="48dp" android:layout_height="48dp" android:gravity="center" android:background="@drawable/circle_bg_light" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="edit" android:textColor="@color/ink_text" android:textSize="24sp" />
+            <TextView android:id="@+id/label_edit" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Edit" android:textColor="@color/ink_text" android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ink_surface_alt" />
+    <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginTop="4dp" android:background="@color/ink_line" />
 
-    <!-- Reply row -->
-    <LinearLayout
-        android:id="@+id/row_reply"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
-
-        <TextView
-            android:id="@+id/icon_reply"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="reply"
-            android:textSize="22sp"
-            android:textColor="@color/ink_text"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_reply"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Reply"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_text" />
+    <LinearLayout android:id="@+id/row_delete_me" android:layout_width="match_parent" android:layout_height="52dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="24dp" android:paddingEnd="24dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+        <TextView android:id="@+id/icon_delete_me" android:layout_width="24dp" android:layout_height="24dp" android:gravity="center" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="delete_outline" android:textColor="@color/ink_danger" android:textSize="22sp" />
+        <TextView android:id="@+id/label_delete_me" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Delete for me" android:textColor="@color/ink_danger" android:textSize="16sp" />
     </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ink_surface_alt" />
-
-    <!-- Forward row -->
-    <LinearLayout
-        android:id="@+id/row_forward"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
-
-        <TextView
-            android:id="@+id/icon_forward"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="forward"
-            android:textSize="22sp"
-            android:textColor="@color/ink_text"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_forward"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Forward"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_text" />
+    <LinearLayout android:id="@+id/row_delete_all" android:layout_width="match_parent" android:layout_height="52dp" android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="24dp" android:paddingEnd="24dp" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true">
+        <TextView android:id="@+id/icon_delete_all" android:layout_width="24dp" android:layout_height="24dp" android:gravity="center" android:fontFamily="@font/material_icons" android:importantForAccessibility="no" android:text="delete_forever" android:textColor="@color/ink_danger" android:textSize="22sp" />
+        <TextView android:id="@+id/label_delete_all" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Delete for everyone" android:textColor="@color/ink_danger" android:textSize="16sp" />
     </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ink_surface_alt" />
-
-    <!-- Pin / Unpin row -->
-    <LinearLayout
-        android:id="@+id/row_pin"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
-
-        <TextView
-            android:id="@+id/icon_pin"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="push_pin"
-            android:textSize="22sp"
-            android:textColor="@color/ink_text"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_pin"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Pin Message"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_text" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ink_surface_alt" />
-
-    <!-- Edit row (own text only) -->
-    <LinearLayout
-        android:id="@+id/row_edit"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/icon_edit"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="edit"
-            android:textSize="22sp"
-            android:textColor="@color/ink_accent"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_edit"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Edit Message"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_accent" />
-    </LinearLayout>
-
-    <!-- Separator between normal actions and delete actions -->
-    <View
-        android:id="@+id/separator"
-        android:layout_width="match_parent"
-        android:layout_height="8dp"
-        android:background="@color/ink_surface_alt" />
-
-    <!-- Delete for me row -->
-    <LinearLayout
-        android:id="@+id/row_delete_me"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true">
-
-        <TextView
-            android:id="@+id/icon_delete_me"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="delete_outline"
-            android:textSize="22sp"
-            android:textColor="@color/ink_danger"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_delete_me"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Delete for Me"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_danger" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/ink_surface_alt" />
-
-    <!-- Delete for everyone row (own messages only) -->
-    <LinearLayout
-        android:id="@+id/row_delete_all"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="56dp"
-        android:paddingEnd="56dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="14dp"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/icon_delete_all"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:text="delete_forever"
-            android:textSize="22sp"
-            android:textColor="@color/ink_danger"
-            android:gravity="center"
-            android:fontFamily="@font/material_icons" />
-
-        <TextView
-            android:id="@+id/label_delete_all"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Delete for Everyone"
-            android:textSize="15.5sp"
-            android:textColor="@color/ink_danger" />
-    </LinearLayout>
-
 </LinearLayout>

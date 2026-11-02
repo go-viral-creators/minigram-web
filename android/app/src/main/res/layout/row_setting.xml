@@ -6,7 +6,7 @@
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
-    android:minHeight="64dp"
+    android:minHeight="68dp"
     android:orientation="horizontal"
     android:paddingStart="16dp"
     android:paddingTop="12dp"
@@ -15,9 +15,9 @@
 
     <TextView
         android:id="@+id/row_icon"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="@drawable/circle_icon_soft"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:background="@drawable/icon_tile_bg"
         android:fontFamily="@font/material_icons"
         android:gravity="center"
         android:importantForAccessibility="no"
@@ -35,14 +35,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/ink_text"
-            android:textSize="17sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
         <TextView
             android:id="@+id/row_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/ink_text_2"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
     </LinearLayout>
 
     <TextView

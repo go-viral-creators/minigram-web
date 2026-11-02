@@ -471,8 +471,8 @@ public class MyProfileActivity extends AppCompatActivity {
     private void _selectTab(int tab) {
         if (selectionMode) _exitSelectionMode(); // Telegram: switching tabs drops selection
         activeTab = tab;
-        int grey = Ink.c("#9E9E9E");
-        int blue = Ink.c("#229ED9");
+        int grey = Ink.res(R.color.ink_text_2);
+        int blue = Ink.res(R.color.ink_accent);
         txtTabMedia.setTextColor(grey); txtTabMedia.setTypeface(null, android.graphics.Typeface.NORMAL);
         txtTabLinks.setTextColor(grey); txtTabLinks.setTypeface(null, android.graphics.Typeface.NORMAL);
         txtTabVoice.setTextColor(grey); txtTabVoice.setTypeface(null, android.graphics.Typeface.NORMAL);
@@ -503,6 +503,20 @@ public class MyProfileActivity extends AppCompatActivity {
         }
     }
 
+    /** Shows a tab's content only if that tab is still the active one (async loads can finish after the user switched). */
+    private void _present(int tab, RecyclerView.Adapter<?> adapter, String icon, String label) {
+        if (tab != activeTab) return;
+        progressTabContent.setVisibility(View.GONE);
+        if (adapter == null || adapter.getItemCount() == 0) {
+            recyclerTabContent.setVisibility(View.GONE);
+            _showEmpty(icon, label);
+            return;
+        }
+        layoutTabEmpty.setVisibility(View.GONE);
+        recyclerTabContent.setAdapter(adapter);
+        recyclerTabContent.setVisibility(View.VISIBLE);
+    }
+
     private void _showEmpty(String icon, String label) {
         txtTabEmptyIcon.setText(icon);
         txtTabEmptyLabel.setText(label);
@@ -524,11 +538,7 @@ public class MyProfileActivity extends AppCompatActivity {
     private void _loadMedia() {
         recyclerTabContent.setLayoutManager(new GridLayoutManager(this, 3));
         if (mediaLoadedOnce) {
-            boolean has = mediaAdapter != null && mediaAdapter.getItemCount() > 0;
-            if (has) recyclerTabContent.setAdapter(mediaAdapter);
-            recyclerTabContent.setVisibility(has ? View.VISIBLE : View.GONE);
-            layoutTabEmpty.setVisibility(has ? View.GONE : View.VISIBLE);
-            if (!has) _showEmpty("photo_library", _emptyMediaLabel());
+            _present(0, mediaAdapter, "photo_library", _emptyMediaLabel());
             return;
         }
         progressTabContent.setVisibility(View.VISIBLE);
@@ -536,11 +546,8 @@ public class MyProfileActivity extends AppCompatActivity {
         if (chatIdForContext != null) {
             _loadFromChatMessages("image", items -> {
                 mediaLoadedOnce = true;
-                progressTabContent.setVisibility(View.GONE);
-                if (items.isEmpty()) { _showEmpty("photo_library", _emptyMediaLabel()); return; }
-                mediaAdapter = new ProfileMediaAdapter(items);
-                recyclerTabContent.setAdapter(mediaAdapter);
-                recyclerTabContent.setVisibility(View.VISIBLE);
+                    mediaAdapter = items.isEmpty() ? null : new ProfileMediaAdapter(items);
+                    _present(0, mediaAdapter, "photo_library", _emptyMediaLabel());
             });
             return;
         }
@@ -551,7 +558,6 @@ public class MyProfileActivity extends AppCompatActivity {
                 @Override public void onDataChange(@NonNull DataSnapshot snap) {
                     if (isFinishing() || isDestroyed()) return;
                     mediaLoadedOnce = true;
-                    progressTabContent.setVisibility(View.GONE);
                     ArrayList<HashMap<String, Object>> items = new ArrayList<>();
                     for (DataSnapshot c : snap.getChildren()) {
                         // BUG FIXED: this tab used to show voice notes mixed in
@@ -570,16 +576,12 @@ public class MyProfileActivity extends AppCompatActivity {
                         item.put("timestamp",  c.child("timestamp").getValue(Long.class));
                         items.add(0, item); // newest first
                     }
-                    if (items.isEmpty()) { _showEmpty("photo_library", _emptyMediaLabel()); return; }
-                    mediaAdapter = new ProfileMediaAdapter(items);
-                    recyclerTabContent.setAdapter(mediaAdapter);
-                    recyclerTabContent.setVisibility(View.VISIBLE);
+                    mediaAdapter = items.isEmpty() ? null : new ProfileMediaAdapter(items);
+                    _present(0, mediaAdapter, "photo_library", _emptyMediaLabel());
                 }
                 @Override public void onCancelled(@NonNull DatabaseError e) {
                     if (isFinishing() || isDestroyed()) return;
-                    mediaLoadedOnce = true;
-                    progressTabContent.setVisibility(View.GONE);
-                    _showEmpty("photo_library", "Couldn't load — check your connection");
+                    if (activeTab == 0) { progressTabContent.setVisibility(View.GONE); _showEmpty("photo_library", "Couldn't load — tap the tab to retry"); }
                 }
             });
     }
@@ -593,11 +595,7 @@ public class MyProfileActivity extends AppCompatActivity {
     private void _loadLinks() {
         recyclerTabContent.setLayoutManager(new LinearLayoutManager(this));
         if (linksLoadedOnce) {
-            boolean has = linksAdapter != null && linksAdapter.getItemCount() > 0;
-            if (has) recyclerTabContent.setAdapter(linksAdapter);
-            recyclerTabContent.setVisibility(has ? View.VISIBLE : View.GONE);
-            layoutTabEmpty.setVisibility(has ? View.GONE : View.VISIBLE);
-            if (!has) _showEmpty("link", _emptyLinksLabel());
+            _present(1, linksAdapter, "link", _emptyLinksLabel());
             return;
         }
         progressTabContent.setVisibility(View.VISIBLE);
@@ -605,11 +603,8 @@ public class MyProfileActivity extends AppCompatActivity {
         if (chatIdForContext != null) {
             _loadFromChatMessages("link", items -> {
                 linksLoadedOnce = true;
-                progressTabContent.setVisibility(View.GONE);
-                if (items.isEmpty()) { _showEmpty("link", _emptyLinksLabel()); return; }
-                linksAdapter = new ProfileLinkAdapter(items);
-                recyclerTabContent.setAdapter(linksAdapter);
-                recyclerTabContent.setVisibility(View.VISIBLE);
+                    linksAdapter = items.isEmpty() ? null : new ProfileLinkAdapter(items);
+                    _present(1, linksAdapter, "link", _emptyLinksLabel());
             });
             return;
         }
@@ -620,7 +615,6 @@ public class MyProfileActivity extends AppCompatActivity {
                 @Override public void onDataChange(@NonNull DataSnapshot snap) {
                     if (isFinishing() || isDestroyed()) return;
                     linksLoadedOnce = true;
-                    progressTabContent.setVisibility(View.GONE);
                     ArrayList<HashMap<String, Object>> items = new ArrayList<>();
                     for (DataSnapshot c : snap.getChildren()) {
                         HashMap<String, Object> item = new HashMap<>();
@@ -635,16 +629,12 @@ public class MyProfileActivity extends AppCompatActivity {
                         item.put("timestamp",     c.child("timestamp").getValue(Long.class));
                         items.add(0, item); // newest first
                     }
-                    if (items.isEmpty()) { _showEmpty("link", _emptyLinksLabel()); return; }
-                    linksAdapter = new ProfileLinkAdapter(items);
-                    recyclerTabContent.setAdapter(linksAdapter);
-                    recyclerTabContent.setVisibility(View.VISIBLE);
+                    linksAdapter = items.isEmpty() ? null : new ProfileLinkAdapter(items);
+                    _present(1, linksAdapter, "link", _emptyLinksLabel());
                 }
                 @Override public void onCancelled(@NonNull DatabaseError e) {
                     if (isFinishing() || isDestroyed()) return;
-                    linksLoadedOnce = true;
-                    progressTabContent.setVisibility(View.GONE);
-                    _showEmpty("link", "Couldn't load — check your connection");
+                    if (activeTab == 1) { progressTabContent.setVisibility(View.GONE); _showEmpty("link", "Couldn't load — tap the tab to retry"); }
                 }
             });
     }
@@ -658,11 +648,7 @@ public class MyProfileActivity extends AppCompatActivity {
     private void _loadVoice() {
         recyclerTabContent.setLayoutManager(new LinearLayoutManager(this));
         if (voiceLoadedOnce) {
-            boolean has = voiceAdapter != null && voiceAdapter.getItemCount() > 0;
-            if (has) recyclerTabContent.setAdapter(voiceAdapter);
-            recyclerTabContent.setVisibility(has ? View.VISIBLE : View.GONE);
-            layoutTabEmpty.setVisibility(has ? View.GONE : View.VISIBLE);
-            if (!has) _showEmpty("mic", _emptyVoiceLabel());
+            _present(2, voiceAdapter, "mic", _emptyVoiceLabel());
             return;
         }
         progressTabContent.setVisibility(View.VISIBLE);
@@ -670,11 +656,8 @@ public class MyProfileActivity extends AppCompatActivity {
         if (chatIdForContext != null) {
             _loadFromChatMessages("voice", items -> {
                 voiceLoadedOnce = true;
-                progressTabContent.setVisibility(View.GONE);
-                if (items.isEmpty()) { _showEmpty("mic", _emptyVoiceLabel()); return; }
-                voiceAdapter = new ProfileVoiceAdapter(items);
-                recyclerTabContent.setAdapter(voiceAdapter);
-                recyclerTabContent.setVisibility(View.VISIBLE);
+                    voiceAdapter = items.isEmpty() ? null : new ProfileVoiceAdapter(items);
+                    _present(2, voiceAdapter, "mic", _emptyVoiceLabel());
             });
             return;
         }
@@ -685,7 +668,6 @@ public class MyProfileActivity extends AppCompatActivity {
                 @Override public void onDataChange(@NonNull DataSnapshot snap) {
                     if (isFinishing() || isDestroyed()) return;
                     voiceLoadedOnce = true;
-                    progressTabContent.setVisibility(View.GONE);
                     ArrayList<HashMap<String, Object>> items = new ArrayList<>();
                     for (DataSnapshot c : snap.getChildren()) {
                         String type = c.child("type").getValue(String.class);
@@ -701,16 +683,12 @@ public class MyProfileActivity extends AppCompatActivity {
                         item.put("timestamp",  c.child("timestamp").getValue(Long.class));
                         items.add(0, item);
                     }
-                    if (items.isEmpty()) { _showEmpty("mic", _emptyVoiceLabel()); return; }
-                    voiceAdapter = new ProfileVoiceAdapter(items);
-                    recyclerTabContent.setAdapter(voiceAdapter);
-                    recyclerTabContent.setVisibility(View.VISIBLE);
+                    voiceAdapter = items.isEmpty() ? null : new ProfileVoiceAdapter(items);
+                    _present(2, voiceAdapter, "mic", _emptyVoiceLabel());
                 }
                 @Override public void onCancelled(@NonNull DatabaseError e) {
                     if (isFinishing() || isDestroyed()) return;
-                    voiceLoadedOnce = true;
-                    progressTabContent.setVisibility(View.GONE);
-                    _showEmpty("mic", "Couldn't load — check your connection");
+                    if (activeTab == 2) { progressTabContent.setVisibility(View.GONE); _showEmpty("mic", "Couldn't load — tap the tab to retry"); }
                 }
             });
     }

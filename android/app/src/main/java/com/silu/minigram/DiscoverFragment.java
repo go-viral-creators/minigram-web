@@ -89,18 +89,73 @@ public class DiscoverFragment extends Fragment {
         }
     }
 
+    /** Bottom sheet: pick the topics you care about. Everything stays on this phone. */
     private void editInterests() {
-        final List<String> all = InterestTags.all();
-        final boolean[] on = new boolean[all.size()];
-        for (int i = 0; i < on.length; i++) on[i] = interests.contains(all.get(i));
-        new AlertDialog.Builder(requireContext()).setTitle("Your interests")
-            .setMultiChoiceItems(all.toArray(new String[0]), on, (d, which, checked) -> on[which] = checked)
-            .setPositiveButton("Save", (d, w) -> {
-                interests.clear();
-                for (int i = 0; i < on.length; i++) if (on[i]) interests.add(all.get(i));
-                InterestStore.set(requireContext(), interests);
-                renderChips(); renderReco();
-            }).setNegativeButton("Cancel", null).show();
+        final android.content.Context c = requireContext();
+        final com.google.android.material.bottomsheet.BottomSheetDialog d = new com.google.android.material.bottomsheet.BottomSheetDialog(c);
+        final float dn = getResources().getDisplayMetrics().density;
+        final java.util.Set<String> pick = new java.util.HashSet<>(interests);
+
+        android.widget.LinearLayout box = new android.widget.LinearLayout(c);
+        box.setOrientation(android.widget.LinearLayout.VERTICAL);
+        box.setPadding((int) (22 * dn), (int) (22 * dn), (int) (22 * dn), (int) (18 * dn));
+
+        android.widget.TextView title = new android.widget.TextView(c);
+        title.setText("What are you into?");
+        title.setTextAppearance(R.style.TextAppearance_Ink_Title);
+        box.addView(title);
+
+        android.widget.TextView sub = new android.widget.TextView(c);
+        sub.setText("Pick a few topics and Discover will suggest matching channels. Your picks never leave this phone.");
+        sub.setTextColor(Ink.res(R.color.ink_text_2));
+        sub.setTextSize(14);
+        sub.setPadding(0, (int) (6 * dn), 0, (int) (14 * dn));
+        box.addView(sub);
+
+        android.widget.ScrollView sv = new android.widget.ScrollView(c);
+        sv.setVerticalScrollBarEnabled(false);
+        com.google.android.material.chip.ChipGroup cg = new com.google.android.material.chip.ChipGroup(c);
+        cg.setChipSpacingHorizontal((int) (8 * dn));
+        cg.setChipSpacingVertical((int) (4 * dn));
+        final android.widget.TextView count = new android.widget.TextView(c);
+        count.setTextColor(Ink.res(R.color.ink_text_2));
+        count.setTextSize(13);
+        final com.google.android.material.button.MaterialButton save = new com.google.android.material.button.MaterialButton(c);
+        for (String tag : InterestTags.all()) {
+            Chip chip = (Chip) LayoutInflater.from(c).inflate(R.layout.chip_interest, cg, false);
+            chip.setText(tag);
+            chip.setChecked(pick.contains(tag));
+            chip.setOnCheckedChangeListener((v, on) -> {
+                if (on) pick.add(tag); else pick.remove(tag);
+                count.setText(pick.size() + " selected");
+            });
+            cg.addView(chip);
+        }
+        count.setText(pick.size() + " selected");
+        sv.addView(cg);
+        box.addView(sv, new android.widget.LinearLayout.LayoutParams(-1, (int) (240 * dn)));
+
+        android.widget.LinearLayout bar = new android.widget.LinearLayout(c);
+        bar.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        bar.setPadding(0, (int) (14 * dn), 0, 0);
+        bar.addView(count, new android.widget.LinearLayout.LayoutParams(0, -2, 1f));
+        android.widget.TextView clear = new android.widget.TextView(c);
+        clear.setText("Clear");
+        clear.setTextColor(Ink.res(R.color.ink_text_2));
+        clear.setPadding((int) (14 * dn), (int) (12 * dn), (int) (14 * dn), (int) (12 * dn));
+        clear.setOnClickListener(v -> { pick.clear(); for (int i = 0; i < cg.getChildCount(); i++) ((Chip) cg.getChildAt(i)).setChecked(false); });
+        bar.addView(clear);
+        save.setText("Done");
+        save.setOnClickListener(v -> {
+            interests.clear(); interests.addAll(pick);
+            InterestStore.set(c, interests);
+            if (b != null) { renderChips(); renderReco(); }
+            d.dismiss();
+        });
+        bar.addView(save);
+        box.addView(bar);
+        d.setContentView(box);
+        d.show();
     }
 
     private void loadSubscribed() {

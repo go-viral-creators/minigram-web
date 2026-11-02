@@ -35,6 +35,7 @@ public final class TranslationManager {
         public String translated;     // null = nothing to show
         public String sourceLang;     // e.g. "hi", "hi-Latn"
         public boolean approximate;   // Hinglish path
+        public boolean hinglish;      // source was Romanised Hindi
         public boolean needsPack;     // model for sourceLang/targetLang not installed
         public String packLang;       // which pack is missing
     }
@@ -126,28 +127,44 @@ public final class TranslationManager {
         if (!pending.add(key)) return;
         idClient.identifyLanguage(text)
             .addOnSuccessListener(lang -> {
-                if (lang == null || "und".equals(lang)) { finish(key, new Outcome(), cb); return; }
+                final boolean latinGuess = lang == null || "und".equals(lang) || "en".equals(lang) || Hinglish.isRomanHindi(lang);
+                final boolean roman = Hinglish.isRomanHindi(lang) || (latinGuess && Hinglish.looksRoman(text));
+                if (!roman && (lang == null || "und".equals(lang))) { finish(key, new Outcome(), cb); return; }
                 final Outcome o = new Outcome();
-                o.sourceLang = lang;
-                boolean roman = Hinglish.isRomanHindi(lang);
+                o.sourceLang = roman ? "hi-Latn" : lang;
+                o.hinglish = roman;
                 final String src = roman ? "hi" : base(lang);
-                if (src.equals(target) || (roman && !manualHinglish && "hi".equals(target))) { finish(key, o, cb); return; }
-                if (roman && !manualHinglish) {      // offer, don't guess
-                    o.approximate = true;
-                    finish(key, o, cb);
+                if (src.equals(target) && !roman) { finish(key, o, cb); return; }
+                if (!TranslateLanguage.getAllLanguages().contains(src)) { finish(key, o, cb); return; }
+                String missing = roman && "hi".equals(target) ? null
+                    : !installed.contains(src) ? src : !installed.contains(target) ? target : null;
+                if (missing != null) { o.needsPack = true; o.packLang = missing; finish(key, o, cb); return; }
+                if (!roman) {
+                    translator(src, target).translate(text)
+                        .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
+                        .addOnFailureListener(e -> finish(key, o, cb));
                     return;
                 }
-                if (!TranslateLanguage.getAllLanguages().contains(src)) { finish(key, o, cb); return; }
-                String missing = !installed.contains(src) ? src : !installed.contains(target) ? target : null;
-                if (missing != null) { o.needsPack = true; o.packLang = missing; finish(key, o, cb); return; }
-                final String input = roman ? Hinglish.toDevanagari(text) : text;
-                o.approximate = roman;
-                translator(src, target).translate(input)
-                    .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
-                    .addOnFailureListener(e -> finish(key, o, cb));
+                // Romanised Hindi: transliterate to Devanagari (online if the user allowed it, else offline rules),
+                // then use the on-device Hindi model.
+                IO.execute(() -> {
+                    String deva = null;
+                    if (LangPrefs.hinglishOnline(app) == 1) deva = HinglishOnline.transliterate(text);
+                    o.approximate = deva == null;
+                    if (deva == null) deva = Hinglish.toDevanagari(text);
+                    final String input = deva;
+                    main.post(() -> {
+                        if ("hi".equals(target)) { o.translated = input; finish(key, o, cb); return; }
+                        translator("hi", target).translate(input)
+                            .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
+                            .addOnFailureListener(e -> finish(key, o, cb));
+                    });
+                });
             })
             .addOnFailureListener(e -> finish(key, new Outcome(), cb));
     }
+
+    private static final java.util.concurrent.ExecutorService IO = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     private void finish(String key, Outcome o, Result cb) {
         pending.remove(key);

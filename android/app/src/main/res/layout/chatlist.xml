@@ -144,6 +144,30 @@
 		</LinearLayout>
 	</LinearLayout>
 
+	<!-- Channel filter chips (Channels tab only) -->
+	<HorizontalScrollView
+		android:id="@+id/layout_channel_filters"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:background="@color/ink_bg"
+		android:clipToPadding="false"
+		android:paddingStart="20dp"
+		android:paddingEnd="20dp"
+		android:scrollbars="none"
+		android:visibility="gone">
+		<com.google.android.material.chip.ChipGroup
+			android:id="@+id/chip_group_channels"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			app:chipSpacingHorizontal="10dp"
+			app:selectionRequired="true"
+			app:singleSelection="true">
+			<com.google.android.material.chip.Chip android:id="@+id/chip_ch_all" style="@style/Widget.Ink.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:checked="true" android:text="All" />
+			<com.google.android.material.chip.Chip android:id="@+id/chip_ch_mine" style="@style/Widget.Ink.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Created by me" />
+			<com.google.android.material.chip.Chip android:id="@+id/chip_ch_joined" style="@style/Widget.Ink.Chip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Joined" />
+		</com.google.android.material.chip.ChipGroup>
+	</HorizontalScrollView>
+
 	<!-- ══ CONTENT AREA ════════════════════════════════════════════════════ -->
 	<FrameLayout
 		android:id="@+id/frame_layout81"
@@ -289,7 +313,7 @@
 			android:layout_marginEnd="16dp"
 			android:layout_marginBottom="10dp"
 			android:layout_marginTop="6dp"
-			android:elevation="10dp"
+			android:elevation="0dp"
 			android:padding="2dp"
 			android:orientation="horizontal"
 			android:background="@drawable/nav_pill_bg">

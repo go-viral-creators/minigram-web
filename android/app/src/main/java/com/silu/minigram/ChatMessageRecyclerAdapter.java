@@ -6,6 +6,8 @@ import android.graphics.*;
 import android.graphics.drawable.Drawable;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.content.Intent;
+import android.widget.Toast;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.*;
@@ -340,10 +342,14 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
     class MsgVH extends RecyclerView.ViewHolder {
         final int viewType;
         final TextView     txtMsg, txtCaption, txtEdited, txtReactions, txtPinned, txtTick,
-                            txtTimeImage, txtTimeMsg, txtReplyQuote,
+                            txtTimeImage, txtTickImage, txtTimeMsg, txtReplyQuote,
                             btnDownloadImage, btnVoicePlay, txtVoiceDuration,
                             txtLinkPreviewSite, txtLinkPreviewTitle, txtLinkPreviewDesc;
         final ImageView    imgMsg, imgLinkPreview;
+        final View         layoutImageMeta;
+        final View         layoutFileMsg;
+        final TextView    fileIcon, fileName, fileMeta;
+        boolean            sticker;
         final ImageView    imgAvatar; // null for TYPE_SENT
         final ProgressBar  imgLoading;
         final LinearLayout replyBar, layoutVoiceMsg, layoutLinkPreview;
@@ -361,6 +367,12 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             imgLoading      = v.findViewById(R.id.img_loading);
             btnDownloadImage= v.findViewById(R.id.btn_download_image);
             txtTimeImage    = v.findViewById(R.id.txt_time_image);
+            txtTickImage    = v.findViewById(R.id.txt_tick_image);
+            layoutImageMeta = v.findViewById(R.id.layout_image_meta);
+            layoutFileMsg   = v.findViewById(R.id.layout_file_msg);
+            fileIcon        = v.findViewById(R.id.file_icon);
+            fileName        = v.findViewById(R.id.file_name);
+            fileMeta        = v.findViewById(R.id.file_meta);
             txtTimeMsg      = v.findViewById(R.id.txt_time_msg);
             replyBar        = v.findViewById(R.id.layout_reply_quote);
             txtReplyQuote   = v.findViewById(R.id.txt_reply_quote);
@@ -407,8 +419,28 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             return;
         }
         bindMessage((MsgVH) holder, position);
-        { MsgVH vh = (MsgVH) holder; if (vh.bubbleView != null) vh.bubbleView.setBackground(Appearance.bubble(vh.itemView.getContext(), vh.viewType == TYPE_SENT)); }
+        _syncImageMeta((MsgVH) holder, position);
+        { MsgVH vh = (MsgVH) holder; if (vh.bubbleView != null) vh.bubbleView.setBackground(vh.sticker ? null : Appearance.bubble(vh.itemView.getContext(), vh.viewType == TYPE_SENT)); }
         _applyTranslationUi((MsgVH) holder, position);
+    }
+
+    /** Time (+ ticks for my messages) as a badge ON the image when there is no caption; otherwise it lives in the caption card. */
+    @SuppressWarnings("unchecked")
+    private void _syncImageMeta(MsgVH h, int pos) {
+        if (h.layoutImageMeta == null) return;
+        boolean show = h.txtTimeImage.getVisibility() == View.VISIBLE;
+        h.layoutImageMeta.setVisibility(show ? View.VISIBLE : View.GONE);
+        h.txtTimeImage.setVisibility(View.VISIBLE);   // visibility is carried by the wrapper
+        if (show && h.txtTickImage != null && h.viewType == TYPE_SENT) {
+            Object o = displayList.get(pos);
+            if (o instanceof HashMap) {
+                HashMap<String, Object> m = (HashMap<String, Object>) o;
+                String localUri = (String) m.get("local_uri");
+                _setTickState(h.txtTickImage, (String) m.get("upload_state"), localUri != null && !localUri.isEmpty(), (String) m.get("status"));
+                h.txtTickImage.setTextColor(0xFFFFFFFF);
+                if ("read".equals(m.get("status"))) h.txtTickImage.setTextColor(0xFF7DD3FC);
+            }
+        }
     }
 
     /** Called when the user taps "Translate (approximate)" under a Hinglish message. */
@@ -508,6 +540,17 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
 
         h.txtTimeImage.setVisibility(View.GONE);
         h.txtTimeMsg.setVisibility(View.GONE);
+        if (h.bubbleView != null) h.bubbleView.setPadding(dp(10), dp(6), dp(10), dp(6));
+        { View row = h.txtTimeMsg.getParent() instanceof View ? (View) h.txtTimeMsg.getParent() : null; if (row != null) row.setPadding(0, 0, 0, 0); }
+        if (h.txtCaption != null) h.txtCaption.setPadding(0, dp(4), 0, 0);
+        h.sticker = false;
+        if (h.layoutFileMsg != null) h.layoutFileMsg.setVisibility(View.GONE);
+        h.txtMsg.setBackground(null);
+        h.txtMsg.setPadding(0, 0, 0, 0);
+        h.txtMsg.setTextSize(15);
+        h.txtMsg.setGravity(android.view.Gravity.START);
+        h.txtMsg.setIncludeFontPadding(true);
+        h.txtTimeMsg.setTextColor(h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent_2) : Ink.res(R.color.ink_text_2));
 
         // ── Avatar (received) ─────────────────────────────────────────────────
         if (viewType == TYPE_RECV && h.imgAvatar != null) {
@@ -589,7 +632,11 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         boolean isImageMsg = "image".equals(msgType) && (hasLocalUri || !imgUrl.isEmpty());
         boolean isVoiceMsg = "voice".equals(msgType);
 
-        if (isImageMsg) {
+        if ("sticker".equals(msgType) && !Boolean.TRUE.equals(deletedAll)) {
+            bindStickerMessage(h, text, ts);
+        } else if ("file".equals(msgType) && !Boolean.TRUE.equals(deletedAll)) {
+            bindFileMessage(h, finalMsg, imgUrl, caption, uploadState, hasLocalUri, status);
+        } else if (isImageMsg) {
             bindImageMessage(h, finalMsg, finalMsgId, finalImgUrl, caption, localUri,
                 uploadState, hasLocalUri, viewType);
         } else if (isVoiceMsg) {
@@ -604,7 +651,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if (h.txtCaption != null) h.txtCaption.setVisibility(View.GONE);
             if (h.layoutVoiceMsg != null) h.layoutVoiceMsg.setVisibility(View.GONE);
             h.txtMsg.setVisibility(View.VISIBLE);
-            MsgRenderer.render(context, h.txtMsg, text, h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent) : Ink.res(R.color.ink_text));
+            MsgRenderer.render(context, h.txtMsg, text, h.viewType == TYPE_SENT ? Appearance.sentText(context) : Appearance.recvText(context));
             _applySearchHighlight(h.txtMsg);
             SmartLinkMovementMethod.apply(h.txtMsg);
             if (Boolean.TRUE.equals(isForwarded)) prependForwarded(h.txtMsg);
@@ -674,7 +721,107 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         }
     }
 
-    // ─── Image message binding ──────────────────────────────────────────────
+    // ─── Sticker ─────────────────────────────────────────────────────────────
+    private void bindStickerMessage(MsgVH h, String id, Long ts) {
+        h.sticker = true;
+        h.imgMsg.setVisibility(View.GONE);
+        if (h.imgLoading != null) h.imgLoading.setVisibility(View.GONE);
+        if (h.btnDownloadImage != null) h.btnDownloadImage.setVisibility(View.GONE);
+        if (h.txtCaption != null) h.txtCaption.setVisibility(View.GONE);
+        if (h.layoutVoiceMsg != null) h.layoutVoiceMsg.setVisibility(View.GONE);
+        if (h.layoutLinkPreview != null) h.layoutLinkPreview.setVisibility(View.GONE);
+        if (h.bubbleView != null) h.bubbleView.setPadding(0, 0, 0, 0);
+        h.txtMsg.setVisibility(View.VISIBLE);
+        if (Stickers.isPhrase(id)) {
+            h.txtMsg.setText(Stickers.phraseOf(id));
+            h.txtMsg.setTextColor(0xFFFFFFFF);
+            h.txtMsg.setTextSize(20);
+            h.txtMsg.setTypeface(h.txtMsg.getTypeface(), Typeface.BOLD);
+            h.txtMsg.setGravity(android.view.Gravity.CENTER);
+            android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+            g.setCornerRadius(dp(18)); g.setColor(Stickers.colorOf(id));
+            h.txtMsg.setBackground(g);
+            h.txtMsg.setPadding(dp(20), dp(14), dp(20), dp(14));
+        } else {
+            h.txtMsg.setText(Stickers.isEmoji(id) ? Stickers.emojiOf(id) : String.valueOf(id));
+            h.txtMsg.setTextSize(72);
+            h.txtMsg.setIncludeFontPadding(false);
+        }
+        h.txtTimeMsg.setVisibility(View.VISIBLE);
+        h.txtTimeMsg.setTextColor(Ink.res(R.color.ink_text_2));
+        if (h.txtTick != null && h.viewType == TYPE_SENT) h.txtTick.setTextColor(Ink.res(R.color.ink_text_2));
+        h.txtEdited.setVisibility(View.GONE);
+    }
+
+    // ─── File (video / audio / document) ─────────────────────────────────────
+    private void bindFileMessage(MsgVH h, HashMap<String, Object> msg, String url, String metaJson,
+                                 String uploadState, boolean hasLocalUri, String status) {
+        h.imgMsg.setVisibility(View.GONE);
+        if (h.imgLoading != null) h.imgLoading.setVisibility(View.GONE);
+        if (h.btnDownloadImage != null) h.btnDownloadImage.setVisibility(View.GONE);
+        if (h.txtCaption != null) h.txtCaption.setVisibility(View.GONE);
+        if (h.layoutVoiceMsg != null) h.layoutVoiceMsg.setVisibility(View.GONE);
+        if (h.layoutLinkPreview != null) h.layoutLinkPreview.setVisibility(View.GONE);
+        h.txtMsg.setVisibility(View.GONE);
+        String name = "File", kind = "document", mime = "application/octet-stream"; long size = 0; int dur = 0;
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(metaJson);
+            name = o.optString("n", name); kind = o.optString("k", kind); mime = o.optString("m", mime);
+            size = o.optLong("s"); dur = o.optInt("d");
+        } catch (Exception ignored) {}
+        final boolean sent = h.viewType == TYPE_SENT;
+        int fg = sent ? Appearance.sentText(context) : Appearance.recvText(context);
+        int fg2 = sent ? Ink.res(R.color.ink_on_sent_2) : Ink.res(R.color.ink_text_2);
+        h.layoutFileMsg.setVisibility(View.VISIBLE);
+        h.fileIcon.setText(hasLocalUri && "failed".equals(uploadState) ? "refresh" : hasLocalUri ? "hourglass_top" : FileLimits.glyph(kind, name));
+        h.fileName.setText(name);
+        h.fileName.setTextColor(fg);
+        StringBuilder meta = new StringBuilder(FileLimits.human(size));
+        if (dur > 0) meta.append(" \u00b7 ").append(dur / 60).append(':').append(String.format(java.util.Locale.US, "%02d", dur % 60));
+        String ext = FileLimits.ext(name);
+        if (!ext.isEmpty() && "document".equals(kind)) meta.append(" \u00b7 ").append(ext.toUpperCase(java.util.Locale.ROOT));
+        if (hasLocalUri) meta.append("failed".equals(uploadState) ? " \u00b7 Tap to retry" : " \u00b7 Uploading\u2026");
+        h.fileMeta.setText(meta);
+        h.fileMeta.setTextColor(fg2);
+        h.txtTimeMsg.setVisibility(View.VISIBLE);
+        final String fName = name, fMime = mime; final String fUrl = url;
+        final String tempId = (String) msg.get("msgId");
+        h.layoutFileMsg.setOnClickListener(v -> {
+            if (hasLocalUri) { if ("failed".equals(uploadState) && listener != null) listener.onRetryUpload(tempId); return; }
+            openFile(fUrl, fName, fMime);
+        });
+    }
+
+    /** Copies/downloads the file to the app cache and opens it with whatever app can handle it. */
+    private void openFile(final String url, final String name, final String mime) {
+        if (url == null || url.isEmpty()) { Toast.makeText(context, "File is not available yet", Toast.LENGTH_SHORT).show(); return; }
+        Toast.makeText(context, "Opening\u2026", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                java.io.File dir = new java.io.File(context.getCacheDir(), "shared");
+                //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
+                java.io.File out = new java.io.File(dir, name.replaceAll("[^A-Za-z0-9._-]", "_"));
+                java.io.InputStream in = url.startsWith("/") ? new java.io.FileInputStream(url)
+                    : new java.net.URL(url).openStream();
+                try (java.io.InputStream i = in; java.io.FileOutputStream fo = new java.io.FileOutputStream(out)) {
+                    byte[] buf = new byte[16384]; int n;
+                    while ((n = i.read(buf)) != -1) fo.write(buf, 0, n);
+                }
+                final android.net.Uri u = androidx.core.content.FileProvider.getUriForFile(context, "com.silu.minigram.provider", out);
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    try {
+                        context.startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(u, mime)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception e) { Toast.makeText(context, "No app found to open this file", Toast.LENGTH_LONG).show(); }
+                });
+            } catch (Exception e) {
+                new Handler(Looper.getMainLooper()).post(() -> Toast.makeText(context, "Could not open file", Toast.LENGTH_LONG).show());
+            }
+        }).start();
+    }
+
+    // ─── Image message binding ──────————————————————————————————————————————
     private void bindImageMessage(MsgVH h, HashMap<String, Object> finalMsg,
                                    String finalMsgId, String finalImgUrl, String caption,
                                    String localUri, String uploadState, boolean hasLocalUri,
@@ -684,6 +831,11 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         boolean hasCaption = !caption.isEmpty();
         h.txtMsg.setVisibility(View.GONE);
         h.imgMsg.setVisibility(View.VISIBLE);
+        // WhatsApp-style: image sits in a thin frame; caption (with time + ticks) is a card underneath.
+        if (h.bubbleView != null) h.bubbleView.setPadding(dp(3), dp(3), dp(3), hasCaption ? dp(5) : dp(3));
+        h.imgMsg.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        if (h.txtCaption != null) h.txtCaption.setPadding(dp(8), dp(6), dp(8), 0);
+        { View row = h.txtTimeMsg.getParent() instanceof View ? (View) h.txtTimeMsg.getParent() : null; if (row != null) row.setPadding(dp(8), 0, dp(8), 0); }
 
         if (hasLocalUri) {
             if (h.btnDownloadImage != null) h.btnDownloadImage.setVisibility(View.GONE);
@@ -830,7 +982,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                 if (hasCaption || Boolean.TRUE.equals(finalMsg.get("is_forwarded"))) {
                     h.txtCaption.setVisibility(View.VISIBLE);
                     h.txtCaption.setTextColor(Ink.c("#FFFFFF"));
-                    MsgRenderer.render(context, h.txtCaption, caption, h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent) : Ink.res(R.color.ink_text));
+                    MsgRenderer.render(context, h.txtCaption, caption, h.viewType == TYPE_SENT ? Appearance.sentText(context) : Appearance.recvText(context));
                     SmartLinkMovementMethod.apply(h.txtCaption);
                     if (Boolean.TRUE.equals(finalMsg.get("is_forwarded"))) prependForwarded(h.txtCaption);
                 } else {
@@ -862,7 +1014,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             } else if (caption != null && !caption.isEmpty()) {
                 h.txtCaption.setVisibility(View.VISIBLE);
                 h.txtCaption.setTextColor(Ink.c("#FFFFFF"));
-                MsgRenderer.render(context, h.txtCaption, caption, h.viewType == TYPE_SENT ? Ink.res(R.color.ink_on_sent) : Ink.res(R.color.ink_text));
+                MsgRenderer.render(context, h.txtCaption, caption, h.viewType == TYPE_SENT ? Appearance.sentText(context) : Appearance.recvText(context));
                 SmartLinkMovementMethod.apply(h.txtCaption);
             } else {
                 h.txtCaption.setVisibility(View.GONE);
@@ -1031,76 +1183,102 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         }
     }
 
-    // ─── Slide to reply (unchanged logic, works identically on RecyclerView
-    //     item views — this was already per-view touch handling, not
-    //     ListView-specific) ────────────────────────────────────────────────
-    private void setupSwipeToReply(View rowView, View bubbleView, HashMap<String, Object> msg, int viewType) {
-        if (bubbleView == null) return;
+    // ─── Slide to reply ───────────────────────────────────────────────────────
+    /** Circle + reply glyph drawn in the row's overlay (never added to the layout flow). */
+    private final class ReplyBadge extends android.graphics.drawable.Drawable {
+        final android.graphics.Paint circle = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        final android.graphics.Paint glyph  = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        float cx, cy, fraction;
+        ReplyBadge() {
+            circle.setColor(Ink.res(R.color.ink_accent_soft));
+            glyph.setColor(Ink.res(R.color.ink_accent));
+            glyph.setTextAlign(android.graphics.Paint.Align.CENTER);
+            glyph.setTextSize(dp(20));
+            if (materialTypeface == null) {
+                try { materialTypeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.material_icons); }
+                catch (Exception e) { materialTypeface = Typeface.DEFAULT; }
+            }
+            glyph.setTypeface(materialTypeface);
+        }
+        @Override public void draw(@NonNull android.graphics.Canvas c) {
+            if (fraction <= 0f) return;
+            float r = dp(18) * (0.55f + 0.45f * fraction);
+            circle.setAlpha((int) (255 * fraction));
+            glyph.setAlpha((int) (255 * fraction));
+            c.drawCircle(cx, cy, r, circle);
+            c.drawText("\uE15E", cx, cy + dp(7), glyph);   // material "reply"
+        }
+        @Override public void setAlpha(int a) {}
+        @Override public void setColorFilter(android.graphics.ColorFilter f) {}
+        @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+    }
 
+    /**
+     * Horizontal drag on a message row reveals a reply badge; passing the threshold buzzes once and releases into
+     * reply mode. Vertical scrolling is never blocked: the drag only starts when the gesture is clearly horizontal.
+     */
+    private void setupSwipeToReply(View rowView, View bubbleView, HashMap<String, Object> msg, int viewType) {
+        if (bubbleView == null || !(rowView instanceof ViewGroup)) return;
+        final ViewGroup row = (ViewGroup) rowView;
         final float thresholdPx = dp(SWIPE_THRESHOLD_DP);
         final float maxPx       = dp(SWIPE_MAX_DP);
+        final int   slop        = android.view.ViewConfiguration.get(context).getScaledTouchSlop();
 
-        TextView replyIcon = (TextView) rowView.getTag(R.id.btn_attach_icon);
-        if (replyIcon == null) {
-            replyIcon = new TextView(context);
-            if (materialTypeface == null) {
-                try {
-                    materialTypeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.material_icons);
-                } catch (Exception e) {
-                    materialTypeface = Typeface.DEFAULT;
-                }
-            }
-            replyIcon.setTypeface(materialTypeface);
-            replyIcon.setText("reply");
-            replyIcon.setTextSize(20);
-            replyIcon.setTextColor(Ink.c("#1A73E8"));
-            replyIcon.setAlpha(0f);
-            replyIcon.setVisibility(View.VISIBLE);
-            if (rowView instanceof ViewGroup) {
-                try {
-                    ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(dp(36), dp(36));
-                    ((ViewGroup) rowView).addView(replyIcon, lp);
-                    rowView.setTag(R.id.btn_attach_icon, replyIcon);
-                } catch (Exception ignored) {}
-            }
-        }
+        final ReplyBadge badge = new ReplyBadge();
+        badge.setBounds(0, 0, row.getWidth() > 0 ? row.getWidth() : context.getResources().getDisplayMetrics().widthPixels, dp(400));
+        row.getOverlay().clear();
+        row.getOverlay().add(badge);
 
-        final TextView finalReplyIcon = replyIcon;
-        final float[]  startX    = {0f};
-        final boolean[] triggered = {false};
+        final float[] down = new float[2];
+        final boolean[] dragging = {false}, ignore = {false}, triggered = {false};
 
         rowView.setOnTouchListener((v, e) -> {
-            switch (e.getAction()) {
+            switch (e.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN:
-                    startX[0]    = e.getRawX();
-                    triggered[0] = false;
-                    bubbleView.setTranslationX(0f);
-                    finalReplyIcon.setAlpha(0f);
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    float dx = e.getRawX() - startX[0];
-                    if (dx < 0) dx = 0;
-                    if (dx > maxPx) dx = maxPx;
-                    float fraction = Math.min(dx / thresholdPx, 1f);
-                    bubbleView.setTranslationX(dx);
-                    finalReplyIcon.setAlpha(fraction);
-                    finalReplyIcon.setScaleX(0.5f + 0.5f * fraction);
-                    finalReplyIcon.setScaleY(0.5f + 0.5f * fraction);
-                    if (dx >= thresholdPx && !triggered[0]) {
-                        triggered[0] = true;
-                        v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                    down[0] = e.getRawX(); down[1] = e.getRawY();
+                    dragging[0] = ignore[0] = triggered[0] = false;
+                    return false;
+                case MotionEvent.ACTION_MOVE: {
+                    if (ignore[0]) return false;
+                    float dx = e.getRawX() - down[0], dy = e.getRawY() - down[1];
+                    if (!dragging[0]) {
+                        if (Math.abs(dy) > slop && Math.abs(dy) > Math.abs(dx)) { ignore[0] = true; return false; }
+                        if (dx > slop * 1.5f && dx > Math.abs(dy) * 1.6f) {
+                            dragging[0] = true;
+                            if (v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
+                            v.setPressed(false);
+                        } else return false;
                     }
+                    float eff = Math.max(0f, dx - slop);
+                    float shown = eff < thresholdPx ? eff : thresholdPx + (eff - thresholdPx) * 0.25f;   // rubber-band past the threshold
+                    shown = Math.min(shown, maxPx);
+                    bubbleView.setTranslationX(shown);
+                    float fraction = Math.min(eff / thresholdPx, 1f);
+                    badge.fraction = fraction;
+                    badge.cx = dp(30) + Math.min(shown, thresholdPx) * 0.25f;
+                    badge.cy = bubbleView.getTop() + bubbleView.getHeight() / 2f;
+                    badge.invalidateSelf();
+                    row.invalidate();
+                    if (eff >= thresholdPx && !triggered[0]) {
+                        triggered[0] = true;
+                        v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);
+                    } else if (eff < thresholdPx * 0.85f) triggered[0] = false;
                     return true;
+                }
                 case MotionEvent.ACTION_UP:
-                case MotionEvent.ACTION_CANCEL:
-                    if (triggered[0] && listener != null) listener.onSwipeReply(msg);
-                    ObjectAnimator.ofFloat(bubbleView, "translationX", bubbleView.getTranslationX(), 0f)
-                        .setDuration(200).start();
-                    ObjectAnimator animAlpha = ObjectAnimator.ofFloat(finalReplyIcon, "alpha", finalReplyIcon.getAlpha(), 0f);
-                    animAlpha.setDuration(150);
-                    animAlpha.start();
-                    triggered[0] = false;
-                    break;
+                case MotionEvent.ACTION_CANCEL: {
+                    boolean was = dragging[0];
+                    if (was) {
+                        if (triggered[0] && e.getActionMasked() == MotionEvent.ACTION_UP && listener != null) listener.onSwipeReply(msg);
+                        bubbleView.animate().translationX(0f).setDuration(220)
+                            .setInterpolator(new android.view.animation.OvershootInterpolator(1.4f)).start();
+                        android.animation.ValueAnimator fade = android.animation.ValueAnimator.ofFloat(badge.fraction, 0f).setDuration(160);
+                        fade.addUpdateListener(a -> { badge.fraction = (float) a.getAnimatedValue(); badge.invalidateSelf(); row.invalidate(); });
+                        fade.start();
+                    }
+                    dragging[0] = triggered[0] = false;
+                    return was;
+                }
             }
             return false;
         });
@@ -1222,7 +1400,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
     }
 
     // ── Dynamic image sizing (unchanged formula from ChatMessageAdapter) ──────
-    private static final int IMG_CORNER_RADIUS_DP = 12;
+    private static final int IMG_CORNER_RADIUS_DP = 14;
 
     private int _getListContentWidth() {
         int w = recyclerView.getWidth();

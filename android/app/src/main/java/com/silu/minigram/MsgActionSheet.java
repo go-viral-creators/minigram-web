@@ -20,6 +20,9 @@ public class MsgActionSheet extends BottomSheetDialogFragment {
         void onReply(String msgId, String preview, String senderName);
         void onForward(String text, String imageUrl);
         void onReact(String msgId, String emoji);
+        default void onShare(String text, String imageUrl) {}
+        default void onSelect(String msgId) {}
+        default void onInfo(String msgId) {}
     }
 
     // ─── Args keys ───────────────────────────────────────────────────────
@@ -133,6 +136,9 @@ public class MsgActionSheet extends BottomSheetDialogFragment {
         LinearLayout rowEdit   = view.findViewById(R.id.row_edit);
         LinearLayout rowDelMe  = view.findViewById(R.id.row_delete_me);
         LinearLayout rowDelAll = view.findViewById(R.id.row_delete_all);
+        LinearLayout rowShare  = view.findViewById(R.id.row_share);
+        LinearLayout rowSelect = view.findViewById(R.id.row_select);
+        LinearLayout rowInfo   = view.findViewById(R.id.row_info);
 
         // ── Set icon typeface if not already done via XML ────────────────
         if (iconFont != null) {
@@ -144,6 +150,12 @@ public class MsgActionSheet extends BottomSheetDialogFragment {
             ((TextView) view.findViewById(R.id.icon_delete_me)).setTypeface(iconFont);
             ((TextView) view.findViewById(R.id.icon_delete_all)).setTypeface(iconFont);
         }
+        rowShare.setVisibility(hasText || !imgUrl.isEmpty() ? View.VISIBLE : View.GONE);
+        rowSelect.setVisibility(isChannelMode ? View.GONE : View.VISIBLE);
+        rowInfo.setVisibility(isChannelMode ? View.GONE : View.VISIBLE);
+        rowShare.setOnClickListener(v -> { if (listener != null) listener.onShare(text, imgUrl); dismiss(); });
+        rowSelect.setOnClickListener(v -> { if (listener != null) listener.onSelect(msgId); dismiss(); });
+        rowInfo.setOnClickListener(v -> { if (listener != null) listener.onInfo(msgId); dismiss(); });
 
         // ── Condition-based visibility & dynamic labels ──────────────────
         // Copy – only for text messages
@@ -159,10 +171,10 @@ public class MsgActionSheet extends BottomSheetDialogFragment {
         // Pin / Unpin – always visible in chat; owner-only in channel mode
         rowPin.setVisibility(showOwnerOnlyRows ? View.VISIBLE : View.GONE);
         ((TextView) view.findViewById(R.id.label_pin))
-                .setText(pinned ? "Unpin Message" : "Pin Message");
+                .setText(pinned ? "Unpin" : "Pin");
 
         // Edit – only own text (non-image)
-        if (isOwn) {
+        if (isOwn && !"sticker".equals(type) && !"file".equals(type)) {
             rowEdit.setVisibility(View.VISIBLE);
         } else {
             rowEdit.setVisibility(View.GONE);

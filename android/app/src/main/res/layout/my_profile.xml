@@ -94,8 +94,8 @@
 				android:layout_height="wrap_content"
 				android:orientation="vertical"
 				android:gravity="center_horizontal"
-				android:background="@drawable/profile_header_gradient_bg"
-				android:paddingBottom="24dp">
+				android:background="@color/ink_bg"
+				android:paddingBottom="8dp">
 
 				<LinearLayout
 					android:layout_width="match_parent"
@@ -104,36 +104,35 @@
 					android:padding="8dp">
 					<TextView
 						android:id="@+id/btn_back"
-						android:layout_width="40dp"
-						android:layout_height="40dp"
+						android:layout_width="48dp"
+						android:layout_height="48dp"
 						android:gravity="center"
 						android:text="arrow_back"
 						android:textSize="24sp"
-						android:textColor="#FFFFFF"
+						android:textColor="@color/ink_text"
 						android:fontFamily="@font/material_icons"
-						android:background="?attr/selectableItemBackgroundBorderless" />
+						android:background="@drawable/btn_round_outline" />
 					<TextView
 						android:layout_width="0dp"
 						android:layout_height="wrap_content"
 						android:layout_weight="1" />
 					<TextView
 						android:id="@+id/btn_overflow_menu"
-						android:layout_width="40dp"
-						android:layout_height="40dp"
+						android:layout_width="48dp"
+						android:layout_height="48dp"
 						android:gravity="center"
 						android:text="more_vert"
 						android:textSize="22sp"
-						android:textColor="#FFFFFF"
+						android:textColor="@color/ink_text"
 						android:fontFamily="@font/material_icons"
-						android:background="?attr/selectableItemBackgroundBorderless" />
+						android:background="@drawable/btn_round_outline" />
 				</LinearLayout>
 
 				<FrameLayout
-					android:layout_width="116dp"
-					android:layout_height="116dp"
+					android:layout_width="120dp"
+					android:layout_height="120dp"
 					android:layout_marginTop="4dp"
-					android:background="@drawable/circle_bg_light"
-					android:elevation="6dp"
+					android:background="@drawable/avatar_ring"
 					android:padding="4dp">
 					<ImageView
 						android:id="@+id/img_avatar"
@@ -148,14 +147,14 @@
 					android:layout_marginTop="14dp"
 					android:gravity="center_vertical"
 					android:orientation="horizontal">
-					<TextView
+					<TextView android:accessibilityHeading="true"
 						android:id="@+id/txt_fullname"
 						android:layout_width="wrap_content"
 						android:layout_height="wrap_content"
 						android:text=""
-						android:textSize="21sp"
-						android:textStyle="bold"
-						android:textColor="#FFFFFF" />
+						android:textSize="26sp"
+						android:fontFamily="@font/newsreader"
+						android:textColor="@color/ink_text" />
 					<ImageView
 						android:id="@+id/img_pro_badge"
 						android:layout_width="18dp"
@@ -182,7 +181,7 @@
 						android:layout_marginLeft="6dp"
 						android:text="@username"
 						android:textSize="14sp"
-						android:textColor="#E3F2FD" />
+						android:textColor="@color/ink_text_2" />
 				</LinearLayout>
 
 			</LinearLayout>

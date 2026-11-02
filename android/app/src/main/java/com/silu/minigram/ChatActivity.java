@@ -149,7 +149,19 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(_savedInstanceState);
         EdgeToEdgeHelper.setup(this);
         setContentView(R.layout.chat);
-        EdgeToEdgeHelper.applyInsets(findViewById(R.id.main));
+        {
+            // Status bar/side insets go on the root; the bottom inset (nav bar / keyboard) goes INTO the solid input bar,
+            // so the wallpaper never shows through underneath it.
+            final View root = findViewById(R.id.main), bar = findViewById(R.id.linear37);
+            final int barPadBottom = bar.getPaddingBottom();
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root, (v, wi) -> {
+                androidx.core.graphics.Insets sys = wi.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
+                androidx.core.graphics.Insets ime = wi.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime());
+                v.setPadding(sys.left, sys.top, sys.right, 0);
+                bar.setPadding(bar.getPaddingLeft(), bar.getPaddingTop(), bar.getPaddingRight(), barPadBottom + Math.max(sys.bottom, ime.bottom));
+                return wi;
+            });
+        }
         initialize(_savedInstanceState);
         FirebaseApp.initializeApp(this);
         initializeLogic();
@@ -248,7 +260,9 @@ public class ChatActivity extends AppCompatActivity {
         if (trash != null) trash.setOnClickListener(v -> _stopVoiceRecording(true));
         if (pause != null) pause.setOnClickListener(v -> _togglePauseRecording());
 
-        btn_attach_icon.setOnClickListener(v -> _openMediaPicker());
+        btn_attach_icon.setOnClickListener(v -> _openAttachSheet());
+        View stickerBtn = findViewById(R.id.btn_sticker);
+        if (stickerBtn != null) stickerBtn.setOnClickListener(v -> _openStickers());
 
         if (btn_cancel_reply != null) btn_cancel_reply.setOnClickListener(v -> _clearReply());
         if (more_options     != null) more_options.setOnClickListener(v -> showHeaderMenu(more_options));
@@ -280,6 +294,131 @@ public class ChatActivity extends AppCompatActivity {
         });
 
         _createNewMsgBubble();
+    }
+
+    // ------------------------------------------------------------------ attachments: video / audio / documents / stickers
+    private String pendingPickKind;
+    private final androidx.activity.result.ActivityResultLauncher<String[]> filePicker =
+        registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.OpenDocument(), uri -> {
+            if (uri != null && pendingPickKind != null) _handlePickedFile(uri, pendingPickKind);
+        });
+    private final HashMap<String, Object[]> pendingRetryFiles = new HashMap<>();   // tempId -> {Uri, kind}
+
+    private void _openAttachSheet() {
+        AttachSheet s = new AttachSheet();
+        s.setPicker(what -> {
+            switch (what) {
+                case "gallery": _openMediaPicker(); break;
+                case "sticker": _openStickers(); break;
+                case "video":    pendingPickKind = "video";    filePicker.launch(new String[]{"video/*"}); break;
+                case "audio":    pendingPickKind = "audio";    filePicker.launch(new String[]{"audio/*"}); break;
+                default:         pendingPickKind = "document"; filePicker.launch(new String[]{
+                    "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.*",
+                    "application/vnd.ms-excel", "application/vnd.ms-powerpoint", "text/*", "application/zip",
+                    "application/rtf", "application/vnd.oasis.opendocument.*"}); break;
+            }
+        });
+        s.show(getSupportFragmentManager(), "attach");
+    }
+
+    private void _openStickers() {
+        StickerSheet s = new StickerSheet();
+        s.setCallback(id -> _sendMessage("sticker", id, "", "", false));
+        s.show(getSupportFragmentManager(), "stickers");
+    }
+
+    private void _handlePickedFile(final Uri uri, final String kind) {
+        new Thread(() -> {
+            String name = "file", mime = null; long size = 0; int dur = 0;
+            try (android.database.Cursor c = getContentResolver().query(uri, null, null, null, null)) {
+                if (c != null && c.moveToFirst()) {
+                    int ni = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME), si = c.getColumnIndex(android.provider.OpenableColumns.SIZE);
+                    if (ni >= 0 && c.getString(ni) != null) name = c.getString(ni);
+                    if (si >= 0) size = c.getLong(si);
+                }
+            } catch (Exception ignored) {}
+            mime = getContentResolver().getType(uri);
+            if (!"document".equals(kind)) {
+                try {
+                    android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+                    r.setDataSource(this, uri);
+                    String d = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
+                    if (d != null) dur = (int) (Long.parseLong(d) / 1000);
+                    r.release();
+                } catch (Exception ignored) {}
+            }
+            final String err = FileLimits.check(kind, name, size, dur);
+            final String fName = name, fMime = mime != null ? mime : "application/octet-stream";
+            final long fSize = size; final int fDur = dur;
+            runOnUiThread(() -> {
+                if (err != null) { Toast.makeText(this, err, Toast.LENGTH_LONG).show(); return; }
+                _startFileUpload(uri, kind, fName, fMime, fSize, fDur, null);
+            });
+        }).start();
+    }
+
+    private static String _fileMetaJson(String name, long size, String kind, String mime, int dur) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            o.put("n", name); o.put("s", size); o.put("k", kind); o.put("m", mime); o.put("d", dur);
+            return o.toString();
+        } catch (Exception e) { return "{}"; }
+    }
+
+    private void _startFileUpload(final Uri uri, final String kind, final String name, final String mime,
+                                  final long size, final int dur, String reuseTempId) {
+        final String tempId = reuseTempId != null ? reuseTempId : "temp_" + System.currentTimeMillis();
+        final String meta = _fileMetaJson(name, size, kind, mime, dur);
+        if (reuseTempId == null) {
+            HashMap<String, Object> tempMsg = new HashMap<>();
+            tempMsg.put("msgId", tempId); tempMsg.put("sender_uid", myUid); tempMsg.put("type", "file");
+            tempMsg.put("image_url", ""); tempMsg.put("local_uri", uri.toString());
+            tempMsg.put("caption", meta); tempMsg.put("text", "");
+            tempMsg.put("timestamp", System.currentTimeMillis());
+            tempMsg.put("is_edited", false); tempMsg.put("is_pinned", false); tempMsg.put("is_forwarded", false);
+            tempMsg.put("is_deleted_for_all", false); tempMsg.put("status", "pending"); tempMsg.put("upload_state", "uploading");
+            messageList.add(tempMsg);
+            adapter.refreshWithoutScroll();
+            listview1.post(() -> listview1.scrollToPosition(adapter.getItemCount() - 1));
+            isAtBottom = true;
+        } else _setTempMsgState(tempId, "uploading");
+        pendingRetryFiles.put(tempId, new Object[]{uri, kind});
+        final boolean enc = useE2ee;
+        new Thread(() -> {
+            try {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
+                    byte[] buf = new byte[16384]; int n; long total = 0;
+                    while ((n = in.read(buf)) != -1) {
+                        total += n;
+                        if (total > Math.max(FileLimits.VIDEO_MAX_BYTES, FileLimits.DOC_MAX_BYTES)) throw new java.io.IOException("File too large");
+                        bo.write(buf, 0, n);
+                    }
+                }
+                byte[] bytes = bo.toByteArray();
+                String key = null;
+                String contentType = mime;
+                String ext = FileLimits.ext(name);
+                if (enc) {
+                    com.silu.minigram.e2ee.E2ee.SealedMedia sealed = com.silu.minigram.e2ee.E2ee.sealMedia(bytes);
+                    bytes = sealed.data; key = sealed.keyB64; contentType = "application/octet-stream"; ext = "bin";
+                }
+                String uid = com.google.firebase.auth.FirebaseAuth.getInstance().getUid();
+                final String url = MediaStorage.upload(uid, "files", bytes, contentType, ext.isEmpty() ? "bin" : ext);
+                final String fKey = key;
+                runOnUiThread(() -> {
+                    _removeTempMsg(tempId);
+                    pendingRetryFiles.remove(tempId);
+                    pendingMediaKey = fKey;
+                    _sendMessage("file", "", url, meta, false);
+                });
+            } catch (Throwable e) {
+                runOnUiThread(() -> {
+                    _setTempMsgState(tempId, "failed");
+                    Toast.makeText(ChatActivity.this, "Upload failed: " + (e.getMessage() != null ? e.getMessage() : "network error"), Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
 
     private void _openMediaPicker() {
@@ -411,6 +550,14 @@ public class ChatActivity extends AppCompatActivity {
 
     /** Shared by manual tap-to-retry AND the automatic backoff queue — exactly one retry code path. */
     private void _performRetry(String tempId) {
+        if (pendingRetryFiles.containsKey(tempId)) {
+            Object[] f = pendingRetryFiles.get(tempId);
+            try {
+                org.json.JSONObject o = null;
+                for (HashMap<String, Object> m : messageList) if (tempId.equals(m.get("msgId"))) { o = new org.json.JSONObject(String.valueOf(m.get("caption"))); break; }
+                if (o != null) { _startFileUpload((Uri) f[0], (String) f[1], o.optString("n"), o.optString("m"), o.optLong("s"), o.optInt("d"), tempId); return; }
+            } catch (Exception ignored) {}
+        }
         if (pendingRetryVoiceFiles.containsKey(tempId)) _retryVoiceUpload(tempId);
         else _retryUpload(tempId);
     }
@@ -927,22 +1074,28 @@ public class ChatActivity extends AppCompatActivity {
             @Override public void onItemClick(HashMap<String, Object> msg) {
                 final String mId = (String) msg.get("msgId");
                 if (mActionMode != null) { toggleSelection(mId); return; }
-                _showMsgActionSheet(msg);
+                // plain tap does nothing (links, images and files handle their own taps); long-press opens the menu
             }
 
             @Override public void onItemLongClick(String msgId) {
                 if (msgId != null && msgId.startsWith("temp_")) return;
-                if (mActionMode != null) return;
-                selectedMsgs.add(msgId);
-                mActionMode = startActionMode(mActionModeCallback);
-                if (mActionMode != null) mActionMode.setTitle(selectedMsgs.size() + " Selected");
-                adapter.notifyMessageChanged(msgId);
+                if (mActionMode != null) { toggleSelection(msgId); return; }
+                for (HashMap<String, Object> m : messageList) {
+                    if (msgId != null && msgId.equals(m.get("msgId"))) {
+                        listview1.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                        _showMsgActionSheet(m);
+                        break;
+                    }
+                }
             }
 
             @Override public void onSwipeReply(HashMap<String, Object> msg) {
                 String id      = (String) msg.get("msgId");
-                String preview = "image".equals(msg.get("type"))
-                    ? "\uD83D\uDCF7 Photo"
+                String ty = String.valueOf(msg.get("type"));
+                String preview = "image".equals(ty) ? "\uD83D\uDCF7 Photo"
+                    : "sticker".equals(ty) ? Stickers.label(String.valueOf(msg.get("text")))
+                    : "file".equals(ty) ? _filePreview(String.valueOf(msg.get("caption")))
+                    : "voice".equals(ty) ? "\uD83C\uDFA4 Voice message"
                     : (msg.get("text") != null ? (String) msg.get("text") : "");
                 _setReplyMode(id, preview, getReplySenderLabel(id, peerName));
             }
@@ -1343,9 +1496,28 @@ public class ChatActivity extends AppCompatActivity {
             msg.put("translated_from", o.sourceLang);
             msg.put("translation_approx", o.approximate);
             _updateTranslateButton();
+            if (o.hinglish) _maybeAskHinglishConsent();
         } else if (o.needsPack) {
             msg.put("translate_pack", o.packLang);
         }
+    }
+
+    private boolean hinglishAsked;
+    /** One-time opt-in: online transliteration is far more accurate for Hinglish but sends the text to Google. */
+    private void _maybeAskHinglishConsent() {
+        if (hinglishAsked || com.silu.minigram.translate.LangPrefs.hinglishOnline(this) != 0 || isFinishing()) return;
+        hinglishAsked = true;
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Better Hinglish translation?")
+            .setMessage("Hinglish (Hindi in English letters) is translated much more accurately using Google Input Tools. "
+                + "This sends only the message text to Google to convert it to Hindi script; it stays off otherwise "
+                + "and everything else is translated on your phone.\n\nYou can change this anytime in the translate options.")
+            .setPositiveButton("Turn on", (d, w) -> {
+                com.silu.minigram.translate.LangPrefs.setHinglishOnline(this, true);
+                com.silu.minigram.translate.TranslationManager.get(this).clearCache();
+            })
+            .setNegativeButton("Not now", (d, w) -> com.silu.minigram.translate.LangPrefs.setHinglishOnline(this, false))
+            .show();
     }
 
     private TextView translateBtn;
@@ -1356,12 +1528,12 @@ public class ChatActivity extends AppCompatActivity {
             if (translateBtn != null || toolbar == null || more_options == null || more_options.getParent() != toolbar) return;
             translateBtn = new TextView(this);
             translateBtn.setText("translate");
-            translateBtn.setTextSize(22);
+            translateBtn.setTextSize(18);
             translateBtn.setGravity(android.view.Gravity.CENTER);
             translateBtn.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this, R.font.material_icons));
             translateBtn.setBackgroundResource(R.drawable.btn_round_outline);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(48), dp(48));
-            lp.setMarginEnd(dp(8));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(38), dp(38));
+            lp.setMarginEnd(dp(6));
             translateBtn.setLayoutParams(lp);
             translateBtn.setOnClickListener(v -> _showTranslateSheet());
             toolbar.addView(translateBtn, toolbar.indexOfChild(more_options));
@@ -1403,6 +1575,16 @@ public class ChatActivity extends AppCompatActivity {
         swOrig.setMinHeight(dp(48));
         swOrig.setChecked(com.silu.minigram.translate.LangPrefs.showOriginal(this));
         box.addView(swOrig);
+
+        final com.google.android.material.materialswitch.MaterialSwitch swHing = new com.google.android.material.materialswitch.MaterialSwitch(this);
+        swHing.setText("Better Hinglish accuracy (online)");
+        swHing.setMinHeight(dp(48));
+        swHing.setChecked(com.silu.minigram.translate.LangPrefs.hinglishOnline(this) == 1);
+        swHing.setOnCheckedChangeListener((b, on) -> {
+            com.silu.minigram.translate.LangPrefs.setHinglishOnline(this, on);
+            com.silu.minigram.translate.TranslationManager.get(this).clearCache();
+        });
+        box.addView(swHing);
 
         TextView lang = new TextView(this);
         lang.setText("Translate to: " + com.silu.minigram.translate.TranslationManager.displayName(
@@ -2109,8 +2291,10 @@ public class ChatActivity extends AppCompatActivity {
         // sender_uid (peerUid.equals(sUid)), not on this set.
         String preview = "image".equals(type) ? "\uD83D\uDCF7 Photo"
                         : "voice".equals(type) ? "\uD83C\uDFA4 Voice message"
+                        : "sticker".equals(type) ? Stickers.label(text)
+                        : "file".equals(type) ? _filePreview(caption)
                         : text;
-        _commitMessage(msgId, msg, preview, ts, "voice".equals(type) ? "" : imageUrl);
+        _commitMessage(msgId, msg, preview, ts, ("voice".equals(type) || "file".equals(type)) ? "" : imageUrl);
         edit_msg.setText("");
         if (chatId != null)
             getSharedPreferences(DRAFT_PREFS, MODE_PRIVATE).edit().remove(chatId).apply();
@@ -2152,7 +2336,7 @@ public class ChatActivity extends AppCompatActivity {
                 }
                 messagesRef.child(msgId).setValue(msg);
                 ContentTrackingHelper.trackSent(myUid, type, plainText,
-                    "image".equals(type) ? String.valueOf(msg.get("image_url")) : null,
+                    ("image".equals(type) || "file".equals(type)) ? String.valueOf(msg.get("image_url")) : null,
                     "voice".equals(type) ? String.valueOf(msg.get("voice_url")) : null,
                     "chat", chatId, msgId);
                 _updateUserChats(preview, ts);
@@ -2163,6 +2347,15 @@ public class ChatActivity extends AppCompatActivity {
                 _showEncryptionState();
             }
         });
+    }
+
+    private static String _filePreview(String metaJson) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject(metaJson);
+            String k = o.optString("k");
+            String icon = "video".equals(k) ? "\uD83C\uDFAC " : "audio".equals(k) ? "\uD83C\uDFA7 " : "\uD83D\uDCC4 ";
+            return icon + o.optString("n", "File");
+        } catch (Exception e) { return "\uD83D\uDCC4 File"; }
     }
 
     private void _updateUserChats(String preview, long ts) {
@@ -2303,7 +2496,8 @@ public class ChatActivity extends AppCompatActivity {
     private void _showMsgActionSheet(HashMap<String, Object> msg) {
         final String  mId   = (String) msg.get("msgId");
         if (mId != null && mId.startsWith("temp_")) return;
-        final String  fText = ("image".equals(msg.get("type")) || "voice".equals(msg.get("type")))
+        final String  fText = ("sticker".equals(msg.get("type")) || "file".equals(msg.get("type"))) ? ""
+            : ("image".equals(msg.get("type")) || "voice".equals(msg.get("type")))
             ? (String) msg.get("caption") : (String) msg.get("text");
         final String  fImg  = (String) msg.get("image_url");
         final String  fSndr = (String) msg.get("sender_uid");
@@ -2341,6 +2535,28 @@ public class ChatActivity extends AppCompatActivity {
                 List<HashMap<String, Object>> list = new ArrayList<>();
                 list.add(msg);
                 forwardSelectedMessages(list);
+            }
+            @Override public void onSelect(String id) {
+                if (mActionMode != null) return;
+                selectedMsgs.add(id);
+                mActionMode = startActionMode(mActionModeCallback);
+                if (mActionMode != null) mActionMode.setTitle(selectedMsgs.size() + " selected");
+                adapter.notifyMessageChanged(id);
+            }
+            @Override public void onShare(String t, String iUrl) {
+                Intent s = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, (t != null && !t.isEmpty()) ? t : String.valueOf(iUrl));
+                startActivity(Intent.createChooser(s, "Share"));
+            }
+            @Override public void onInfo(String id) {
+                Long ts = msg.get("timestamp") instanceof Long ? (Long) msg.get("timestamp") : null;
+                String when = ts == null ? "-" : new java.text.SimpleDateFormat("d MMM yyyy, hh:mm:ss a", java.util.Locale.getDefault()).format(new java.util.Date(ts));
+                boolean mine = myUid.equals(msg.get("sender_uid"));
+                String st = String.valueOf(msg.get("status"));
+                new android.app.AlertDialog.Builder(ChatActivity.this).setTitle("Message info")
+                    .setMessage((mine ? "Sent: " : "Received: ") + when + (mine ? "\nStatus: " + ("read".equals(st) ? "Read" : "delivered".equals(st) ? "Delivered" : "Sent") : "")
+                        + "\nType: " + fType + (useE2ee ? "\nEncryption: end-to-end" : ""))
+                    .setPositiveButton("OK", null).show();
             }
             @Override public void onReact(String id, String emoji) {
                 // Toggle: tapping the same emoji again removes it.

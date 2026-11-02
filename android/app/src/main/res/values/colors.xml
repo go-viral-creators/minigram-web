@@ -42,4 +42,6 @@
     <color name="colorHighlight">#403730A3</color>
     <color name="colorSelected">#1F3730A3</color>
     <color name="ink_on_sent_2">#C7C9F0</color>
+    <color name="nav_glass">#B8FFFFFF</color>
+    <color name="nav_glass_stroke">#66FFFFFF</color>
 </resources>

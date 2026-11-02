@@ -46,7 +46,7 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	// ── State ─────────────────────────────────────────────────────────────────
 	private int    currentTab    = 0;
-	private int    channelSubTab = 1;      // 0=My Channels, 1=Subscribed  (default = Subscribed)
+	private int    channelSubTab = 2;      // 0=created by me, 1=joined, 2=all (default)
 	private String myUid;
 	
 	private FirebaseAuth     auth;
@@ -452,8 +452,12 @@ public class ChatlistActivity extends AppCompatActivity {
 		});
 		
 		// Sub-tab pill clicks
-		if (tab_my_channels != null) tab_my_channels.setOnClickListener(v -> switchChannelSubTab(0));
-		if (tab_subscribed  != null) tab_subscribed .setOnClickListener(v -> switchChannelSubTab(1));
+		com.google.android.material.chip.ChipGroup cg = findViewById(R.id.chip_group_channels);
+		if (cg != null) cg.setOnCheckedStateChangeListener((g, ids) -> {
+			if (ids.isEmpty()) return;
+			int id = ids.get(0);
+			switchChannelSubTab(id == R.id.chip_ch_mine ? 0 : id == R.id.chip_ch_joined ? 1 : 2);
+		});
 	}
 	
 	private void initLogic() {
@@ -713,7 +717,7 @@ public class ChatlistActivity extends AppCompatActivity {
 			_setFiltersVisible(false);
 			showSubtabs();
 			// paddingTop = 52dp (sub-tab height) + 8dp gap
-			listview_chats.setPadding(0, dp(60), 0, listview_chats.getPaddingBottom());
+			listview_chats.setPadding(0, dp(8), 0, listview_chats.getPaddingBottom());
 			listview_chats.setClipToPadding(false);
 			applySubTabPillStyle();
 			updateChannelTabView();
@@ -775,14 +779,14 @@ public class ChatlistActivity extends AppCompatActivity {
 	}
 	
 	private void showSubtabs() {
-		if (layout_channel_subtabs == null) return;
-		layout_channel_subtabs.setVisibility(View.VISIBLE);
-		layout_channel_subtabs.animate().alpha(1f).setDuration(180).start();
+		View f = findViewById(R.id.layout_channel_filters);
+		if (f != null) f.setVisibility(View.VISIBLE);
 	}
 	
 	private void hideSubtabs() {
-		if (layout_channel_subtabs == null) return;
-		layout_channel_subtabs.setVisibility(View.GONE);
+		View f = findViewById(R.id.layout_channel_filters);
+		if (f != null) f.setVisibility(View.GONE);
+		if (layout_channel_subtabs != null) layout_channel_subtabs.setVisibility(View.GONE);
 	}
 	
 	// ── Channel sub-tab (pill style) ─────────────────────────────────────────
@@ -798,34 +802,14 @@ public class ChatlistActivity extends AppCompatActivity {
 *        inactive  = light grey filled + dark grey text
 * No underline, no border — clean pill chip look.
 */	
-	private void applySubTabPillStyle() {
-		if (tab_my_channels == null || tab_subscribed == null) return;
-		
-		if (channelSubTab == 0) {
-			// My Channels active
-			tab_my_channels.setBackgroundResource(R.drawable.tab_pill_active_bg);
-			tab_my_channels.setTextColor(Color.WHITE);
-			tab_my_channels.setTypeface(null, android.graphics.Typeface.BOLD);
-			tab_subscribed .setBackgroundResource(R.drawable.tab_pill_inactive_bg);
-			tab_subscribed .setTextColor(Ink.c("#5A5A5A"));
-			tab_subscribed .setTypeface(null, android.graphics.Typeface.NORMAL);
-		} else {
-			// Subscribed active
-			tab_subscribed .setBackgroundResource(R.drawable.tab_pill_active_bg);
-			tab_subscribed .setTextColor(Color.WHITE);
-			tab_subscribed .setTypeface(null, android.graphics.Typeface.BOLD);
-			tab_my_channels.setBackgroundResource(R.drawable.tab_pill_inactive_bg);
-			tab_my_channels.setTextColor(Ink.c("#5A5A5A"));
-			tab_my_channels.setTypeface(null, android.graphics.Typeface.NORMAL);
-		}
-	}
+	private void applySubTabPillStyle() { /* replaced by filter chips */ }
 	
 	private ArrayList<HashMap<String, Object>> getFilteredChannelList() {
 		ArrayList<HashMap<String, Object>> result = new ArrayList<>();
 		for (HashMap<String, Object> ch : channelList) {
 			String ownerUid = (String) ch.get("owner_uid");
-			if (channelSubTab == 0) { if (myUid.equals(ownerUid))  result.add(ch); }
-			else                    { if (!myUid.equals(ownerUid)) result.add(ch); }
+			boolean mine = myUid != null && myUid.equals(ownerUid);
+			if (channelSubTab == 2 || (channelSubTab == 0 && mine) || (channelSubTab == 1 && !mine)) result.add(ch);
 		}
 		return result;
 	}
@@ -862,8 +846,8 @@ public class ChatlistActivity extends AppCompatActivity {
 			if (!channelsLoaded) want = skeletonAdapter;
 			else if (filteredChannelList.isEmpty()) {
 				key = "ch" + channelSubTab;
-				want = channelSubTab == 0
-					? emptyFor(key, "No channels created yet", "Create one from the \u22EE menu, or tap below.",
+				want = channelSubTab != 1
+					? emptyFor(key, channelSubTab == 2 ? "No channels yet" : "No channels created yet", "Create one from the \u22EE menu, or tap below.",
 						v -> startActivity(new Intent(this, CreateChannelActivity.class)))
 					: emptyFor(key, "No subscribed channels", "Search and subscribe to a channel",
 						v -> startActivity(new Intent(this, UserSearchActivity.class)

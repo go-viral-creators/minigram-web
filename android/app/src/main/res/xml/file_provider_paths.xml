@@ -20,6 +20,7 @@
 -->
 <paths>
     <!-- External files dir → Pictures/ folder used by TelegramMediaPicker -->
+    <cache-path name="shared" path="shared/"/>
     <external-files-path
         name="camera_images"
         path="Pictures/"/>
