@@ -19,7 +19,10 @@ public final class LangPrefs {
     }
     public static void setMyLang(Context c, String code) { sp(c).edit().putString(MY_LANG, code).apply(); }
     public static boolean auto(Context c) { return sp(c).getBoolean(AUTO, true); }
-    public static boolean showOriginal(Context c) { return sp(c).getBoolean(SHOW_ORIGINAL, true); }
+    public static boolean showOriginal(Context c) { return sp(c).getBoolean(SHOW_ORIGINAL, false); }
     public static boolean transcripts(Context c) { return sp(c).getBoolean(TRANSCRIPTS, true); }
+    /** Per-chat switch (default on). */
+    public static boolean chatAuto(Context c, String chatId) { return sp(c).getBoolean("chat_auto_" + chatId, true); }
+    public static void setChatAuto(Context c, String chatId, boolean v) { sp(c).edit().putBoolean("chat_auto_" + chatId, v).apply(); }
     public static void set(Context c, String key, boolean v) { sp(c).edit().putBoolean(key, v).apply(); }
 }

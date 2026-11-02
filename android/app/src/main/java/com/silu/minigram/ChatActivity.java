@@ -917,6 +917,7 @@ public class ChatActivity extends AppCompatActivity {
         adapter = new ChatMessageRecyclerAdapter(this, messageList, myUid, peerName, peerPhoto,
             listview1, selectedMsgs);
         _bindTranslateListener();
+        _setupTranslateButton();
         adapter.setListener(new ChatMessageRecyclerAdapter.AdapterListener() {
             @Override public void onReplyClick(String msgId) { scrollToMessage(msgId); }
 
@@ -1316,7 +1317,7 @@ public class ChatActivity extends AppCompatActivity {
     private void _applyTranslation(HashMap<String, Object> msg, String mId, String sUid, boolean forceHinglish) {
         if (peerUid == null || !peerUid.equals(sUid) || msg.containsKey("original_text")) return;
         if (!"text".equals(msg.get("type")) || msg.containsKey("e2ee_unreadable")) return;
-        if (!com.silu.minigram.translate.LangPrefs.auto(this)) return;
+        if (!com.silu.minigram.translate.LangPrefs.auto(this) || !com.silu.minigram.translate.LangPrefs.chatAuto(this, chatId)) return;
         final String text = msg.get("text") instanceof String ? (String) msg.get("text") : "";
         if (text.trim().length() < 2 || text.startsWith("\uD83D\uDD12") || text.startsWith("\u26A0")) return;
         final String mine = com.silu.minigram.translate.LangPrefs.myLang(this);
@@ -1345,37 +1346,97 @@ public class ChatActivity extends AppCompatActivity {
             msg.put("text", o.translated);
             msg.put("translated_from", o.sourceLang);
             msg.put("translation_approx", o.approximate);
-            _showTranslateChip(o.sourceLang);
-        } else if (o.approximate && o.translated == null) {
-            msg.put("hinglish_offer", true);
+            _updateTranslateButton();
         } else if (o.needsPack) {
             msg.put("translate_pack", o.packLang);
         }
     }
 
-    /** Small "Hindi → English" pill in the header, like the design. */
-    private void _showTranslateChip(String srcLang) {
+    private TextView translateBtn;
+
+    /** Header translate button: accent when auto-translate is on for this chat; tap opens the translate sheet. */
+    private void _setupTranslateButton() {
         try {
-            String mine = com.silu.minigram.translate.LangPrefs.myLang(this);
-            String s = "hi-Latn".equalsIgnoreCase(srcLang) ? "Hinglish"
-                : com.silu.minigram.translate.TranslationManager.displayName(srcLang.split("-")[0], java.util.Locale.getDefault());
-            String label = s + " \u2192 " + mine.toUpperCase(java.util.Locale.ROOT);
-            if (translateChip == null && toolbar != null && more_options != null && more_options.getParent() == toolbar) {
-                translateChip = new TextView(this);
-                translateChip.setBackgroundResource(R.drawable.btn_pill_outline);
-                translateChip.setPadding(dp(10), 0, dp(10), 0);
-                translateChip.setMinHeight(dp(36));
-                translateChip.setGravity(android.view.Gravity.CENTER);
-                translateChip.setTextSize(12);
-                translateChip.setTextColor(Ink.res(R.color.ink_text));
-                translateChip.setOnClickListener(v -> startActivity(new Intent(this, LanguageSettingsActivity.class)));
-                toolbar.addView(translateChip, toolbar.indexOfChild(more_options));
-            }
-            if (translateChip != null) {
-                translateChip.setText(label);
-                translateChip.setContentDescription("Translating " + label + ". Open language settings");
-            }
+            if (translateBtn != null || toolbar == null || more_options == null || more_options.getParent() != toolbar) return;
+            translateBtn = new TextView(this);
+            translateBtn.setText("translate");
+            translateBtn.setTextSize(22);
+            translateBtn.setGravity(android.view.Gravity.CENTER);
+            translateBtn.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this, R.font.material_icons));
+            translateBtn.setBackgroundResource(R.drawable.btn_round_outline);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(48), dp(48));
+            lp.setMarginEnd(dp(8));
+            translateBtn.setLayoutParams(lp);
+            translateBtn.setOnClickListener(v -> _showTranslateSheet());
+            toolbar.addView(translateBtn, toolbar.indexOfChild(more_options));
+            _updateTranslateButton();
         } catch (Throwable ignored) { }
+    }
+
+    private void _updateTranslateButton() {
+        if (translateBtn == null) return;
+        boolean on = com.silu.minigram.translate.LangPrefs.auto(this) && com.silu.minigram.translate.LangPrefs.chatAuto(this, chatId);
+        translateBtn.setTextColor(Ink.res(on ? R.color.ink_accent : R.color.ink_text_2));
+        translateBtn.setContentDescription(on ? "Translation on. Open translate options" : "Translation off. Open translate options");
+    }
+
+    private void _showTranslateSheet() {
+        final com.google.android.material.bottomsheet.BottomSheetDialog d = new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(20), dp(20), dp(24));
+        TextView title = new TextView(this);
+        title.setText("Translate messages");
+        title.setTextAppearance(R.style.TextAppearance_Ink_Title);
+        box.addView(title);
+        TextView sub = new TextView(this);
+        sub.setText("Translation runs on your phone. Nothing is sent to a server.");
+        sub.setTextColor(Ink.res(R.color.ink_text_2));
+        sub.setTextSize(13);
+        sub.setPadding(0, dp(4), 0, dp(12));
+        box.addView(sub);
+
+        final com.google.android.material.materialswitch.MaterialSwitch swChat = new com.google.android.material.materialswitch.MaterialSwitch(this);
+        swChat.setText("Auto-translate this chat");
+        swChat.setMinHeight(dp(48));
+        swChat.setChecked(com.silu.minigram.translate.LangPrefs.chatAuto(this, chatId));
+        box.addView(swChat);
+
+        final com.google.android.material.materialswitch.MaterialSwitch swOrig = new com.google.android.material.materialswitch.MaterialSwitch(this);
+        swOrig.setText("Always show original text");
+        swOrig.setMinHeight(dp(48));
+        swOrig.setChecked(com.silu.minigram.translate.LangPrefs.showOriginal(this));
+        box.addView(swOrig);
+
+        TextView lang = new TextView(this);
+        lang.setText("Translate to: " + com.silu.minigram.translate.TranslationManager.displayName(
+            com.silu.minigram.translate.LangPrefs.myLang(this), java.util.Locale.getDefault()) + "  \u203A");
+        lang.setMinHeight(dp(48));
+        lang.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        lang.setTextColor(Ink.res(R.color.ink_accent));
+        lang.setOnClickListener(v -> { d.dismiss(); startActivity(new Intent(this, LanguageSettingsActivity.class)); });
+        box.addView(lang);
+
+        swChat.setOnCheckedChangeListener((b, on) -> {
+            com.silu.minigram.translate.LangPrefs.setChatAuto(this, chatId, on);
+            _updateTranslateButton();
+            if (on) {
+                for (HashMap<String, Object> m : new ArrayList<>(messageList))
+                    _applyTranslation(m, String.valueOf(m.get("msgId")), (String) m.get("sender_uid"), false);
+            } else {
+                for (HashMap<String, Object> m : messageList) {
+                    Object o = m.get("original_text");
+                    if (o != null) { m.put("text", o); m.remove("original_text"); m.remove("translated_from"); m.remove("translation_approx"); }
+                }
+            }
+            adapter.refreshWithoutScroll();
+        });
+        swOrig.setOnCheckedChangeListener((b, on) -> {
+            com.silu.minigram.translate.LangPrefs.set(this, com.silu.minigram.translate.LangPrefs.SHOW_ORIGINAL, on);
+            adapter.refreshWithoutScroll();
+        });
+        d.setContentView(box);
+        d.show();
     }
 
     private String lastStatus = "offline";

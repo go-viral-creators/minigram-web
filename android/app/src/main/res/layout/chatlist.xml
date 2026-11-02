@@ -1,12 +1,17 @@
-<LinearLayout
+<FrameLayout
 	xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:app="http://schemas.android.com/apk/res-auto"
 	xmlns:tools="http://schemas.android.com/tools"
 	android:id="@+id/main"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:orientation="vertical"
 	android:background="@color/ink_bg">
+
+<LinearLayout
+	android:id="@+id/content_col"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical">
 
 	<!-- TOP HEADER: serif title + two outlined round buttons -->
 	<LinearLayout
@@ -166,6 +171,18 @@
 			android:layout_height="match_parent"
 			android:visibility="gone" />
 
+		<FrameLayout
+			android:id="@+id/frame_discover_container"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:visibility="gone" />
+
+		<FrameLayout
+			android:id="@+id/frame_settings_container"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:visibility="gone" />
+
 		<!-- FAB -->
 		<LinearLayout
 			android:id="@+id/btn_new_chat"
@@ -245,60 +262,53 @@
 			</LinearLayout>
 
 	</FrameLayout>
+</LinearLayout>
 
-	<!--
-	  ══ BANNER AD ════════════════════════════════════════════════════════
-	  Real AdView declared directly in XML (no runtime screen-wrapping) —
-	  sits directly above the bottom nav bar. Default GONE — a GONE view in
-	  a LinearLayout takes zero width AND zero height, so no empty gap shows
-	  before the ad loads (or if it never loads, or the user is Pro). Java
-	  only flips this to VISIBLE once the ad actually loads successfully
-	  (and the user isn't Pro) — see ChatlistActivity's AdListener.
-	-->
-	<com.google.android.gms.ads.AdView
-		android:id="@+id/banner_ad"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_gravity="center_horizontal"
-		android:visibility="gone"
-        app:adSize="SMART_BANNER"
-        app:adUnitId="ca-app-pub-5237566165900598/8597822077" />
-        
-	<!-- adSize is set in Java (setupBannerAd()), not here as an XML attribute —
-	     Sketchware Pro's layout XML pipeline doesn't reliably apply custom
-	     library attributes like this one on a manually-added view tag, which
-	     caused a crash ("ad size ... must be set before loadAd"). -->
-
-	<!-- BOTTOM NAV: Chats · Discover · Channels · Settings (48dp+ touch targets, top indicator) -->
-	<View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/ink_text" android:alpha="0.9" />
+	<!-- Overlay stack: banner ad (when loaded) above a floating pill nav, like Telegram. Content scrolls underneath. -->
 	<LinearLayout
-		android:id="@+id/linear82"
+		android:id="@+id/overlay_stack"
 		android:layout_width="match_parent"
-		android:layout_height="68dp"
-		android:background="@color/ink_bg"
-		android:orientation="horizontal">
+		android:layout_height="wrap_content"
+		android:layout_gravity="bottom"
+		android:orientation="vertical">
+
+		<com.google.android.gms.ads.AdView
+			android:id="@+id/banner_ad"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center_horizontal"
+			android:visibility="gone"
+			app:adSize="SMART_BANNER"
+			app:adUnitId="ca-app-pub-5237566165900598/8597822077" />
+
+		<LinearLayout
+			android:id="@+id/linear82"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginStart="16dp"
+			android:layout_marginEnd="16dp"
+			android:layout_marginBottom="10dp"
+			android:layout_marginTop="6dp"
+			android:elevation="10dp"
+			android:padding="2dp"
+			android:orientation="horizontal"
+			android:background="@drawable/nav_pill_bg">
 		<LinearLayout
 			android:id="@+id/linear83"
 			android:layout_width="0dp"
-			android:layout_height="match_parent"
+			android:layout_height="56dp"
 			android:layout_weight="1"
-			android:gravity="center_horizontal"
+			android:layout_margin="4dp"
+			android:gravity="center"
 			android:orientation="vertical"
 			android:contentDescription="Chats"
 			android:clickable="true"
 			android:focusable="true"
-			android:background="?attr/selectableItemBackground">
-			<View
-				android:id="@+id/ind_chats"
-				android:layout_width="28dp"
-				android:layout_height="3dp"
-				android:background="@color/ink_accent"
-				android:visibility="invisible" />
+			android:background="@drawable/nav_item_bg">
 			<TextView
 				android:id="@+id/icon_chats"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="10dp"
 				android:text="chat_bubble_outline"
 				android:textSize="24sp"
 				android:textColor="@color/ink_text_2"
@@ -308,33 +318,26 @@
 				android:id="@+id/textview73"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="2dp"
 				android:text="Chats"
-				android:textSize="12sp"
+				android:textSize="11sp"
 				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear_discover"
 			android:layout_width="0dp"
-			android:layout_height="match_parent"
+			android:layout_height="56dp"
 			android:layout_weight="1"
-			android:gravity="center_horizontal"
+			android:layout_margin="4dp"
+			android:gravity="center"
 			android:orientation="vertical"
 			android:contentDescription="Discover"
 			android:clickable="true"
 			android:focusable="true"
-			android:background="?attr/selectableItemBackground">
-			<View
-				android:id="@+id/ind_discover"
-				android:layout_width="28dp"
-				android:layout_height="3dp"
-				android:background="@color/ink_accent"
-				android:visibility="invisible" />
+			android:background="@drawable/nav_item_bg">
 			<TextView
 				android:id="@+id/icon_discover"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="10dp"
 				android:text="explore"
 				android:textSize="24sp"
 				android:textColor="@color/ink_text_2"
@@ -344,33 +347,26 @@
 				android:id="@+id/textview_discover"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="2dp"
 				android:text="Discover"
-				android:textSize="12sp"
+				android:textSize="11sp"
 				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear84"
 			android:layout_width="0dp"
-			android:layout_height="match_parent"
+			android:layout_height="56dp"
 			android:layout_weight="1"
-			android:gravity="center_horizontal"
+			android:layout_margin="4dp"
+			android:gravity="center"
 			android:orientation="vertical"
 			android:contentDescription="Channels"
 			android:clickable="true"
 			android:focusable="true"
-			android:background="?attr/selectableItemBackground">
-			<View
-				android:id="@+id/ind_channels"
-				android:layout_width="28dp"
-				android:layout_height="3dp"
-				android:background="@color/ink_accent"
-				android:visibility="invisible" />
+			android:background="@drawable/nav_item_bg">
 			<TextView
 				android:id="@+id/icon_channels"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="10dp"
 				android:text="campaign"
 				android:textSize="24sp"
 				android:textColor="@color/ink_text_2"
@@ -380,33 +376,26 @@
 				android:id="@+id/textview74"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="2dp"
 				android:text="Channels"
-				android:textSize="12sp"
+				android:textSize="11sp"
 				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
 		<LinearLayout
 			android:id="@+id/linear85"
 			android:layout_width="0dp"
-			android:layout_height="match_parent"
+			android:layout_height="56dp"
 			android:layout_weight="1"
-			android:gravity="center_horizontal"
+			android:layout_margin="4dp"
+			android:gravity="center"
 			android:orientation="vertical"
 			android:contentDescription="Settings"
 			android:clickable="true"
 			android:focusable="true"
-			android:background="?attr/selectableItemBackground">
-			<View
-				android:id="@+id/ind_settings"
-				android:layout_width="28dp"
-				android:layout_height="3dp"
-				android:background="@color/ink_accent"
-				android:visibility="invisible" />
+			android:background="@drawable/nav_item_bg">
 			<TextView
 				android:id="@+id/icon_profile"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="10dp"
 				android:text="settings"
 				android:textSize="24sp"
 				android:textColor="@color/ink_text_2"
@@ -416,10 +405,10 @@
 				android:id="@+id/textview75"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginTop="2dp"
 				android:text="Settings"
-				android:textSize="12sp"
+				android:textSize="11sp"
 				android:textColor="@color/ink_text_2" />
 		</LinearLayout>
+		</LinearLayout>
 	</LinearLayout>
-</LinearLayout>
+</FrameLayout>

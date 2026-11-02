@@ -7,6 +7,8 @@
     android:orientation="vertical">
 
     <ScrollView
+        android:id="@+id/scroll_root"
+        android:clipToPadding="false"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -181,6 +183,4 @@
             </HorizontalScrollView>
         </LinearLayout>
     </ScrollView>
-
-    <include android:id="@+id/bottom_nav" layout="@layout/view_bottom_nav" />
 </LinearLayout>

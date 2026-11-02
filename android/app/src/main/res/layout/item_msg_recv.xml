@@ -8,8 +8,8 @@
 	android:paddingTop="2dp"
 	android:paddingBottom="4dp"
 	android:orientation="horizontal"
-	android:paddingLeft="8dp"
-	android:paddingRight="64dp">
+	android:paddingLeft="10dp"
+	android:paddingRight="48dp">
 	<ImageView
 		android:id="@+id/img_avatar"
 		android:focusable="false"
@@ -22,7 +22,7 @@
 		android:scaleType="centerCrop"
 		android:layout_gravity="bottom"
 		android:clipToOutline="true" />
-	<LinearLayout
+	<com.silu.minigram.BubbleLayout
 		android:id="@+id/linear35"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
@@ -30,7 +30,11 @@
 		android:orientation="vertical"
 		android:minWidth="60dp"
 		android:elevation="1dp"
-		android:clipToOutline="true">
+		android:clipToOutline="true"
+		android:paddingLeft="10dp"
+		android:paddingRight="10dp"
+		android:paddingTop="6dp"
+		android:paddingBottom="6dp">
 		<LinearLayout
 			android:id="@+id/layout_reply_quote"
 			android:layout_width="match_parent"
@@ -66,9 +70,7 @@
 				android:id="@+id/img_msg"
 				android:layout_width="wrap_content"
 				android:layout_height="wrap_content"
-				android:layout_marginLeft="5dp"
 				android:layout_marginTop="5dp"
-				android:layout_marginRight="5dp"
 				android:src="@drawable/ic_image"
 				android:scaleType="fitXY"
 				android:adjustViewBounds="false"
@@ -117,13 +119,9 @@
 		</FrameLayout>
 		<LinearLayout
 			android:id="@+id/layout_voice_msg"
-			android:layout_width="200dp"
+			android:layout_width="220dp"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="2dp"
-			android:layout_marginLeft="5dp"
-			android:layout_marginRight="5dp"
-			android:paddingLeft="10dp"
-			android:paddingRight="10dp"
 			android:paddingTop="8dp"
 			android:paddingBottom="8dp"
 			android:gravity="center_vertical"
@@ -163,10 +161,6 @@
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="4dp"
-			android:layout_marginLeft="4dp"
-			android:layout_marginRight="4dp"
-			android:paddingLeft="4dp"
-			android:paddingRight="4dp"
 			android:textSize="14sp"
 			android:textColor="@color/ink_text"
 			android:clickable="false"
@@ -176,11 +170,7 @@
 			android:id="@+id/txt_msg"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="6dp"
 			android:layout_marginTop="6dp"
-			android:layout_marginRight="6dp"
-			android:paddingLeft="4dp"
-			android:paddingRight="4dp"
 			android:text="Message"
 			android:textSize="15sp"
 			android:textColor="@color/ink_text"
@@ -190,13 +180,9 @@
 			android:id="@+id/txt_original"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="6dp"
 			android:layout_marginTop="6dp"
-			android:layout_marginRight="6dp"
 			android:background="@drawable/dashed_top"
-			android:paddingLeft="4dp"
 			android:paddingTop="6dp"
-			android:paddingRight="4dp"
 			android:textColor="@color/ink_text_2"
 			android:textSize="13sp"
 			android:visibility="gone" />
@@ -204,7 +190,6 @@
 			android:id="@+id/txt_translate_tag"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="10dp"
 			android:layout_marginTop="2dp"
 			android:minHeight="32dp"
 			android:gravity="center_vertical"
@@ -215,8 +200,6 @@
 			android:id="@+id/layout_link_preview"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="6dp"
-			android:layout_marginRight="6dp"
 			android:layout_marginTop="4dp"
 			android:orientation="vertical"
 			android:background="@color/ink_surface_alt"
@@ -267,8 +250,6 @@
 			android:id="@+id/txt_edited_label"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="6dp"
-			android:paddingLeft="4dp"
 			android:text="edited"
 			android:textSize="10sp"
 			android:textStyle="italic"
@@ -279,8 +260,6 @@
 			android:id="@+id/txt_reactions"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:layout_marginLeft="6dp"
-			android:layout_marginRight="6dp"
 			android:layout_marginTop="2dp"
 			android:paddingLeft="8dp"
 			android:paddingRight="8dp"
@@ -296,8 +275,6 @@
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="3dp"
-			android:layout_marginLeft="8dp"
-			android:layout_marginRight="8dp"
 			android:layout_marginBottom="6dp"
 			android:gravity="center_vertical"
 			android:orientation="horizontal"
@@ -322,5 +299,5 @@
 				android:textColor="@color/ink_text_2"
 				android:focusable="false" />
 		</LinearLayout>
-	</LinearLayout>
+	</com.silu.minigram.BubbleLayout>
 </LinearLayout>

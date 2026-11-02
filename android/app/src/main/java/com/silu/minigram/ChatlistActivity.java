@@ -69,8 +69,7 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	// ── Views ─────────────────────────────────────────────────────────────────
 	private LinearLayout       linear80, linear82, btn_new_chat, linear83, linear84, layout_channel_subtabs, linear85, linearDiscover;
-	private View indChats, indDiscover, indChannels, indSettings;
-	private TextView iconDiscover, textviewDiscover;
+		private TextView iconDiscover, textviewDiscover;
 	/** Chat-list filter: false = All, true = Unread only. */
 	private boolean unreadOnly = false;
 	private FrameLayout        frame_layout81;
@@ -262,6 +261,7 @@ public class ChatlistActivity extends AppCompatActivity {
 	}
 	
 	@Override public void onBackPressed() {
+		if (currentTab != InkNav.CHATS) { switchTab(InkNav.CHATS); return; }
 		long now = System.currentTimeMillis();
 		if (now - backPressedTime < 2000) super.onBackPressed();
 		else { backPressedTime = now; Toast.makeText(this, "Press back again to exit", Toast.LENGTH_SHORT).show(); }
@@ -284,10 +284,6 @@ public class ChatlistActivity extends AppCompatActivity {
 		icon_fab               = findViewById(R.id.icon_fab);
 		linear83               = findViewById(R.id.linear83);
 		linearDiscover         = findViewById(R.id.linear_discover);
-		indChats               = findViewById(R.id.ind_chats);
-		indDiscover            = findViewById(R.id.ind_discover);
-		indChannels            = findViewById(R.id.ind_channels);
-		indSettings            = findViewById(R.id.ind_settings);
 		iconDiscover           = findViewById(R.id.icon_discover);
 		textviewDiscover       = findViewById(R.id.textview_discover);
 		linear84               = findViewById(R.id.linear84);
@@ -391,9 +387,9 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	private void wireListeners() {
 		linear83.setOnClickListener(v -> switchTab(0));
-		linearDiscover.setOnClickListener(v -> startActivity(new Intent(this, DiscoverActivity.class)));
+		linearDiscover.setOnClickListener(v -> switchTab(InkNav.DISCOVER));
 		linear84.setOnClickListener(v -> switchTab(1));
-		linear85.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+		linear85.setOnClickListener(v -> switchTab(InkNav.SETTINGS));
 		_bindFilterChips();
 		
 		icon_search.setOnClickListener(v -> openSearchForCurrentTab());
@@ -475,17 +471,35 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	private void showPopupMenu() {
 		PopupMenu popup = new PopupMenu(this, icon_menu);
-		popup.getMenu().add(0, 1, 0, "Settings");
-		
+		popup.getMenu().add(0, 1, 0, "New chat");
+		popup.getMenu().add(0, 2, 1, "New channel");
+		popup.getMenu().add(0, 3, 2, "Mark all as read");
+		popup.getMenu().add(0, 4, 3, "Invite friends");
 		popup.setOnMenuItemClickListener(item -> {
 			switch (item.getItemId()) {
-				case 1:
-				startActivity(new Intent(this, SettingsActivity.class));
-				break;
+				case 1: startActivity(new Intent(this, NewMessageActivity.class)); break;
+				case 2: startActivity(new Intent(this, CreateChannelActivity.class)); break;
+				case 3: markAllRead(); break;
+				case 4:
+					startActivity(Intent.createChooser(new Intent(Intent.ACTION_SEND).setType("text/plain")
+						.putExtra(Intent.EXTRA_TEXT, "Join me on Minigram \u2014 private chats and channels. https://play.google.com/store/apps/details?id=com.silu.minigram"), "Invite friends"));
+					break;
 			}
 			return true;
 		});
 		popup.show();
+	}
+
+	private void markAllRead() {
+		int n = 0;
+		for (HashMap<String, Object> c : chatList) {
+			Object u = c.get("unread");
+			if (u instanceof Long && (Long) u > 0 && c.get("chatId") != null) {
+				database.getReference("user_chats").child(myUid).child((String) c.get("chatId")).child("unread").setValue(0);
+				n++;
+			}
+		}
+		Toast.makeText(this, n == 0 ? "Nothing unread" : "Marked " + n + " chat" + (n == 1 ? "" : "s") + " as read", Toast.LENGTH_SHORT).show();
 	}
 	
 	// ═════════════════════════════════════════════════════════════════════════
@@ -493,19 +507,34 @@ public class ChatlistActivity extends AppCompatActivity {
 	// ═════════════════════════════════════════════════════════════════════════
 	
 	private void showChatOptions(String chatId, String peerUid) {
-		String[] options = {"Delete Chat", "Mute", "Block User"};
+		final boolean pinned = isPinned(chatId);
+		final android.content.SharedPreferences muted = getSharedPreferences("MutedChats", MODE_PRIVATE);
+		final boolean isMuted = muted.getBoolean(chatId, false);
+		String[] options = {pinned ? "Unpin" : "Pin to top", "Mark as read", isMuted ? "Unmute" : "Mute", "Block user", "Delete chat"};
 		new android.app.AlertDialog.Builder(this)
 		.setItems(options, (dialog, which) -> {
 			if (which == 0) {
-				database.getReference("user_chats").child(myUid).child(chatId).removeValue();
-				MessageCacheHelper.get(this).clearChat(chatId);
+				getSharedPreferences("PinnedChats", MODE_PRIVATE).edit().putBoolean(chatId, !pinned).apply();
+				updateChatTabView();
 			} else if (which == 1) {
-				getSharedPreferences("MutedChats", MODE_PRIVATE)
-				.edit().putBoolean(chatId, true).apply();
-				Toast.makeText(this, "Chat Muted 🔕", Toast.LENGTH_SHORT).show();
+				database.getReference("user_chats").child(myUid).child(chatId).child("unread").setValue(0);
 			} else if (which == 2) {
-				database.getReference("blocked_users").child(myUid).child(peerUid).setValue(true);
-				Toast.makeText(this, "User Blocked", Toast.LENGTH_SHORT).show();
+				muted.edit().putBoolean(chatId, !isMuted).apply();
+				Toast.makeText(this, isMuted ? "Chat unmuted" : "Chat muted \uD83D\uDD15", Toast.LENGTH_SHORT).show();
+			} else if (which == 3) {
+				new android.app.AlertDialog.Builder(this).setTitle("Block this user?")
+				.setMessage("They will no longer be able to message you.")
+				.setPositiveButton("Block", (d2, w2) -> {
+					database.getReference("blocked_users").child(myUid).child(peerUid).setValue(true);
+					Toast.makeText(this, "User blocked", Toast.LENGTH_SHORT).show();
+				}).setNegativeButton("Cancel", null).show();
+			} else {
+				new android.app.AlertDialog.Builder(this).setTitle("Delete this chat?")
+				.setMessage("Messages are removed from this device and your chat list.")
+				.setPositiveButton("Delete", (d2, w2) -> {
+					database.getReference("user_chats").child(myUid).child(chatId).removeValue();
+					MessageCacheHelper.get(this).clearChat(chatId);
+				}).setNegativeButton("Cancel", null).show();
 			}
 		}).show();
 	}
@@ -571,17 +600,39 @@ public class ChatlistActivity extends AppCompatActivity {
 	
 	/** Highlights one of the 4 bottom-nav items: 0 Chats, 1 Discover, 2 Channels, 3 Settings. */
 	private void _applyNav(int sel) {
-		View[] ind = {indChats, indDiscover, indChannels, indSettings};
+		View[] item = {linear83, linearDiscover, linear84, linear85};
 		TextView[] ic = {icon_chats, iconDiscover, icon_channels, icon_profile};
 		TextView[] tx = {textview73, textviewDiscover, textview74, textview75};
-		int on = Ink.res(R.color.ink_text), off = Ink.res(R.color.ink_text_2);
+		String[] on = {"chat_bubble", "explore", "campaign", "settings"};
+		String[] off = {"chat_bubble_outline", "explore", "campaign", "settings"};
+		int cOn = Ink.res(R.color.ink_accent), cOff = Ink.res(R.color.ink_text_2);
 		for (int i = 0; i < 4; i++) {
 			boolean s = i == sel;
-			ind[i].setVisibility(s ? View.VISIBLE : View.INVISIBLE);
-			ic[i].setTextColor(s ? on : off);
-			tx[i].setTextColor(s ? on : off);
+			item[i].setSelected(s);
+			ic[i].setText(s ? on[i] : off[i]);
+			ic[i].setTextColor(s ? cOn : cOff);
+			tx[i].setTextColor(s ? cOn : cOff);
 			tx[i].setTypeface(null, s ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
 		}
+	}
+
+	/** Public wrapper so hosted fragments can jump to another tab. */
+	void openTab(int tab) { switchTab(tab); }
+
+	/** Keeps a scrolling view's bottom padding equal to the floating nav (+ banner) height, so content scrolls under it. */
+	static void bindOverlayPadding(android.app.Activity a, View target, int extraDp) {
+		View o = a.findViewById(R.id.overlay_stack);
+		if (o == null || target == null) return;
+		final int extra = (int) (extraDp * a.getResources().getDisplayMetrics().density);
+		final Runnable apply = () -> target.setPadding(target.getPaddingLeft(), target.getPaddingTop(),
+			target.getPaddingRight(), o.getHeight() + extra);
+		apply.run();
+		final View.OnLayoutChangeListener l = (v, a1, b1, c1, d1, e1, f1, g1, h1) -> apply.run();
+		o.addOnLayoutChangeListener(l);
+		target.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+			@Override public void onViewAttachedToWindow(View v) {}
+			@Override public void onViewDetachedFromWindow(View v) { o.removeOnLayoutChangeListener(l); }
+		});
 	}
 
 	private void _bindFilterChips() {
@@ -602,13 +653,19 @@ public class ChatlistActivity extends AppCompatActivity {
 
 	/** The rows currently shown on the Chats tab (All, or only chats with unread messages). */
 	private ArrayList<HashMap<String, Object>> shownChats() {
-		if (!unreadOnly) return chatList;
 		ArrayList<HashMap<String, Object>> out = new ArrayList<>();
+		ArrayList<HashMap<String, Object>> rest = new ArrayList<>();
 		for (HashMap<String, Object> c : chatList) {
 			Object u = c.get("unread");
-			if (u instanceof Long && (Long) u > 0) out.add(c);
+			if (unreadOnly && !(u instanceof Long && (Long) u > 0)) continue;
+			if (isPinned((String) c.get("chatId"))) out.add(c); else rest.add(c);
 		}
+		out.addAll(rest);   // pinned first, order within each group unchanged
 		return out;
+	}
+
+	private boolean isPinned(String chatId) {
+		return chatId != null && getSharedPreferences("PinnedChats", MODE_PRIVATE).getBoolean(chatId, false);
 	}
 
 	@Override protected void onNewIntent(Intent intent) {
@@ -619,35 +676,47 @@ public class ChatlistActivity extends AppCompatActivity {
 
 	private void switchTab(int tab) {
 		currentTab = tab;
-		
-		_applyNav(tab == 0 ? 0 : tab == 1 ? 2 : 1);
-		
-		if (tab == 0) {
+		_applyNav(tab == InkNav.CHATS ? 0 : tab == InkNav.DISCOVER ? 1 : tab == InkNav.SETTINGS ? 3 : 2);
+		boolean hosted = tab == InkNav.DISCOVER || tab == InkNav.SETTINGS;
+		View header = findViewById(R.id.linear80);
+		if (header != null) header.setVisibility(hosted ? View.GONE : View.VISIBLE);
+		setHosted(R.id.frame_discover_container, tab == InkNav.DISCOVER);
+		setHosted(R.id.frame_settings_container, tab == InkNav.SETTINGS);
+		if (tab == InkNav.DISCOVER && getSupportFragmentManager().findFragmentByTag("tab_discover") == null)
+			getSupportFragmentManager().beginTransaction().replace(R.id.frame_discover_container, new DiscoverFragment(), "tab_discover").commitAllowingStateLoss();
+		if (tab == InkNav.SETTINGS && getSupportFragmentManager().findFragmentByTag("tab_settings") == null)
+			getSupportFragmentManager().beginTransaction().replace(R.id.frame_settings_container, new SettingsFragment(), "tab_settings").commitAllowingStateLoss();
+
+		if (hosted) {
+			hideSubtabs();
+			_setFiltersVisible(false);
+			listview_chats.setVisibility(View.GONE);
+			btn_new_chat.setVisibility(View.GONE);
+			if (frame_updates_container != null) frame_updates_container.setVisibility(View.GONE);
+		} else if (tab == InkNav.CHATS) {
 			hideSubtabs();
 			_showMainListContent();
 			_setFiltersVisible(true);
-			listview_chats.setPadding(0, dp(8), 0, 0);
+			listview_chats.setPadding(0, dp(8), 0, listview_chats.getPaddingBottom());
 			listview_chats.setClipToPadding(false);
 			updateChatTabView();
 			btn_new_chat.setVisibility(View.VISIBLE);
 			icon_fab.setText("edit");
-			
-		} else if (tab == 1) {
+		} else if (tab == InkNav.CHANNELS) {
 			_showMainListContent();
 			_setFiltersVisible(false);
 			showSubtabs();
 			// paddingTop = 52dp (sub-tab height) + 8dp gap
-			listview_chats.setPadding(0, dp(60), 0, 0);
+			listview_chats.setPadding(0, dp(60), 0, listview_chats.getPaddingBottom());
 			listview_chats.setClipToPadding(false);
 			applySubTabPillStyle();
 			updateChannelTabView();
 			btn_new_chat.setVisibility(View.VISIBLE);
 			icon_fab.setText("add");
-			
 		} else {
 			// Updates — real Fragment, loaded once and then just shown/hidden
-			// (same idea as Chats/Channels swapping their own content view).
 			hideSubtabs();
+			_setFiltersVisible(false);
 			listview_chats.setVisibility(View.GONE);
 			btn_new_chat.setVisibility(View.GONE);
 			if (frame_updates_container != null) {
@@ -660,6 +729,31 @@ public class ChatlistActivity extends AppCompatActivity {
 				}
 			}
 		}
+		_applyOverlayInsets();
+	}
+
+	private void setHosted(int id, boolean on) {
+		View v = findViewById(id);
+		if (v != null) v.setVisibility(on ? View.VISIBLE : View.GONE);
+	}
+
+	private boolean overlayBound;
+	/** List, Updates container and FAB all clear the floating nav (and banner) by its live height. */
+	private void _applyOverlayInsets() {
+		if (overlayBound) return;
+		overlayBound = true;
+		final View o = findViewById(R.id.overlay_stack);
+		if (o == null) return;
+		final Runnable apply = () -> {
+			int h = o.getHeight();
+			listview_chats.setPadding(listview_chats.getPaddingLeft(), listview_chats.getPaddingTop(), 0, h + dp(8));
+			if (frame_updates_container != null) frame_updates_container.setPadding(0, 0, 0, h);
+			android.widget.FrameLayout.LayoutParams lp = (android.widget.FrameLayout.LayoutParams) btn_new_chat.getLayoutParams();
+			lp.bottomMargin = h + dp(16);
+			btn_new_chat.setLayoutParams(lp);
+		};
+		o.addOnLayoutChangeListener((v, a, b, c, d, e, f, g, hh) -> apply.run());
+		o.post(apply);
 	}
 
 	private void _setFiltersVisible(boolean v) {
@@ -980,6 +1074,7 @@ public class ChatlistActivity extends AppCompatActivity {
 							ch.put("name",      cs.child("name")     .getValue(String.class));
 							ch.put("photo_url", cs.child("photo_url").getValue(String.class));
 							ch.put("owner_uid", cs.child("owner_uid").getValue(String.class));
+							ch.put("description", cs.child("description").getValue(String.class));
 							ch.put("is_verified", Boolean.TRUE.equals(cs.child("is_verified").getValue(Boolean.class)));
 							ch.put("subscriber_count", cs.child("subscriber_count").getValue(Long.class));
 							channelInfoCache.put(channelId, ch);
@@ -1205,6 +1300,8 @@ public class ChatlistActivity extends AppCompatActivity {
 				String local = e2.localPreview(cid);
 				if (local != null && com.silu.minigram.e2ee.E2ee.GENERIC_PREVIEW.equals(lastMsg)) lastMsg = local;
 			}
+			View pin = cv.findViewById(R.id.txt_pin);
+			if (pin != null) pin.setVisibility(isPinned(cid) ? View.VISIBLE : View.GONE);
 			View lock = cv.findViewById(R.id.txt_lock);
 			if (lock != null) lock.setVisibility(enc ? View.VISIBLE : View.GONE);
 			((TextView) cv.findViewById(R.id.txt_last_msg))
@@ -1246,7 +1343,13 @@ public class ChatlistActivity extends AppCompatActivity {
 			
 			((TextView) cv.findViewById(R.id.txt_channel_name)).setText(name != null ? name : "Channel");
 			((TextView) cv.findViewById(R.id.txt_subscribers))
-			.setText((subCount != null ? subCount : 0) + " subscribers");
+			.setText(com.silu.minigram.discover.Recommender.formatCount(subCount != null ? subCount : 0) + " subscribers");
+			TextView descTv = cv.findViewById(R.id.txt_channel_desc);
+			String desc = (String) ch.get("description");
+			if (descTv != null) {
+				descTv.setText(desc == null ? "" : desc.trim());
+				descTv.setVisibility(desc == null || desc.trim().isEmpty() ? View.GONE : View.VISIBLE);
+			}
 			TextView badge = cv.findViewById(R.id.txt_owner_badge);
 			badge.setVisibility(myUid != null && myUid.equals(ownerUid) ? View.VISIBLE : View.GONE);
 			ImageView imgVerifiedBadge = cv.findViewById(R.id.img_verified_badge);

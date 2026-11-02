@@ -414,6 +414,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
     /** Called when the user taps "Translate (approximate)" under a Hinglish message. */
     public interface TranslateListener { void onTranslateHinglish(String msgId); void onNeedPack(String lang); }
     private TranslateListener translateListener;
+    private final java.util.Set<String> origToggled = new java.util.HashSet<>();
     public void setTranslateListener(TranslateListener l) { this.translateListener = l; }
 
     /** Shows the original text + "translated" tag under auto-translated incoming messages (design 03). */
@@ -429,15 +430,19 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         Context c = h.itemView.getContext();
         String orig = (String) m.get("original_text");
         if (orig != null) {
-            if (com.silu.minigram.translate.LangPrefs.showOriginal(c)) {
+            final boolean open = com.silu.minigram.translate.LangPrefs.showOriginal(c) ^ origToggled.contains(id);
+            if (open) {
                 h.txtOriginal.setText(orig);
                 h.txtOriginal.setVisibility(View.VISIBLE);
             }
             String from = com.silu.minigram.translate.TranslationManager.displayName(
                     String.valueOf(m.get("translated_from")).split("-")[0], java.util.Locale.getDefault());
-            boolean approx = Boolean.TRUE.equals(m.get("translation_approx"));
-            h.txtTranslateTag.setText("\uD83C\uDF10 translated from " + from + (approx ? " (approximate)" : ""));
-            h.txtTranslateTag.setOnClickListener(null);
+            h.txtTranslateTag.setText("\uD83C\uDF10 Translated from " + from + " \u00b7 " + (open ? "Hide original" : "Show original"));
+            h.txtTranslateTag.setContentDescription("Translated from " + from + ". " + (open ? "Hide original" : "Show original"));
+            h.txtTranslateTag.setOnClickListener(v -> {
+                if (!origToggled.remove(id)) origToggled.add(id);
+                _applyTranslationUi(h, h.getAdapterPosition() >= 0 ? h.getAdapterPosition() : pos);
+            });
             h.txtTranslateTag.setVisibility(View.VISIBLE);
         } else if (Boolean.TRUE.equals(m.get("hinglish_offer"))) {
             h.txtTranslateTag.setText("\uD83C\uDF10 Hinglish \u00b7 tap to translate (approximate)");
@@ -1232,9 +1237,9 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         int paddingLeft   = bubbleContainer.getPaddingLeft();
         int paddingRight  = bubbleContainer.getPaddingRight();
 
-        int chrome = isSent ? dp(64) + dp(12)
-                            : dp(8) + dp(64) + dp(34) + dp(6);
-        int maxWidth = screenWidth - chrome - dp(5) - dp(5) - paddingLeft - paddingRight;
+        int chrome = isSent ? dp(48) + dp(14)
+                            : dp(10) + dp(48) + dp(34) + dp(6);
+        int maxWidth = screenWidth - chrome - paddingLeft - paddingRight;
 
         int minHeight = dp(120);
         int maxHeight = (int) (context.getResources().getDisplayMetrics().heightPixels * 0.55f);
