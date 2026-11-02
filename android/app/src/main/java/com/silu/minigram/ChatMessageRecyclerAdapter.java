@@ -137,6 +137,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         this.recyclerView = recyclerView;
         this.selectedMsgs = selectedMsgs;
         setHasStableIds(true);
+        LinkPreviewHelper.attach(context);
         rebuildDisplayList();
     }
 
@@ -348,6 +349,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         final ImageView    imgMsg, imgLinkPreview;
         final View         layoutImageMeta;
         final View         layoutFileMsg;
+        final TextView    btnTranscribe, txtTranscript;
         final TextView    fileIcon, fileName, fileMeta;
         boolean            sticker;
         final ImageView    imgAvatar; // null for TYPE_SENT
@@ -370,6 +372,8 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             txtTickImage    = v.findViewById(R.id.txt_tick_image);
             layoutImageMeta = v.findViewById(R.id.layout_image_meta);
             layoutFileMsg   = v.findViewById(R.id.layout_file_msg);
+            btnTranscribe   = v.findViewById(R.id.btn_transcribe);
+            txtTranscript   = v.findViewById(R.id.txt_transcript);
             fileIcon        = v.findViewById(R.id.file_icon);
             fileName        = v.findViewById(R.id.file_name);
             fileMeta        = v.findViewById(R.id.file_meta);
@@ -420,8 +424,17 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         }
         bindMessage((MsgVH) holder, position);
         _syncImageMeta((MsgVH) holder, position);
+        _styleImageCaption((MsgVH) holder);
         { MsgVH vh = (MsgVH) holder; if (vh.bubbleView != null) vh.bubbleView.setBackground(vh.sticker ? null : Appearance.bubble(vh.itemView.getContext(), vh.viewType == TYPE_SENT)); }
         _applyTranslationUi((MsgVH) holder, position);
+    }
+
+    /** Caption under an image: padded like a card and never wider than the picture, so picture and caption line up. */
+    private void _styleImageCaption(MsgVH h) {
+        if (h.txtCaption == null || h.imgMsg.getVisibility() != View.VISIBLE || h.txtCaption.getVisibility() != View.VISIBLE) return;
+        h.txtCaption.setPadding(dp(8), dp(6), dp(8), dp(2));
+        ViewGroup.LayoutParams lp = h.imgMsg.getLayoutParams();
+        if (lp != null && lp.width > 0) h.txtCaption.setMaxWidth(lp.width);
     }
 
     /** Time (+ ticks for my messages) as a badge ON the image when there is no caption; otherwise it lives in the caption card. */
@@ -544,6 +557,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         { View row = h.txtTimeMsg.getParent() instanceof View ? (View) h.txtTimeMsg.getParent() : null; if (row != null) row.setPadding(0, 0, 0, 0); }
         if (h.txtCaption != null) h.txtCaption.setPadding(0, dp(4), 0, 0);
         h.sticker = false;
+        if (h.btnTranscribe != null) { h.btnTranscribe.setVisibility(View.GONE); h.txtTranscript.setVisibility(View.GONE); }
         if (h.layoutFileMsg != null) h.layoutFileMsg.setVisibility(View.GONE);
         h.txtMsg.setBackground(null);
         h.txtMsg.setPadding(0, 0, 0, 0);
@@ -676,11 +690,18 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                 } else {
                     StringBuilder sb = new StringBuilder();
                     for (HashMap.Entry<String, Integer> e : counts.entrySet()) {
-                        if (sb.length() > 0) sb.append("  ");
+                        if (sb.length() > 0) sb.append("   ");
                         sb.append(e.getKey());
-                        if (e.getValue() != null && e.getValue() > 1) sb.append(" ").append(e.getValue());
+                        if (e.getValue() != null && e.getValue() > 1) sb.append(' ').append(e.getValue());
                     }
                     h.txtReactions.setText(sb.toString());
+                    h.txtReactions.setTextSize(13);
+                    h.txtReactions.setPadding(dp(10), dp(3), dp(10), dp(3));
+                    android.graphics.drawable.GradientDrawable rg = new android.graphics.drawable.GradientDrawable();
+                    rg.setCornerRadius(dp(14));
+                    if (h.viewType == TYPE_SENT) { rg.setColor(0x33FFFFFF); h.txtReactions.setTextColor(Appearance.sentText(context)); }
+                    else { rg.setColor(Ink.res(R.color.ink_surface_alt)); rg.setStroke(dp(1), Ink.res(R.color.ink_line)); h.txtReactions.setTextColor(Appearance.recvText(context)); }
+                    h.txtReactions.setBackground(rg);
                     h.txtReactions.setVisibility(View.VISIBLE);
                     h.txtReactions.setOnClickListener(v -> {
                         if (listener != null) listener.onItemClick(finalMsg);
@@ -721,6 +742,116 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         }
     }
 
+    // ─── Voice transcript (offline, both sender and receiver) ──────────────────
+    private void _bindTranscript(final MsgVH h, final String msgId, final String voiceUrl, String uploadState) {
+        if (h.btnTranscribe == null) return;
+        if (voiceUrl.isEmpty() || "uploading".equals(uploadState) || "failed".equals(uploadState)) return;
+        final int fg = h.viewType == TYPE_SENT ? Appearance.sentText(context) : Appearance.recvText(context);
+        h.btnTranscribe.setVisibility(View.VISIBLE);
+        h.btnTranscribe.setTag(msgId);
+        h.btnTranscribe.setTextColor(h.viewType == TYPE_SENT ? fg : Ink.res(R.color.ink_accent));
+        h.txtTranscript.setTextColor(fg);
+        String saved = com.silu.minigram.voice.Transcriber.cached(context, msgId);
+        if (saved != null) { h.txtTranscript.setText(saved); h.txtTranscript.setVisibility(View.VISIBLE); h.btnTranscribe.setText("Hide transcript"); }
+        else { h.txtTranscript.setVisibility(View.GONE); h.btnTranscribe.setText("Transcribe"); }
+        h.btnTranscribe.setOnClickListener(v -> {
+            String have = com.silu.minigram.voice.Transcriber.cached(context, msgId);
+            if (have != null) {                                         // toggle
+                boolean show = h.txtTranscript.getVisibility() != View.VISIBLE;
+                h.txtTranscript.setText(have);
+                h.txtTranscript.setVisibility(show ? View.VISIBLE : View.GONE);
+                h.btnTranscribe.setText(show ? "Hide transcript" : "Show transcript");
+                return;
+            }
+            _startTranscription(h, msgId, voiceUrl);
+        });
+    }
+
+    private void _startTranscription(final MsgVH h, final String msgId, final String voiceUrl) {
+        if (!(context instanceof android.app.Activity)) return;
+        final android.app.Activity act = (android.app.Activity) context;
+        com.silu.minigram.voice.Transcriber.ModelInfo m = com.silu.minigram.voice.Transcriber.preferred(context);
+        if (m != null) { _runTranscription(h, msgId, voiceUrl, m); return; }
+        // first use: pick a language and download its small offline model once
+        String[] names = new String[com.silu.minigram.voice.Transcriber.MODELS.length];
+        for (int i = 0; i < names.length; i++) {
+            com.silu.minigram.voice.Transcriber.ModelInfo mi = com.silu.minigram.voice.Transcriber.MODELS[i];
+            names[i] = mi.label + "  \u00b7  " + mi.mb + " MB";
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(act)
+            .setTitle("Voice to text, offline")
+            .setMessage("Download a small speech model once. After that, voice messages are transcribed on your phone.")
+            .setItems(names, (d, which) -> _downloadThenTranscribe(act, h, msgId, voiceUrl, com.silu.minigram.voice.Transcriber.MODELS[which]))
+            .setNegativeButton("Cancel", null).show();
+    }
+
+    private void _downloadThenTranscribe(final android.app.Activity act, final MsgVH h, final String msgId, final String voiceUrl,
+                                         final com.silu.minigram.voice.Transcriber.ModelInfo m) {
+        final android.widget.ProgressBar bar = new android.widget.ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);
+        android.widget.LinearLayout box = new android.widget.LinearLayout(act);
+        box.setPadding(dp(24), dp(16), dp(24), dp(8));
+        box.addView(bar, new android.widget.LinearLayout.LayoutParams(-1, -2));
+        final androidx.appcompat.app.AlertDialog dlg = new com.google.android.material.dialog.MaterialAlertDialogBuilder(act)
+            .setTitle("Downloading " + m.label + " model").setView(box).setCancelable(false).create();
+        dlg.show();
+        new Thread(() -> {
+            try {
+                com.silu.minigram.voice.Transcriber.download(context, m, p -> act.runOnUiThread(() -> bar.setProgress(p)));
+                com.silu.minigram.voice.Transcriber.setPreferred(context, m);
+                act.runOnUiThread(() -> { dlg.dismiss(); _runTranscription(h, msgId, voiceUrl, m); });
+            } catch (Exception e) {
+                act.runOnUiThread(() -> { dlg.dismiss(); Toast.makeText(context, "Download failed. Check your connection.", Toast.LENGTH_LONG).show(); });
+            }
+        }).start();
+    }
+
+    private void _runTranscription(final MsgVH h, final String msgId, final String voiceUrl,
+                                   final com.silu.minigram.voice.Transcriber.ModelInfo m) {
+        h.txtTranscript.setText("Transcribing\u2026");
+        h.txtTranscript.setVisibility(View.VISIBLE);
+        h.btnTranscribe.setText("Transcribing\u2026");
+        final Handler main = new Handler(Looper.getMainLooper());
+        final Runnable work = () -> {
+            try {
+                java.io.File f = VoiceCacheHelper.cacheFileFor(context, voiceUrl);
+                String text = com.silu.minigram.voice.Transcriber.transcribe(context, f, m);
+                if (text.isEmpty()) text = "(no speech recognised)";
+                else com.silu.minigram.voice.Transcriber.store(context, msgId, text);
+                final String out = text;
+                main.post(() -> {
+                    if (msgId.equals(h.btnTranscribe.getTag())) {
+                        h.txtTranscript.setText(out);
+                        h.btnTranscribe.setText(out.startsWith("(") ? "Transcribe" : "Hide transcript");
+                        _maybeTranslateTranscript(h, msgId, out);
+                    }
+                });
+            } catch (Throwable e) {
+                main.post(() -> {
+                    if (msgId.equals(h.btnTranscribe.getTag())) { h.txtTranscript.setText("Could not transcribe this message."); h.btnTranscribe.setText("Transcribe"); }
+                });
+            }
+        };
+        if (VoiceCacheHelper.isCached(context, voiceUrl)) { new Thread(work).start(); return; }
+        VoiceCacheHelper.ensureDownloaded(context, voiceUrl, new VoiceCacheHelper.Callback() {
+            @Override public void onReady(java.io.File localFile) { new Thread(work).start(); }
+            @Override public void onError() {
+                h.txtTranscript.setText("Could not download the voice message.");
+                h.btnTranscribe.setText("Transcribe");
+            }
+        });
+    }
+
+    /** Translates the transcript into the reader's language when auto-translate is on. */
+    private void _maybeTranslateTranscript(final MsgVH h, final String msgId, final String text) {
+        if (!com.silu.minigram.translate.LangPrefs.transcripts(context) || !com.silu.minigram.translate.LangPrefs.auto(context)) return;
+        final String mine = com.silu.minigram.translate.LangPrefs.myLang(context);
+        com.silu.minigram.translate.TranslationManager.get(context).translate("tr:" + msgId + ":" + mine, text, mine, false, r -> {
+            if (r.translated != null && !r.translated.isEmpty() && !r.translated.equals(text) && msgId.equals(h.btnTranscribe.getTag()))
+                h.txtTranscript.setText(text + "\n\u2192 " + r.translated);
+        });
+    }
+
     // ─── Sticker ─────────────────────────────────────────────────────────────
     private void bindStickerMessage(MsgVH h, String id, Long ts) {
         h.sticker = true;
@@ -731,6 +862,25 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         if (h.layoutVoiceMsg != null) h.layoutVoiceMsg.setVisibility(View.GONE);
         if (h.layoutLinkPreview != null) h.layoutLinkPreview.setVisibility(View.GONE);
         if (h.bubbleView != null) h.bubbleView.setPadding(0, 0, 0, 0);
+        if (Stickers.isArt(id)) {
+            h.txtMsg.setVisibility(View.GONE);
+            h.imgMsg.setVisibility(View.VISIBLE);
+            h.imgMsg.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            h.imgMsg.setClipToOutline(false);
+            h.imgMsg.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+            ViewGroup.LayoutParams ilp = h.imgMsg.getLayoutParams();
+            ilp.width = dp(150); ilp.height = dp(150);
+            h.imgMsg.setLayoutParams(ilp);
+            h.imgMsg.setAlpha(1f);
+            h.imgMsg.setColorFilter(null);
+            h.imgMsg.setOnClickListener(null);
+            Glide.with(context).load(Stickers.assetUrl(id)).into(h.imgMsg);
+            h.txtTimeMsg.setVisibility(View.VISIBLE);
+            h.txtTimeMsg.setTextColor(Ink.res(R.color.ink_text_2));
+            if (h.txtTick != null && h.viewType == TYPE_SENT) h.txtTick.setTextColor(Ink.res(R.color.ink_text_2));
+            h.txtEdited.setVisibility(View.GONE);
+            return;
+        }
         h.txtMsg.setVisibility(View.VISIBLE);
         if (Stickers.isPhrase(id)) {
             h.txtMsg.setText(Stickers.phraseOf(id));
@@ -1027,6 +1177,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
         final int finalDuration = durationSec;
         Object urlObj = finalMsg.get("voice_url");
         final String voiceUrl = urlObj != null ? urlObj.toString() : "";
+        _bindTranscript(h, finalMsgId, voiceUrl, uploadState);
 
         if ("uploading".equals(uploadState)) {
             if (h.btnVoicePlay != null) { h.btnVoicePlay.setText("schedule"); h.btnVoicePlay.setOnClickListener(null); }
@@ -1247,6 +1398,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
                             dragging[0] = true;
                             if (v.getParent() != null) v.getParent().requestDisallowInterceptTouchEvent(true);
                             v.setPressed(false);
+                            v.cancelLongPress();
                         } else return false;
                     }
                     float eff = Math.max(0f, dx - slop);
@@ -1311,6 +1463,16 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
      * check below makes sure the result is thrown away if that happened,
      * rather than a stale preview attaching itself to the wrong row.
      */
+    private void _styleLinkCard(MsgVH h, final String url) {
+        boolean sent = h.viewType == TYPE_SENT;
+        int fg = sent ? Appearance.sentText(context) : Appearance.recvText(context);
+        h.txtLinkPreviewSite.setTextColor(sent ? (fg & 0x00FFFFFF) | 0xB3000000 : Ink.res(R.color.ink_accent));
+        h.txtLinkPreviewTitle.setTextColor(fg);
+        h.txtLinkPreviewDesc.setTextColor((fg & 0x00FFFFFF) | 0xCC000000);
+        h.layoutLinkPreview.setClickable(true);
+        h.layoutLinkPreview.setOnClickListener(v -> BrowserActivity.open(context, url));
+    }
+
     private void _bindLinkPreview(MsgVH h, String msgId, String text, HashMap<String, Object> msg) {
         if (h.layoutLinkPreview == null) return;
 
@@ -1324,6 +1486,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             String site = (String) msg.get("link_preview_site");
             String desc = (String) msg.get("link_preview_desc");
             String img  = (String) msg.get("link_preview_image");
+            _styleLinkCard(h, embeddedUrl);
             h.txtLinkPreviewSite.setText(site != null ? site : "");
             h.txtLinkPreviewTitle.setText(embeddedTitle != null ? embeddedTitle : embeddedUrl);
             h.txtLinkPreviewDesc.setText(desc != null ? desc : "");
@@ -1354,6 +1517,7 @@ public class ChatMessageRecyclerAdapter extends RecyclerView.Adapter<RecyclerVie
             if (!msgId.equals(h.layoutLinkPreview.getTag())) return;
             if (preview == null) return;
             h.layoutLinkPreview.setVisibility(View.VISIBLE);
+            _styleLinkCard(h, preview.sourceUrl != null ? preview.sourceUrl : url);
             h.txtLinkPreviewSite.setText(preview.siteName != null ? preview.siteName : "");
             h.txtLinkPreviewTitle.setText(preview.title != null ? preview.title : "");
             h.txtLinkPreviewDesc.setText(preview.description != null ? preview.description : "");

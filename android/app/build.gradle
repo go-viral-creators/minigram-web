@@ -85,6 +85,15 @@ dependencies {
 	implementation 'com.google.mlkit:language-id:17.0.6'
 	implementation 'com.google.crypto.tink:tink-android:1.15.0'
 	implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+	implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.2'
+	implementation 'com.alphacephei:vosk-android:0.3.47'
+	implementation 'net.java.dev.jna:jna:5.13.0@aar'
+	testImplementation 'com.microsoft.onnxruntime:onnxruntime:1.19.2'
 	testImplementation 'junit:junit:4.13.2'
 	implementation 'com.android.billingclient:billing:8.3.0'
+}
+
+// unit tests run on the desktop JVM: use the desktop ONNX Runtime jar (it bundles the native library) instead of the Android AAR
+configurations.all { c ->
+	if (c.name.toLowerCase().contains('unittest')) c.exclude group: 'com.microsoft.onnxruntime', module: 'onnxruntime-android'
 }

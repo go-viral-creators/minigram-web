@@ -778,10 +778,7 @@ public class ChannelProfileActivity extends AppCompatActivity {
                 if (selectionMode) { _onItemTap(item); return; }
                 String url = (String) item.get("url");
                 if (url == null || url.isEmpty()) return;
-                try {
-                    String withScheme = url.startsWith("http") ? url : "https://" + url;
-                    h.itemView.getContext().startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(withScheme)));
-                } catch (Exception ignored) {}
+                BrowserActivity.open(h.itemView.getContext(), url);
             });
             h.itemView.setOnLongClickListener(v -> { _onItemLongPress(item); return true; });
         }

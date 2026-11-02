@@ -778,7 +778,20 @@ public class MyProfileActivity extends AppCompatActivity {
         // Not in selection mode — a plain tap opens the source (existing
         // behaviour, unchanged for Media; Links already had its own
         // open-URL tap behaviour handled in its adapter).
-        _openSource((String) item.get("source"), (String) item.get("source_id"));
+        String source = (String) item.get("source"), sourceId = (String) item.get("source_id"), contentId = (String) item.get("content_id");
+        if (contentId != null && sourceId != null) {
+            // jump straight to that message / post and highlight it
+            Intent i;
+            if ("channel".equals(source)) {
+                i = new Intent(this, ChannelActivity.class).putExtra("channel_id", sourceId).putExtra("scroll_to_post_id", contentId);
+            } else {
+                i = new Intent(this, ChatActivity.class).putExtra("chat_id", sourceId)
+                    .putExtra("peer_uid", isOwnProfile ? null : profileUid).putExtra("scroll_to_msg_id", contentId);
+            }
+            startActivity(i);
+        } else {
+            _openSource(source, sourceId);
+        }
     }
 
     private void _toggleSelected(HashMap<String, Object> item) {
@@ -1034,11 +1047,7 @@ public class MyProfileActivity extends AppCompatActivity {
             h.itemView.setOnClickListener(v -> {
                 if (selectionMode) { _onItemTap(item); return; }
                 if (url == null || url.isEmpty()) return;
-                try {
-                    String withScheme = url.startsWith("http") ? url : "https://" + url;
-                    h.itemView.getContext().startActivity(
-                        new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(withScheme)));
-                } catch (Exception ignored) {}
+                BrowserActivity.open(h.itemView.getContext(), url);
             });
             h.itemView.setOnLongClickListener(v -> { _onItemLongPress(item); return true; });
         }
@@ -1063,6 +1072,21 @@ public class MyProfileActivity extends AppCompatActivity {
         private android.media.MediaPlayer player;
         private int playingPosition = -1;
         private int downloadingPosition = -1;
+        private final HashMap<Integer, Integer> durMs = new HashMap<>();
+        private final android.os.Handler tick = new android.os.Handler(android.os.Looper.getMainLooper());
+        private final Runnable ticker = new Runnable() {
+            @Override public void run() {
+                if (player == null || playingPosition < 0) return;
+                RecyclerView.ViewHolder vh = recyclerTabContent.findViewHolderForAdapterPosition(playingPosition);
+                if (vh instanceof VH) {
+                    int cur = 0; try { cur = player.getCurrentPosition(); } catch (Exception ignored) {}
+                    Integer d = durMs.get(playingPosition);
+                    ((VH) vh).txtDuration.setText(fmt(cur) + (d != null ? " / " + fmt(d) : ""));
+                }
+                tick.postDelayed(this, 250);
+            }
+        };
+        private String fmt(int ms) { int s = ms / 1000; return (s / 60) + ":" + String.format(java.util.Locale.US, "%02d", s % 60); }
 
         ProfileVoiceAdapter(ArrayList<HashMap<String, Object>> items) { this.items = items; }
 
@@ -1093,6 +1117,8 @@ public class MyProfileActivity extends AppCompatActivity {
             h.spinner.setVisibility(isDownloading ? View.VISIBLE : View.GONE);
             h.btnPlay.setVisibility(isDownloading ? View.INVISIBLE : View.VISIBLE);
             h.btnPlay.setText(isPlaying ? "pause" : (isCached ? "play_arrow" : "download"));
+            Integer known = durMs.get(position);
+            h.txtDuration.setText(known != null ? fmt(known) : "Voice message");
 
             h.btnPlay.setOnClickListener(v -> {
                 if (isDownloading) return;
@@ -1132,7 +1158,7 @@ public class MyProfileActivity extends AppCompatActivity {
                 player = new android.media.MediaPlayer();
                 player.setDataSource(file.getAbsolutePath());
                 player.setOnCompletionListener(mp -> { _stopVoice(); notifyItemChanged(position); });
-                player.setOnPreparedListener(android.media.MediaPlayer::start);
+                player.setOnPreparedListener(mp -> { durMs.put(position, mp.getDuration()); mp.start(); tick.removeCallbacks(ticker); tick.post(ticker); });
                 player.prepareAsync();
                 playingPosition = position;
                 notifyItemChanged(position);
@@ -1144,6 +1170,7 @@ public class MyProfileActivity extends AppCompatActivity {
         void stopVoicePlayback() { _stopVoice(); }
 
         private void _pauseVoice() {
+            tick.removeCallbacks(ticker);
             if (player != null) { try { player.pause(); } catch (Exception ignored) {} }
             int old = playingPosition;
             playingPosition = -1;
@@ -1151,6 +1178,7 @@ public class MyProfileActivity extends AppCompatActivity {
         }
 
         private void _stopVoice() {
+            tick.removeCallbacks(ticker);
             if (player != null) {
                 try { player.release(); } catch (Exception ignored) {}
                 player = null;

@@ -313,7 +313,7 @@
 			android:layout_marginEnd="16dp"
 			android:layout_marginBottom="10dp"
 			android:layout_marginTop="6dp"
-			android:elevation="0dp"
+			android:elevation="10dp"
 			android:padding="2dp"
 			android:orientation="horizontal"
 			android:background="@drawable/nav_pill_bg">

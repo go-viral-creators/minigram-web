@@ -518,88 +518,67 @@ public class ChatlistActivity extends AppCompatActivity {
 		final boolean pinned = isPinned(chatId);
 		final android.content.SharedPreferences muted = getSharedPreferences("MutedChats", MODE_PRIVATE);
 		final boolean isMuted = muted.getBoolean(chatId, false);
-		String[] options = {pinned ? "Unpin" : "Pin to top", "Mark as read", isMuted ? "Unmute" : "Mute", "Block user", "Delete chat"};
-		new android.app.AlertDialog.Builder(this)
-		.setItems(options, (dialog, which) -> {
-			if (which == 0) {
-				getSharedPreferences("PinnedChats", MODE_PRIVATE).edit().putBoolean(chatId, !pinned).apply();
-				updateChatTabView();
-			} else if (which == 1) {
-				database.getReference("user_chats").child(myUid).child(chatId).child("unread").setValue(0);
-			} else if (which == 2) {
-				muted.edit().putBoolean(chatId, !isMuted).apply();
-				Toast.makeText(this, isMuted ? "Chat unmuted" : "Chat muted \uD83D\uDD15", Toast.LENGTH_SHORT).show();
-			} else if (which == 3) {
-				new android.app.AlertDialog.Builder(this).setTitle("Block this user?")
-				.setMessage("They will no longer be able to message you.")
-				.setPositiveButton("Block", (d2, w2) -> {
-					database.getReference("blocked_users").child(myUid).child(peerUid).setValue(true);
-					Toast.makeText(this, "User blocked", Toast.LENGTH_SHORT).show();
-				}).setNegativeButton("Cancel", null).show();
-			} else {
-				new android.app.AlertDialog.Builder(this).setTitle("Delete this chat?")
-				.setMessage("Messages are removed from this device and your chat list.")
-				.setPositiveButton("Delete", (d2, w2) -> {
-					database.getReference("user_chats").child(myUid).child(chatId).removeValue();
-					MessageCacheHelper.get(this).clearChat(chatId);
-				}).setNegativeButton("Cancel", null).show();
-			}
-		}).show();
+		String name = null, photo = null;
+		for (HashMap<String, Object> c : chatList) if (chatId.equals(c.get("chatId"))) { name = (String) c.get("peer_name"); photo = (String) c.get("peer_photo"); }
+		InkSheet.show(this, name == null || name.isEmpty() ? "Chat" : name, isMuted ? "Muted" : null, photo,
+			new String[]{pinned ? "push_pin" : "push_pin", "done_all", isMuted ? "notifications" : "notifications_off", "block", "delete_outline"},
+			new String[]{pinned ? "Unpin from top" : "Pin to top", "Mark as read", isMuted ? "Unmute" : "Mute", "Block user", "Delete chat"},
+			new boolean[]{false, false, false, true, true},
+			which -> {
+				if (which == 0) {
+					getSharedPreferences("PinnedChats", MODE_PRIVATE).edit().putBoolean(chatId, !pinned).apply();
+					updateChatTabView();
+				} else if (which == 1) {
+					database.getReference("user_chats").child(myUid).child(chatId).child("unread").setValue(0);
+				} else if (which == 2) {
+					muted.edit().putBoolean(chatId, !isMuted).apply();
+					Toast.makeText(this, isMuted ? "Chat unmuted" : "Chat muted", Toast.LENGTH_SHORT).show();
+				} else if (which == 3) {
+					new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("Block this user?")
+					.setMessage("They will no longer be able to message you.")
+					.setPositiveButton("Block", (d2, w2) -> {
+						database.getReference("blocked_users").child(myUid).child(peerUid).setValue(true);
+						Toast.makeText(this, "User blocked", Toast.LENGTH_SHORT).show();
+					}).setNegativeButton("Cancel", null).show();
+				} else {
+					new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("Delete this chat?")
+					.setMessage("Messages are removed from this device and your chat list.")
+					.setPositiveButton("Delete", (d2, w2) -> {
+						database.getReference("user_chats").child(myUid).child(chatId).removeValue();
+						MessageCacheHelper.get(this).clearChat(chatId);
+					}).setNegativeButton("Cancel", null).show();
+				}
+			});
 	}
 	
 	private void showChannelOptions(String channelId, String ownerUid) {
-		boolean isOwner = myUid != null && myUid.equals(ownerUid);
-		if (isOwner) {
-			// BUG FIXED: this used to show "Leave Channel" unconditionally,
-			// even for a channel you own — leaving your own channel this
-			// way doesn't make sense (you're still owner_uid on the
-			// channels/ node itself, this only touched your own membership
-			// records) and could leave things in a confusing half state.
-			// Owner gets a shortcut into management instead.
-			String[] ownerOptions = {"Channel Settings", "Mute"};
-			new android.app.AlertDialog.Builder(this)
-			.setItems(ownerOptions, (dialog, which) -> {
-				if (which == 0) {
-					Intent i = new Intent(this, ChannelSettingsActivity.class);
-					i.putExtra("channel_id", channelId);
-					startActivity(i);
+		final boolean isOwner = myUid != null && myUid.equals(ownerUid);
+		String name = null, photo = null;
+		HashMap<String, Object> info = channelInfoCache.get(channelId);
+		if (info != null) { name = (String) info.get("name"); photo = (String) info.get("photo_url"); }
+		final android.content.SharedPreferences mp = getSharedPreferences("channel_prefs", MODE_PRIVATE);
+		final boolean muted = mp.getBoolean("muted_" + channelId, false);
+		InkSheet.show(this, name == null ? "Channel" : name, isOwner ? "You own this channel" : null, photo,
+			new String[]{isOwner ? "settings" : "logout", muted ? "notifications" : "notifications_off"},
+			new String[]{isOwner ? "Channel settings" : "Leave channel", muted ? "Unmute" : "Mute"},
+			new boolean[]{!isOwner, false},
+			which -> {
+				if (which == 1) {
+					mp.edit().putBoolean("muted_" + channelId, !muted).apply();
+					Toast.makeText(this, muted ? "Channel unmuted" : "Channel muted", Toast.LENGTH_SHORT).show();
+				} else if (isOwner) {
+					startActivity(new Intent(this, ChannelSettingsActivity.class).putExtra("channel_id", channelId));
 				} else {
-					getSharedPreferences("MutedChannels", MODE_PRIVATE)
-					.edit().putBoolean(channelId, true).apply();
-					Toast.makeText(this, "Channel Muted 🔕", Toast.LENGTH_SHORT).show();
+					new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("Leave this channel?")
+					.setPositiveButton("Leave", (d2, w2) -> {
+						database.getReference("user_channels").child(myUid).child(channelId).removeValue();
+						database.getReference("channel_subscribers").child(channelId).child(myUid).removeValue();
+						database.getReference("channels").child(channelId).child("subscriber_count").setValue(ServerValue.increment(-1));
+						FcmTokenManager.unsubscribeChannel(channelId);
+						Toast.makeText(this, "You left the channel", Toast.LENGTH_SHORT).show();
+					}).setNegativeButton("Cancel", null).show();
 				}
-			}).show();
-			return;
-		}
-		String[] options = {"Leave Channel", "Mute"};
-		new android.app.AlertDialog.Builder(this)
-		.setItems(options, (dialog, which) -> {
-			if (which == 0) {
-				// user_channels se remove
-				database.getReference("user_channels")
-				.child(myUid).child(channelId).removeValue();
-				// channel_subscribers se bhi properly remove (yahi miss tha)
-				database.getReference("channel_subscribers")
-				.child(channelId).child(myUid).removeValue();
-				// subscriber count decrement
-				database.getReference("channels")
-				.child(channelId).child("subscriber_count")
-				.setValue(ServerValue.increment(-1));
-				// FCM topic unsubscribe.
-				// FIX: pehle yahan raw "channel_" + channelId banaya jaata tha jabki
-				// sender (ChannelActivity) FcmTokenManager.topicFor() use karta hai.
-				// Dono kabhi bhi divergent ho sakte the. Aur FirebaseMessaging
-				// .getInstance() ka direct call NullPointerException phenk sakta hai
-				// ("Firebase Messaging component is not present") jo poori
-				// ChatlistActivity gira deta tha. FcmTokenManager dono handle karta hai.
-				FcmTokenManager.unsubscribeChannel(channelId);
-				Toast.makeText(this, "Channel छोड़ दिया", Toast.LENGTH_SHORT).show();
-			} else if (which == 1) {
-				getSharedPreferences("channel_prefs", MODE_PRIVATE)
-				.edit().putBoolean("muted_" + channelId, true).apply();
-				Toast.makeText(this, "Channel Muted 🔕", Toast.LENGTH_SHORT).show();
-			}
-		}).show();
+			});
 	}
 	
 	// ═════════════════════════════════════════════════════════════════════════
@@ -710,8 +689,7 @@ public class ChatlistActivity extends AppCompatActivity {
 			listview_chats.setPadding(0, dp(8), 0, listview_chats.getPaddingBottom());
 			listview_chats.setClipToPadding(false);
 			updateChatTabView();
-			btn_new_chat.setVisibility(View.VISIBLE);
-			icon_fab.setText("edit");
+			btn_new_chat.setVisibility(View.GONE);
 		} else if (tab == InkNav.CHANNELS) {
 			_showMainListContent();
 			_setFiltersVisible(false);

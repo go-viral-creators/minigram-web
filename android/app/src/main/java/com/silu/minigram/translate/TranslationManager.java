@@ -121,47 +121,83 @@ public final class TranslationManager {
      * @param key        stable key (msgId + text hash)
      * @param manualHinglish if true, run the approximate Hinglish path even if auto-translate skips it
      */
+    /** Scripts that are not Latin: if a pure-Latin text is labelled with one of these, the label is wrong. */
+    private static final Set<String> NON_LATIN = new HashSet<>(java.util.Arrays.asList(
+        "ar","fa","ur","hi","mr","ne","bn","gu","kn","ta","te","th","ru","uk","bg","be","mk","el","he","ja","ko","zh","ka","hy","si","km","lo","my","yi"));
+
+    private static boolean pureLatin(String s) {
+        boolean any = false;
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (Character.isLetter(ch)) { if (ch > 0x24F) return false; any = true; }
+        }
+        return any;
+    }
+
     public void translate(final String key, final String text, final String target, final boolean manualHinglish, final Result cb) {
         Outcome c = cache.get(key);
         if (c != null) { cb.done(c); return; }
         if (!pending.add(key)) return;
         idClient.identifyLanguage(text)
-            .addOnSuccessListener(lang -> {
+            .addOnSuccessListener(lang0 -> {
+                String lang = lang0;
+                final boolean latin = pureLatin(text);
+                // a pure-Latin message can't be Arabic/Hindi/...; "Hm bhai" must not become "download the Arabic pack"
+                if (latin && lang != null && NON_LATIN.contains(base(lang)) && !Hinglish.isRomanHindi(lang)) lang = "und";
                 final boolean latinGuess = lang == null || "und".equals(lang) || "en".equals(lang) || Hinglish.isRomanHindi(lang);
-                final boolean roman = Hinglish.isRomanHindi(lang) || (latinGuess && Hinglish.looksRoman(text));
+                final boolean roman = latin && (Hinglish.isRomanHindi(lang) || (latinGuess && Hinglish.looksRoman(text)));
                 if (!roman && (lang == null || "und".equals(lang))) { finish(key, new Outcome(), cb); return; }
                 final Outcome o = new Outcome();
                 o.sourceLang = roman ? "hi-Latn" : lang;
                 o.hinglish = roman;
                 final String src = roman ? "hi" : base(lang);
                 if (src.equals(target) && !roman) { finish(key, o, cb); return; }
-                if (!TranslateLanguage.getAllLanguages().contains(src)) { finish(key, o, cb); return; }
-                String missing = roman && "hi".equals(target) ? null
-                    : !installed.contains(src) ? src : !installed.contains(target) ? target : null;
-                if (missing != null) { o.needsPack = true; o.packLang = missing; finish(key, o, cb); return; }
-                if (!roman) {
-                    translator(src, target).translate(text)
-                        .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
-                        .addOnFailureListener(e -> finish(key, o, cb));
-                    return;
-                }
-                // Romanised Hindi: transliterate to Devanagari (online if the user allowed it, else offline rules),
-                // then use the on-device Hindi model.
+                final boolean online = LangPrefs.hinglishOnline(app) == 1;
+                final String srcLang = lang;
+
                 IO.execute(() -> {
-                    String deva = null;
-                    if (LangPrefs.hinglishOnline(app) == 1) deva = HinglishOnline.transliterate(text);
-                    o.approximate = deva == null;
-                    if (deva == null) deva = Hinglish.toDevanagari(text);
-                    final String input = deva;
-                    main.post(() -> {
-                        if ("hi".equals(target)) { o.translated = input; finish(key, o, cb); return; }
-                        translator("hi", target).translate(input)
-                            .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
-                            .addOnFailureListener(e -> finish(key, o, cb));
-                    });
+                    // 1) online engine (opt-in): best quality, especially for Hinglish
+                    if (online) {
+                        String out = null;
+                        if (roman) {
+                            String deva = HinglishOnline.transliterate(text);
+                            out = deva != null ? ("hi".equals(target) ? deva : OnlineTranslate.translate(deva, "hi", target))
+                                               : OnlineTranslate.translate(text, "auto", target);
+                        } else {
+                            out = OnlineTranslate.translate(text, src, target);
+                        }
+                        if (out != null && !out.equalsIgnoreCase(text.trim())) {
+                            o.translated = out; o.approximate = false;
+                            main.post(() -> finish(key, o, cb));
+                            return;
+                        }
+                    }
+                    // 2) on-device (ML Kit) path
+                    main.post(() -> offline(key, text, target, roman, src, srcLang, o, cb));
                 });
             })
             .addOnFailureListener(e -> finish(key, new Outcome(), cb));
+    }
+
+    private void offline(final String key, final String text, final String target, final boolean roman, final String src,
+                         final String lang, final Outcome o, final Result cb) {
+        if (!TranslateLanguage.getAllLanguages().contains(src)) { finish(key, o, cb); return; }
+        String missing = roman && "hi".equals(target) ? null
+            : !installed.contains(src) ? src : !installed.contains(target) ? target : null;
+        if (missing != null) { o.needsPack = true; o.packLang = missing; finish(key, o, cb); return; }
+        if (!roman) {
+            translator(src, target).translate(text)
+                .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
+                .addOnFailureListener(e -> finish(key, o, cb));
+            return;
+        }
+        // Romanised Hindi, offline: rule-based transliteration -> on-device Hindi model.
+        final String deva = Hinglish.toDevanagari(text);
+        o.approximate = true;
+        if ("hi".equals(target)) { o.translated = deva; finish(key, o, cb); return; }
+        translator("hi", target).translate(deva)
+            .addOnSuccessListener(r -> { o.translated = r; finish(key, o, cb); })
+            .addOnFailureListener(e -> finish(key, o, cb));
     }
 
     private static final java.util.concurrent.ExecutorService IO = java.util.concurrent.Executors.newSingleThreadExecutor();

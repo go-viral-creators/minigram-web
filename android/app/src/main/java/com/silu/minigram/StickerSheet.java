@@ -84,41 +84,24 @@ public class StickerSheet extends BottomSheetDialogFragment {
 
     private void show(Stickers.Pack pack) {
         grid.removeAllViews();
-        boolean phrases = pack.items.get(0).startsWith("t:");
-        int cols = phrases ? 2 : 4;
+        final int cols = 4;
         LinearLayout row = null;
         for (int i = 0; i < pack.items.size(); i++) {
             if (i % cols == 0) {
                 row = new LinearLayout(requireContext());
-                row.setOrientation(LinearLayout.HORIZONTAL);
                 grid.addView(row, new LinearLayout.LayoutParams(-1, -2));
             }
             final String id = pack.items.get(i);
-            TextView cell = new TextView(requireContext());
-            cell.setGravity(Gravity.CENTER);
-            if (phrases) {
-                cell.setText(Stickers.phraseOf(id));
-                cell.setTextColor(0xFFFFFFFF);
-                cell.setTextSize(16);
-                cell.setTypeface(null, android.graphics.Typeface.BOLD);
-                GradientDrawable g = new GradientDrawable();
-                g.setCornerRadius(dp(14));
-                g.setColor(Stickers.colorOf(id));
-                cell.setBackground(g);
-                cell.setPadding(dp(10), dp(18), dp(10), dp(18));
-            } else {
-                cell.setText(Stickers.emojiOf(id));
-                cell.setTextSize(40);
-                cell.setPadding(0, dp(10), 0, dp(10));
-                cell.setBackgroundResource(R.drawable.btn_round_outline);
-                cell.setBackground(null);
-            }
+            android.widget.ImageView cell = new android.widget.ImageView(requireContext());
+            cell.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            cell.setPadding(dp(4), dp(4), dp(4), dp(4));
+            cell.setContentDescription("Sticker");
+            com.bumptech.glide.Glide.with(this).load(Stickers.assetUrl(id)).into(cell);
             cell.setOnClickListener(v -> { dismiss(); if (cb != null) cb.send(id); });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1f);
-            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(84), 1f);
+            lp.setMargins(dp(3), dp(3), dp(3), dp(3));
             row.addView(cell, lp);
         }
-        // pad last row so cells keep their width
         int rem = pack.items.size() % cols;
         if (rem != 0 && row != null) for (int k = rem; k < cols; k++) row.addView(new View(requireContext()), new LinearLayout.LayoutParams(0, 1, 1f));
     }

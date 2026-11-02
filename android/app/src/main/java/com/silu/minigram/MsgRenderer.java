@@ -62,6 +62,11 @@ public class MsgRenderer {
 
         // 1. AUTO-LINK FIRST: (URLs, Emails, Phone)
         Linkify.addLinks(ssb, Linkify.WEB_URLS | Linkify.EMAIL_ADDRESSES | Linkify.PHONE_NUMBERS);
+        for (URLSpan us : ssb.getSpans(0, ssb.length(), URLSpan.class)) {
+            int s0 = ssb.getSpanStart(us), e0 = ssb.getSpanEnd(us), fl = ssb.getSpanFlags(us);
+            ssb.removeSpan(us);
+            ssb.setSpan(new BrowserSpan(us.getURL()), s0, e0, fl);
+        }
 
         // 2. Formatting apply karein
         _applyPattern(ssb, "\\*\\*(.+?)\\*\\*", () -> new StyleSpan(Typeface.BOLD));
@@ -176,8 +181,7 @@ public class MsgRenderer {
                 @Override
                 public void onClick(View widget) {
                     try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        ctx.startActivity(intent);
+                        BrowserActivity.open(ctx, url);
                     } catch (Exception e) {
                         Toast.makeText(ctx, "Invalid URL format", Toast.LENGTH_SHORT).show();
                     }
@@ -377,5 +381,11 @@ public class MsgRenderer {
             
             canvas.drawText(text, start, end, x + paddingX, verticalCenter - textYOffset, newPaint);
         }
+    }
+
+    /** Link span that opens http(s) in the in-app browser (still a URLSpan so copy-on-long-press keeps working). */
+    static final class BrowserSpan extends URLSpan {
+        BrowserSpan(String url) { super(url); }
+        @Override public void onClick(View widget) { BrowserActivity.open(widget.getContext(), getURL()); }
     }
 }

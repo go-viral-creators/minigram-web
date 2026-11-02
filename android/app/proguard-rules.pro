@@ -27,3 +27,14 @@
 # Loaded by name from the theme (viewInflaterClass) - R8 cannot see that reference
 -keep class com.silu.minigram.InkViewInflater { <init>(); }
 -keep class com.silu.minigram.IconTextView { <init>(android.content.Context, android.util.AttributeSet); }
+
+# ONNX Runtime (JNI looks classes up by name)
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# Vosk + JNA (native bindings are looked up by name)
+-keep class org.vosk.** { *; }
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.** { public *; }
+-dontwarn com.sun.jna.**
+-dontwarn java.awt.**

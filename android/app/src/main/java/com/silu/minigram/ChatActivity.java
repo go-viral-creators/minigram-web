@@ -1074,19 +1074,17 @@ public class ChatActivity extends AppCompatActivity {
             @Override public void onItemClick(HashMap<String, Object> msg) {
                 final String mId = (String) msg.get("msgId");
                 if (mActionMode != null) { toggleSelection(mId); return; }
-                // plain tap does nothing (links, images and files handle their own taps); long-press opens the menu
+                _showMsgActionSheet(msg);      // Telegram style: tap opens reactions + actions
             }
 
             @Override public void onItemLongClick(String msgId) {
                 if (msgId != null && msgId.startsWith("temp_")) return;
                 if (mActionMode != null) { toggleSelection(msgId); return; }
-                for (HashMap<String, Object> m : messageList) {
-                    if (msgId != null && msgId.equals(m.get("msgId"))) {
-                        listview1.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
-                        _showMsgActionSheet(m);
-                        break;
-                    }
-                }
+                listview1.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+                selectedMsgs.add(msgId);
+                mActionMode = startActionMode(mActionModeCallback);
+                if (mActionMode != null) mActionMode.setTitle(selectedMsgs.size() + " selected");
+                adapter.notifyMessageChanged(msgId);
             }
 
             @Override public void onSwipeReply(HashMap<String, Object> msg) {

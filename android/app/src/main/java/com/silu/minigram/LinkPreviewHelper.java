@@ -68,6 +68,35 @@ public class LinkPreviewHelper {
     }
 
     private static final HashMap<String, LinkPreview> cache = new HashMap<>();
+    private static android.content.SharedPreferences disk;
+
+    /** Call once with any Context: previews are then also kept on disk (instant on reopen, works offline). */
+    public static synchronized void attach(android.content.Context c) {
+        if (disk == null) disk = c.getApplicationContext().getSharedPreferences("link_previews", android.content.Context.MODE_PRIVATE);
+    }
+
+    private static LinkPreview fromDisk(String url) {
+        if (disk == null) return null;
+        String j = disk.getString(url, null);
+        if (j == null) return null;
+        try {
+            JSONObject o = new JSONObject(j);
+            LinkPreview p = new LinkPreview();
+            p.title = o.optString("t", null); p.description = o.optString("d", null);
+            p.imageUrl = o.optString("i", null); p.siteName = o.optString("s", null); p.sourceUrl = url;
+            return p;
+        } catch (Exception e) { return null; }
+    }
+
+    private static void toDisk(String url, LinkPreview p) {
+        if (disk == null || p == null) return;
+        try {
+            if (disk.getAll().size() > 300) disk.edit().clear().apply();
+            JSONObject o = new JSONObject();
+            o.put("t", p.title); o.put("d", p.description); o.put("i", p.imageUrl); o.put("s", p.siteName);
+            disk.edit().putString(url, o.toString()).apply();
+        } catch (Exception ignored) {}
+    }
     private static final ExecutorService executor = Executors.newFixedThreadPool(2);
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -108,7 +137,14 @@ public class LinkPreviewHelper {
         }
 
         executor.execute(() -> {
+            LinkPreview stored = fromDisk(url);
+            if (stored != null) {
+                synchronized (cache) { cache.put(url, stored); }
+                mainHandler.post(() -> callback.onPreviewReady(stored));
+                return;
+            }
             LinkPreview preview = _buildPreview(url);
+            toDisk(url, preview);
             synchronized (cache) { cache.put(url, preview); } // cache failures too — never retry a dead URL this session
             mainHandler.post(() -> callback.onPreviewReady(preview));
         });
