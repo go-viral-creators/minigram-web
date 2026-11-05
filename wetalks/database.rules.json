@@ -92,10 +92,11 @@
 
     "messages": {
       "$cid": {
+        ".write": "auth != null && !newData.exists() && $cid.contains('_') && $cid.contains(auth.uid)",
         ".read": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())",
         "$mid": {
-          ".write": "auth != null && ( (!data.exists() && newData.child('from').val() === auth.uid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())) || (data.exists() && data.child('from').val() === auth.uid && newData.child('from').val() === auth.uid) || !newData.exists() && data.child('from').val() === auth.uid )",
-          ".validate": "!newData.exists() || (newData.hasChildren(['from','ts','type','body']) && newData.child('body').isString() && newData.child('body').val().length <= 20000)",
+          ".write": "auth != null && ( (!data.exists() && newData.child('from').val() === auth.uid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())) || (data.exists() && newData.exists() && data.child('from').val() === auth.uid && newData.child('from').val() === auth.uid) || (data.exists() && !newData.exists() && (data.child('from').val() === auth.uid || ($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())) )",
+          ".validate": "!newData.exists() || (newData.hasChildren(['from','ts','type','body']) && newData.child('body').isString() && newData.child('body').val().length <= 60000)",
           "react": {
             "$ruid": { ".write": "auth != null && auth.uid === $ruid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())", ".validate": "newData.isString() && newData.val().length <= 8" }
           }
@@ -105,6 +106,7 @@
 
     "pins": {
       "$cid": {
+        ".write": "auth != null && !newData.exists() && $cid.contains('_') && $cid.contains(auth.uid)",
         ".read": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())",
         "$mid": {
           ".write": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())"
@@ -137,8 +139,8 @@
     "media": {
       "$id": {
         ".read": "auth != null",
-        ".write": "auth != null && !data.exists() && newData.child('from').val() === auth.uid",
-        ".validate": "newData.hasChildren(['from','mime','data']) && newData.child('data').isString() && newData.child('data').val().length <= 1800000"
+        ".write": "auth != null && ((!data.exists() && newData.child('from').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('from').val() === auth.uid))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['from','mime','data']) && newData.child('data').isString() && newData.child('data').val().length <= 1800000)"
       }
     }
   }

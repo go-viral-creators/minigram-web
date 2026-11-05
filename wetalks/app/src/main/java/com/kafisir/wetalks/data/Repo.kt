@@ -269,15 +269,14 @@ object Repo {
     class Raw(val id: String, val from: String, val ts: Long, val type: String, val body: String, val kv: Int, val rid: String?,
               val deleted: Boolean, val edited: Boolean, val react: Map<String, String>)
 
+    private fun rawOf(c: DataSnapshot) = Raw(c.key!!, c.str("from"), c.lng("ts"), c.str("type"), c.str("body"), c.lng("kv").toInt(), c.str("rid").ifEmpty { null },
+        c.bool("deleted"), c.bool("edited"), c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") })
+
     fun rawMessages(ref: ChatRef, limit: Int): Flow<List<Raw>> = callbackFlow {
         val q = db.getReference("messages/${ref.id}").orderByKey().limitToLast(limit)
         val l = object : ValueEventListener {
             override fun onDataChange(s: DataSnapshot) {
-                trySend(s.children.map { c ->
-                    Raw(c.key!!, c.str("from"), c.lng("ts"), c.str("type"), c.str("body"), c.lng("kv").toInt(), c.str("rid").ifEmpty { null },
-                        c.bool("deleted"), c.bool("edited"),
-                        c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") })
-                })
+                trySend(s.children.map { rawOf(it) })
             }
             override fun onCancelled(e: DatabaseError) { close() }
         }
@@ -295,13 +294,20 @@ object Repo {
             plain = if (key == null) { bad = true; "" } else try { Crypto.openText(key, r.body) } catch (e: Exception) { bad = true; "" }
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
-        if (!bad && (r.type == "image" || r.type == "voice")) {
+        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0
+        if (!bad && r.type in listOf("image", "voice", "gif", "link")) {
             try {
-                val j = org.json.JSONObject(plain); mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c")
-                j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
+                val j = org.json.JSONObject(plain)
+                when (r.type) {
+                    "link" -> { text = j.optString("t"); link = LinkPreview(j.optString("u"), j.optString("ti"), j.optString("d"), j.optString("i")) }
+                    else -> {
+                        mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
+                        j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
+                    }
+                }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave)
+        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h)
     }
 
     private suspend fun fanOut(ref: ChatRef, updates: HashMap<String, Any?>, type: String, body: String, preview: String) {
@@ -330,10 +336,14 @@ object Repo {
         val key = chatKey(ref, kv)
         if (ref.kind != Kind.CHANNEL && key == null) throw IllegalStateException("Encryption key not available yet. The other person must open WeTalks once.")
         val body = if (key == null) payload else Crypto.sealText(key, payload)
+        val listBody = if (type == "link") {
+            val slim = try { org.json.JSONObject(payload).apply { remove("i") }.toString() } catch (e: Exception) { payload }
+            if (key == null) slim else Crypto.sealText(key, slim)
+        } else body
         val mid = db.getReference("messages/${ref.id}").push().key!!
         val up = HashMap<String, Any?>()
         up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid)
-        fanOut(ref, up, type, body, preview)
+        fanOut(ref, up, type, listBody, preview)
         db.reference.updateChildren(up).await()
     }
 
@@ -344,7 +354,75 @@ object Repo {
         db.getReference("messages/${ref.id}/$id").updateChildren(mapOf("body" to body, "edited" to true)).await()
     }
 
-    fun deleteForAll(ref: ChatRef, id: String) { db.getReference("messages/${ref.id}/$id").updateChildren(mapOf("deleted" to true, "body" to "")) }
+    /** Removes the messages for everybody, as if they never existed (and their own uploaded media with them). */
+    suspend fun deleteMessages(ref: ChatRef, ids: List<String>) {
+        if (ids.isEmpty()) return
+        val up = HashMap<String, Any?>()
+        for (id in ids) {
+            up["messages/${ref.id}/$id"] = null; up["pins/${ref.id}/$id"] = null
+            try {
+                val snap = db.getReference("messages/${ref.id}/$id").get().await()
+                if (snap.exists() && snap.str("from") == uid) decrypt(ref, rawOf(snap)).mediaId?.takeIf { it.isNotEmpty() }?.let { up["media/$it"] = null }
+            } catch (_: Exception) {}
+        }
+        db.reference.updateChildren(up).await()
+        refreshLast(ref)
+    }
+
+    /** After a deletion, point the chat list at whatever message is now the newest one. */
+    private suspend fun refreshLast(ref: ChatRef) {
+        if (ref.kind == Kind.CHANNEL) return
+        val last = db.getReference("messages/${ref.id}").orderByKey().limitToLast(1).get().await().children.firstOrNull()
+        val targets = when (ref.kind) {
+            Kind.DM -> listOfNotNull(uid, ref.peer).distinct()
+            else -> group(ref.id).value?.members?.keys?.toList() ?: db.getReference("groups/${ref.id}/members").get().await().children.mapNotNull { it.key }
+        }
+        val up = HashMap<String, Any?>()
+        for (u in targets) {
+            val b = "user_chats/$u/${ref.id}"
+            if (ref.kind == Kind.DM) { up["$b/type"] = "dm"; up["$b/peer"] = if (u == uid) ref.peer else uid } else up["$b/type"] = "group"
+            if (last != null) {
+                var body = last.str("body")
+                if (last.str("type") == "link") try {   // keep the chat-list copy small
+                    val key = chatKey(ref, last.lng("kv").toInt())
+                    val plain = if (key == null) body else Crypto.openText(key, body)
+                    val slim = org.json.JSONObject(plain).apply { remove("i") }.toString()
+                    body = if (key == null) slim else Crypto.sealText(key, slim)
+                } catch (_: Exception) {}
+                up["$b/lastTs"] = last.lng("ts"); up["$b/lastBody"] = body; up["$b/lastType"] = last.str("type"); up["$b/lastFrom"] = last.str("from")
+            } else { up["$b/lastBody"] = ""; up["$b/lastType"] = ""; up["$b/lastFrom"] = "" }
+        }
+        try { db.reference.updateChildren(up).await() } catch (_: Exception) {}
+    }
+
+    private val cutPrefs get() = app.getSharedPreferences("wt_cut", Context.MODE_PRIVATE)
+    /** Messages older than this are hidden locally (a chat deleted just for me). */
+    fun cutoff(cid: String) = cutPrefs.getLong(cid, 0L)
+
+    /**
+     * Deletes a conversation. [forBoth] (DMs only) wipes every message, pin and the chat-list entry on both phones;
+     * otherwise it only clears it on this phone.
+     */
+    suspend fun deleteChat(ref: ChatRef, forBoth: Boolean) {
+        if (ref.kind == Kind.DM && forBoth) {
+            val up = HashMap<String, Any?>()
+            try {
+                val snap = db.getReference("messages/${ref.id}").get().await()
+                for (c in snap.children) if (c.str("from") == uid) {
+                    val id = try { decrypt(ref, rawOf(c)).mediaId } catch (_: Exception) { null }
+                    if (!id.isNullOrEmpty()) try { db.getReference("media/$id").removeValue().await() } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+            up["messages/${ref.id}"] = null; up["pins/${ref.id}"] = null
+            up["user_chats/$uid/${ref.id}"] = null
+            if (ref.peer != null && ref.peer != uid) up["user_chats/${ref.peer}/${ref.id}"] = null
+            db.reference.updateChildren(up).await()
+        } else {
+            cutPrefs.edit().putLong(ref.id, System.currentTimeMillis()).apply()
+            removeChat(ref.id)
+        }
+    }
+
     fun react(ref: ChatRef, id: String, emoji: String?) {
         val r = db.getReference("messages/${ref.id}/$id/react/$uid")
         if (emoji == null) r.removeValue() else r.setValue(emoji)
@@ -429,6 +507,12 @@ object Repo {
         when (m.type) {
             "text" -> send(to, "text", m.text, null, m.text.take(90))
             "sticker" -> send(to, "sticker", m.text, null, "Sticker")
+            "link" -> send(to, "link", org.json.JSONObject().put("t", m.text).put("u", m.link?.url ?: "").put("ti", m.link?.title ?: "").put("d", m.link?.desc ?: "").put("i", m.link?.thumb ?: "").toString(), null, m.text.take(90))
+            "gif" -> {
+                val bytes = loadMedia(from, m.mediaId ?: return) ?: throw IllegalStateException("Media not available")
+                val id = uploadMedia(to, bytes, m.mime.ifEmpty { "image/gif" })
+                send(to, "gif", org.json.JSONObject().put("m", id).put("mime", m.mime).put("w", m.w).put("h", m.h).toString(), null, "GIF")
+            }
             "image", "voice" -> {
                 val bytes = loadMedia(from, m.mediaId ?: return) ?: throw IllegalStateException("Media not available")
                 val id = uploadMedia(to, bytes, if (m.type == "image") "image/jpeg" else "audio/mp4")

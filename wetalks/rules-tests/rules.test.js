@@ -48,7 +48,8 @@ test('DM: only the two people read/write, no forged sender', async () => {
   await assertFails(get(ref(db(C), `messages/${AB}`)));
   await assertFails(set(ref(db(C), `messages/${AB}/m2`), msg(C)));
   await assertFails(set(ref(db(A), `messages/${AB}/m3`), msg(B)));
-  await assertFails(remove(ref(db(B), `messages/${AB}/m1`)));
+  await assertSucceeds(remove(ref(db(B), `messages/${AB}/m1`)));   // either person may delete (also delete for the other side)
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/m1`), msg(A)));
   await assertSucceeds(remove(ref(db(A), `messages/${AB}/m1`)));
 });
 
@@ -159,4 +160,44 @@ test('saved messages (chat with yourself)', async () => {
   await assertSucceeds(set(ref(db(A), 'messages/alice_alice/m1'), msg(A)));
   await assertSucceeds(update(ref(db(A), 'user_chats/alice/alice_alice'), { type: 'dm', peer: A, lastTs: Date.now() }));
   await assertFails(get(ref(db(B), 'messages/alice_alice')));
+});
+
+test('deleting messages removes them completely', async () => {
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/m1`), msg(A)));
+  await assertSucceeds(set(ref(db(B), `messages/${AB}/m2`), msg(B)));
+  // either person in a DM may remove any message ("also delete for X")
+  await assertSucceeds(remove(ref(db(B), `messages/${AB}/m1`)));
+  await assertSucceeds(remove(ref(db(A), `messages/${AB}/m2`)));
+  // outsiders cannot
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/m3`), msg(A)));
+  await assertFails(remove(ref(db(C), `messages/${AB}/m3`)));
+  // groups: sender or admin only
+  await assertSucceeds(set(ref(db(B), 'messages/g1/g1'), msg(B)));
+  await assertSucceeds(set(ref(db(B), 'messages/g1/g2'), msg(B)));
+  await assertSucceeds(remove(ref(db(B), 'messages/g1/g1')));
+  await assertSucceeds(remove(ref(db(A), 'messages/g1/g2')));     // admin removes a member's message
+  await assertSucceeds(set(ref(db(A), 'messages/g1/g3'), msg(A)));
+  await assertFails(remove(ref(db(B), 'messages/g1/g3')));         // plain member cannot remove an admin's message
+  // channels: admins
+  await assertSucceeds(set(ref(db(A), 'messages/c1/p1'), msg(A)));
+  await assertFails(remove(ref(db(B), 'messages/c1/p1')));
+  await assertSucceeds(remove(ref(db(A), 'messages/c1/p1')));
+});
+
+test('deleting a whole DM for both people', async () => {
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/m1`), msg(A)));
+  await assertSucceeds(set(ref(db(B), `messages/${AB}/m2`), msg(B)));
+  await assertSucceeds(set(ref(db(A), `pins/${AB}/m1`), 1));
+  await assertFails(remove(ref(db(C), `messages/${AB}`)));
+  await assertSucceeds(update(ref(db(A)), { [`messages/${AB}`]: null, [`pins/${AB}`]: null, [`user_chats/alice/${AB}`]: null, [`user_chats/bob/${AB}`]: null }));
+  const s = await get(ref(db(B), `messages/${AB}`));
+  if (s.exists()) throw new Error('chat should be gone');
+  await assertFails(remove(ref(db(A), 'messages/g1')));            // not for groups
+});
+
+test('media: only the uploader can delete it', async () => {
+  await assertSucceeds(set(ref(db(A), 'media/x1'), { from: A, mime: 'image/jpeg', data: 'abc' }));
+  await assertFails(remove(ref(db(B), 'media/x1')));
+  await assertSucceeds(remove(ref(db(A), 'media/x1')));
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/big`), { from: A, ts: 1, type: 'link', body: 'x'.repeat(50000) }));
 });

@@ -35,9 +35,13 @@ data class ChatItem(
 )
 
 data class Msg(
-    val id: String, val from: String, val ts: Long, val type: String,      // text | image | voice | sticker
+    val id: String, val from: String, val ts: Long, val type: String,      // text | link | image | gif | voice | sticker
     val text: String, val mediaId: String? = null, val dur: Int = 0,
     val rid: String? = null, val deleted: Boolean = false, val edited: Boolean = false,
     val reactions: Map<String, String> = emptyMap(), val unreadable: Boolean = false, val pending: Boolean = false,
     val wave: List<Int> = emptyList(),
+    val link: LinkPreview? = null, val mime: String = "", val w: Int = 0, val h: Int = 0,
 )
+
+/** Preview card fetched by the sender and sent inside the encrypted message. */
+data class LinkPreview(val url: String, val title: String, val desc: String, val thumb: String)

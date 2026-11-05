@@ -42,6 +42,7 @@ import com.kafisir.wetalks.data.ChatRef
 import com.kafisir.wetalks.data.Kind
 import com.kafisir.wetalks.data.Repo
 import com.kafisir.wetalks.ui.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen() {
@@ -92,6 +93,7 @@ fun BottomNav(tab: Int, dmUnread: Long, grpUnread: Long) {
 @Composable
 fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, emptySub: String, header: (@Composable () -> Unit)? = null) {
     var menu by remember { mutableStateOf<ChatItem?>(null) }
+    var delete by remember { mutableStateOf<ChatItem?>(null) }
     if (items.isEmpty()) {
         Column(Modifier.fillMaxSize()) { header?.invoke(); Box(Modifier.weight(1f)) { Empty(emptyIcon, emptyTitle, emptySub) } }
     } else LazyColumn(Modifier.fillMaxSize()) {
@@ -105,9 +107,10 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
         Sheet({ menu = null }) {
             SheetItem(Ic.Pin, if (c.pinned) "Unpin from top" else "Pin to top") { Repo.setPinned(c.ref.id, !c.pinned); menu = null }
             if (c.ref.kind != Kind.CHANNEL || true) SheetItem(if (c.muted) Ic.Bell else Ic.BellOff, if (c.muted) "Unmute" else "Mute") { Repo.setMuted(c.ref.id, !c.muted); menu = null }
-            SheetItem(Ic.Trash, if (c.ref.kind == Kind.DM) "Delete chat" else "Remove from list", danger = true) { Repo.removeChat(c.ref.id); menu = null }
+            SheetItem(Ic.Trash, if (c.ref.kind == Kind.DM) "Delete chat" else "Remove from list", danger = true) { delete = c; menu = null }
         }
     }
+    delete?.let { c -> val (n, _, _) = titleOf(c.ref); DeleteChatDialog(c.ref, n, { delete = null }) }
 }
 
 @Composable
@@ -120,7 +123,39 @@ fun titleOf(ref: ChatRef): Triple<String, String, String> {   // name, photo, se
 }
 
 fun previewText(type: String, text: String) = when (type) {
-    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; else -> text
+    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; else -> text
+}
+
+/** Telegram-style dialog: optionally tick "Also delete for X" to wipe the chat on both phones. */
+@Composable
+fun DeleteChatDialog(ref: ChatRef, name: String, onDismiss: () -> Unit, onDone: () -> Unit = {}) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var both by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    val dm = ref.kind == Kind.DM && ref.peer != Repo.uid
+    androidx.compose.ui.window.Dialog(onDismissRequest = { if (!busy) onDismiss() }) {
+        Column(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(We.surface).padding(22.dp)) {
+            Text(if (ref.kind == Kind.DM) "Delete chat" else "Remove from list", color = We.text, style = T.title)
+            Spacer(Modifier.height(8.dp))
+            Text(when (ref.kind) { Kind.DM -> "Are you sure you want to delete the chat with $name? This clears it from this phone."; Kind.GROUP -> "Remove $name from your chat list? You stay a member and can open it again."; else -> "Remove $name from your list?" }, color = We.text2, style = T.body)
+            if (dm) {
+                Row(Modifier.padding(top = 14.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).tap { both = !both }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(22.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp)).background(if (both) We.primary else We.line), contentAlignment = Alignment.Center) { if (both) Icon(Ic.Check, We.onPrimary, 14.dp) }
+                    Spacer(Modifier.width(12.dp))
+                    Text("Also delete for $name", color = We.text, style = T.body)
+                }
+                if (both) Text("Every message and the chat entry will be removed on $name's phone too. This can't be undone.", color = We.danger, style = T.small, modifier = Modifier.padding(top = 4.dp, start = 34.dp))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
+                Text("Cancel", color = We.primary, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).tap { if (!busy) onDismiss() }.padding(horizontal = 14.dp, vertical = 10.dp))
+                Text(if (busy) "Deleting…" else "Delete", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).tap {
+                    if (busy) return@tap
+                    busy = true
+                    scope.launch { try { Repo.deleteChat(ref, both); onDismiss(); onDone() } catch (e: Exception) { busy = false; Nav.say("Could not delete: " + (e.message ?: "try again")) } }
+                }.padding(horizontal = 14.dp, vertical = 10.dp))
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -130,7 +165,7 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     val preview by produceState("", c.lastBody, c.lastType) {
         value = if (c.lastBody.isEmpty()) "" else {
             val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
-            if (m.unreadable) "Encrypted message" else previewText(m.type, m.text)
+            if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else previewText(m.type, m.text))
         }
     }
     Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLong).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {

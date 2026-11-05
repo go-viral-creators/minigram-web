@@ -27,6 +27,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.content.MediaType
+import androidx.compose.foundation.content.ReceiveContentListener
+import androidx.compose.foundation.content.TransferableContent
+import androidx.compose.foundation.content.consume
+import androidx.compose.foundation.content.contentReceiver
+import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -75,7 +85,7 @@ private fun dayLabel(ts: Long): String {
         else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(Date(ts))
     }
 }
-private fun isMedia(m: Msg) = m.type == "image" || m.type == "sticker" || m.type == "voice"
+private fun isMedia(m: Msg) = m.type == "image" || m.type == "sticker" || m.type == "voice" || m.type == "gif" || m.type == "link"
 
 @Composable private fun nameOf(uid: String, fallback: String): String { val u by Repo.user(uid).collectAsState(); return u?.name ?: fallback }
 
@@ -92,7 +102,8 @@ fun ChatScreen(ref: ChatRef) {
     var limit by remember { mutableIntStateOf(50) }
     val msgsRaw by produceState<List<Msg>>(emptyList(), ref, limit) { Repo.rawMessages(ref, limit).collect { raws -> value = raws.map { Repo.decrypt(ref, it) } } }
     var hideTick by remember { mutableIntStateOf(0) }
-    val msgs = msgsRaw.filter { hideTick >= 0 && !Repo.isHidden(it.id) && it.from !in blocked }
+    val cut = remember(ref) { Repo.cutoff(ref.id) }
+    val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) }
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
     val pinIds by remember(ref) { Repo.pins(ref) }.collectAsState(emptyList())
     val peerUser = if (ref.kind == Kind.DM && !saved) Repo.user(ref.peer!!).collectAsState().value else null
@@ -107,11 +118,14 @@ fun ChatScreen(ref: ChatRef) {
 
     var reply by remember { mutableStateOf<Msg?>(null) }
     var editing by remember { mutableStateOf<Msg?>(null) }
-    var input by remember { mutableStateOf("") }
+    val tfs = rememberTextFieldState()
+    val input = tfs.text.toString()
+    fun setInput(v: String) = tfs.setTextAndPlaceCursorAtEnd(v)
     var menuMsg by remember { mutableStateOf<Msg?>(null) }
     var attach by remember { mutableStateOf(false) }
     var stickers by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var delChat by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<List<Msg>?>(null) }
     var forwarding by remember { mutableStateOf<List<Msg>?>(null) }
@@ -141,10 +155,45 @@ fun ChatScreen(ref: ChatRef) {
     }
 
     fun sendText() {
-        val t = input.trim(); if (t.isEmpty()) return
+        val t = tfs.text.toString().trim(); if (t.isEmpty()) return
         val e = editing; val r = reply
-        input = ""; editing = null; reply = null
-        scope.launch { try { if (e != null) Repo.editMessage(ref, e.id, t) else Repo.send(ref, "text", t, r?.id, t.take(90)) } catch (ex: Exception) { toast(ex.message ?: "Could not send"); input = t } }
+        tfs.clearText(); editing = null; reply = null
+        scope.launch {
+            try {
+                if (e != null) Repo.editMessage(ref, e.id, t)
+                else {
+                    val url = LinkPreviews.firstUrl(t)
+                    val prev = if (url != null) { sending = true; try { LinkPreviews.fetch(url) } finally { sending = false } } else null
+                    if (prev != null) Repo.send(ref, "link", JSONObject().put("t", t).put("u", prev.url).put("ti", prev.title).put("d", prev.desc).put("i", prev.thumb).toString(), r?.id, t.take(90))
+                    else Repo.send(ref, "text", t, r?.id, t.take(90))
+                }
+            } catch (ex: Exception) { toast(ex.message ?: "Could not send"); setInput(t) }
+        }
+    }
+
+    /** Stickers and GIFs from the keyboard arrive as content URIs. */
+    fun sendKeyboardImage(uri: Uri) {
+        val mime = ctx.contentResolver.getType(uri) ?: "image/png"
+        val bytes = try { ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } } catch (ex: Exception) { null }
+        if (bytes == null) { toast("Could not read that image"); return }
+        if (bytes.size > 1_200_000) { toast("That file is too big to send (max 1.2 MB)"); return }
+        val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+        val replyId = reply?.id; reply = null
+        scope.launch {
+            sending = true
+            try {
+                val id = Repo.uploadMedia(ref, bytes, mime)
+                Repo.send(ref, "gif", JSONObject().put("m", id).put("mime", mime).put("w", maxOf(opts.outWidth, 0)).put("h", maxOf(opts.outHeight, 0)).toString(), replyId, if (mime.contains("gif")) "GIF" else "Sticker")
+            } catch (ex: Exception) { toast(ex.message ?: "Could not send") }
+            sending = false
+        }
+    }
+    val keyboardReceiver = object : ReceiveContentListener {
+        override fun onReceive(transferableContent: TransferableContent): TransferableContent? {
+            if (!transferableContent.hasMediaType(MediaType.Image)) return transferableContent
+            return transferableContent.consume { item -> val u = item.uri; if (u != null) { sendKeyboardImage(u); true } else false }
+        }
     }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { us: List<Uri> ->
         if (us.isNotEmpty()) { Nav.pendingPhotos = us; Nav.pendingRef = ref; Nav.pendingReply = reply?.id; reply = null; Nav.push(RPhotoEdit) }
@@ -184,7 +233,7 @@ fun ChatScreen(ref: ChatRef) {
                 IconBtn(Ic.Close, We.onAppBar, { selected.clear() })
                 Text("${selected.size} selected", color = We.onAppBar, style = T.title, modifier = Modifier.weight(1f))
                 IconBtn(Ic.Copy, We.onAppBar, {
-                    val t = msgs.filter { it.id in selected && it.type == "text" }.joinToString("\n") { it.text }
+                    val t = msgs.filter { it.id in selected && (it.type == "text" || it.type == "link") }.joinToString("\n") { it.text }
                     if (t.isNotEmpty()) { (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("messages", t)); toast("Copied") }
                     selected.clear()
                 })
@@ -268,7 +317,7 @@ fun ChatScreen(ref: ChatRef) {
                         Text(if (editing != null) "Edit message" else "Reply to " + (if (q.from == me) "yourself" else nameOf(q.from, title)), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
                         Text(previewText(q.type, q.text), color = We.text2, style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    IconBtn(Ic.Close, We.text2, { reply = null; if (editing != null) { editing = null; input = "" } }, 20.dp)
+                    IconBtn(Ic.Close, We.text2, { reply = null; if (editing != null) { editing = null; setInput("") } }, 20.dp)
                 }
             }
             Box {
@@ -296,7 +345,8 @@ fun ChatScreen(ref: ChatRef) {
                         Row(Modifier.weight(1f).heightIn(min = 46.dp).padding(vertical = 2.dp).clip(RoundedCornerShape(23.dp)).background(We.field).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
                                 if (input.isEmpty()) Text("Message", color = We.text2, style = T.body)
-                                BasicTextField(input, { input = it }, Modifier.fillMaxWidth(), textStyle = T.body.copy(color = We.text), cursorBrush = SolidColor(We.primary), maxLines = 5,
+                                BasicTextField(tfs, Modifier.fillMaxWidth().contentReceiver(keyboardReceiver), textStyle = T.body.copy(color = We.text), cursorBrush = SolidColor(We.primary),
+                                    lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
                                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences))
                             }
                             IconBtn(Ic.Smile, We.text2, { stickers = true }, 22.dp, Modifier.size(40.dp))
@@ -332,16 +382,20 @@ fun ChatScreen(ref: ChatRef) {
             onCopy = { (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("message", m.text)); menuMsg = null; toast("Copied") },
             onPin = { Repo.setPin(ref, m.id, m.id !in pinIds); menuMsg = null },
             onForward = { forwarding = listOf(m); menuMsg = null },
-            onEdit = { editing = m; reply = null; input = m.text; menuMsg = null },
+            onEdit = { editing = m; reply = null; setInput(m.text); menuMsg = null },
             onSelect = { selected.add(m.id); menuMsg = null },
             onDelete = { deleting = listOf(m); menuMsg = null })
     }
     deleting?.let { list ->
-        val allMine = list.all { it.from == me } || (ref.kind == Kind.GROUP && group?.members?.get(me) == "admin")
+        val canAll = when (ref.kind) { Kind.DM -> true; Kind.GROUP -> list.all { it.from == me } || group?.members?.get(me) == "admin"; Kind.CHANNEL -> canPost }
+        val peerName = if (ref.kind == Kind.DM && !saved) title else null
         Sheet({ deleting = null }) {
             Text(if (list.size == 1) "Delete message?" else "Delete ${list.size} messages?", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
             SheetItem(Ic.Trash2, "Delete for me") { list.forEach { Repo.hideForMe(it.id) }; hideTick++; selected.clear(); deleting = null }
-            if (allMine) SheetItem(Ic.Trash, "Delete for everyone", danger = true) { list.forEach { Repo.deleteForAll(ref, it.id) }; selected.clear(); deleting = null }
+            if (canAll) SheetItem(Ic.Trash, if (peerName != null) "Delete for me and $peerName" else "Delete for everyone", danger = true) {
+                val ids = list.map { it.id }; selected.clear(); deleting = null
+                scope.launch { try { Repo.deleteMessages(ref, ids) } catch (ex: Exception) { toast("Could not delete: " + (ex.message ?: "")) } }
+            }
         }
     }
     forwarding?.let { list ->
@@ -350,11 +404,13 @@ fun ChatScreen(ref: ChatRef) {
             scope.launch { try { list.sortedBy { it.ts }.forEach { Repo.forward(ref, it, target) }; toast("Forwarded") } catch (e: Exception) { toast(e.message ?: "Could not forward") } }
         }
     }
+    if (delChat) DeleteChatDialog(ref, title, { delChat = false }) { Nav.pop() }
     if (menu) Sheet({ menu = false }) {
         when (ref.kind) {
             Kind.DM -> if (!saved) {
                 SheetItem(Ic.User, "View profile") { menu = false; Nav.push(RProfile(ref.peer!!)) }
                 SheetItem(Ic.Block, if (ref.peer in blocked) "Unblock" else "Block", danger = ref.peer !in blocked) { Repo.block(ref.peer!!, ref.peer !in blocked); menu = false }
+                SheetItem(Ic.Trash, "Delete chat", danger = true) { menu = false; delChat = true }
             } else SheetItem(Ic.Info, "Only you can see this chat") { menu = false }
             Kind.GROUP -> SheetItem(Ic.Group, "Group info") { menu = false; Nav.push(RGroupInfo(ref.id)) }
             Kind.CHANNEL -> {
@@ -393,28 +449,16 @@ fun DayChip(t: String) {
 }
 
 @Composable
-private fun linkified(text: String, color: Color): androidx.compose.ui.text.AnnotatedString = buildAnnotatedString {
-    val m = android.util.Patterns.WEB_URL.matcher(text); var last = 0
-    while (m.find()) {
-        append(text.substring(last, m.start()))
-        val url = m.group().let { if (it.startsWith("http")) it else "https://$it" }
-        withLink(LinkAnnotation.Clickable("u", TextLinkStyles(SpanStyle(color = We.primary, textDecoration = TextDecoration.Underline))) { Nav.push(RBrowser(url)) }) { append(m.group()) }
-        last = m.end()
-    }
-    append(text.substring(last))
-}
-
-@Composable
 fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit) {
     val r = UiPrefs.bubble.intValue.dp
     val shape = RoundedCornerShape(r, r, if (mine && lastInRun) 4.dp else r, if (!mine && lastInRun) 4.dp else r)
     val fg = if (mine) We.onSent else We.onRecv
-    val isSticker = m.type == "sticker" && !m.deleted
+    val isSticker = (m.type == "sticker" || m.type == "gif") && !m.deleted
     val scale = UiPrefs.textScale.floatValue
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start, modifier = Modifier.widthIn(max = 300.dp)) {
             Column(Modifier.then(if (isSticker) Modifier else Modifier.clip(shape).background(if (mine) We.sent else We.recv))
-                .combinedClickable(onClick = onClick, onLongClick = onLong).then(if (isSticker || m.type == "image") Modifier else Modifier.padding(horizontal = 12.dp, vertical = 8.dp))) {
+                .combinedClickable(onClick = onClick, onLongClick = onLong).then(if (isSticker || m.type == "image") Modifier else Modifier.padding(start = 13.dp, end = 13.dp, top = 8.dp, bottom = 7.dp))) {
                 if (showName) { val u by Repo.user(m.from).collectAsState(); Text(u?.name ?: "", color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold), modifier = if (m.type == "image") Modifier.padding(10.dp, 6.dp, 10.dp, 0.dp) else Modifier) }
                 if (quoted != null && !m.deleted) {
                     Row(Modifier.padding(bottom = 6.dp).then(if (m.type == "image") Modifier.padding(8.dp) else Modifier).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)) {
@@ -431,6 +475,11 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned)
                     m.type == "voice" -> VoiceBody(m, ref, fg)
                     m.type == "sticker" -> StickerBody(m.text)
+                    m.type == "gif" -> GifBody(m, ref)
+                    m.type == "link" && m.link != null -> {
+                        Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
+                        LinkCard(m.link, fg, onLong)
+                    }
                     else -> Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
                 }
                 if (m.type != "image" && !isSticker) MetaRow(m, mine, read, fg, pinned)
@@ -452,8 +501,8 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
 }
 
 @Composable
-private fun MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean) {
-    Row(Modifier.padding(top = 2.dp).wrapContentWidth(Alignment.End), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean) {
+    Row(Modifier.align(Alignment.End).padding(top = 3.dp, start = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         if (pinned) Icon(Ic.Pin, fg.copy(alpha = .55f), 11.dp)
         if (m.edited) Text("edited", color = fg.copy(alpha = .55f), style = T.tiny)
         Text(if (m.ts > 0) clock(m.ts) else "", color = fg.copy(alpha = .6f), style = T.tiny.copy(fontSize = 10.5.sp))
@@ -470,15 +519,56 @@ private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Co
             val b = bmp
             if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
             else Image(b, null, Modifier.fillMaxWidth().aspectRatio((b.width.toFloat() / b.height).coerceIn(.6f, 1.8f)), contentScale = ContentScale.Crop)
-            if (!hasCap) Row(Modifier.align(Alignment.BottomEnd).padding(6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (!hasCap) Row(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(clock(m.ts), color = Color.White, style = T.tiny.copy(fontSize = 10.5.sp))
                 if (mine) { Spacer(Modifier.width(3.dp)); Icon(if (read) Ic.Check2 else Ic.Check, if (read) Color(0xFF7DD3FC) else Color.White, 14.dp) }
             }
         }
         if (hasCap) {
-            Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-            Box(Modifier.fillMaxWidth().padding(end = 10.dp, bottom = 6.dp)) { MetaRow(m, mine, read, fg, pinned) }
+            Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp))
+            Box(Modifier.padding(end = 12.dp, bottom = 8.dp).align(Alignment.End)) { Column { MetaRow(m, mine, read, fg, pinned) } }
         }
+    }
+}
+
+@Composable
+private fun GifBody(m: Msg, ref: ChatRef) {
+    val ctx = LocalContext.current
+    val bytes by produceState<ByteArray?>(null, m.mediaId) { m.mediaId?.let { value = Repo.loadMedia(ref, it) } }
+    val ratio = if (m.w > 0 && m.h > 0) (m.w.toFloat() / m.h).coerceIn(.5f, 2f) else 1f
+    val drawable = remember(bytes) {
+        bytes?.let { b ->
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= 28) android.graphics.ImageDecoder.decodeDrawable(android.graphics.ImageDecoder.createSource(java.nio.ByteBuffer.wrap(b)))
+                else android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size)?.let { android.graphics.drawable.BitmapDrawable(ctx.resources, it) }
+            } catch (e: Exception) { null }
+        }
+    }
+    Box(Modifier.width(if (ratio > 1f) 220.dp else 170.dp).aspectRatio(ratio).clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+        if (drawable == null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = We.primary, strokeWidth = 2.dp)
+        else androidx.compose.ui.viewinterop.AndroidView(factory = { c -> android.widget.ImageView(c).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER } },
+            update = { iv ->
+                iv.setImageDrawable(drawable)
+                if (android.os.Build.VERSION.SDK_INT >= 28 && drawable is android.graphics.drawable.AnimatedImageDrawable) { drawable.repeatCount = android.graphics.drawable.AnimatedImageDrawable.REPEAT_INFINITE; drawable.start() }
+            }, modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Composable
+private fun LinkCard(l: LinkPreview, fg: Color, onLong: () -> Unit) {
+    val thumb = remember(l.thumb) { Pics.decodeB64(l.thumb) }
+    val host = remember(l.url) { try { java.net.URI(l.url).host?.removePrefix("www.") ?: l.url } catch (e: Exception) { l.url } }
+    Column(Modifier.padding(top = 6.dp).width(250.dp).clip(RoundedCornerShape(10.dp)).background(fg.copy(alpha = .08f))
+        .combinedClickable(onClick = { Nav.push(RBrowser(l.url)) }, onLongClick = onLong)) {
+        Row(Modifier.height(IntrinsicSize.Min)) {
+            Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
+            Column(Modifier.padding(10.dp, 8.dp)) {
+                Text(host, color = We.primary, style = T.tiny.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                if (l.title.isNotEmpty()) Text(l.title, color = fg, style = T.small.copy(fontWeight = FontWeight.Bold), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+                if (l.desc.isNotEmpty()) Text(l.desc, color = fg.copy(alpha = .8f), style = T.small, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+        thumb?.let { Image(it, null, Modifier.fillMaxWidth().aspectRatio((it.width.toFloat() / it.height).coerceIn(1f, 2f)), contentScale = ContentScale.Crop) }
     }
 }
 
@@ -506,7 +596,7 @@ private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean
                 Spacer(Modifier.height(10.dp))
                 Column(Modifier.clip(RoundedCornerShape(18.dp)).background(We.surface).width(250.dp).padding(vertical = 6.dp)) {
                     if (canReply) MenuRow(Ic.Reply, "Reply", onClick = onReply)
-                    if (m.type == "text" && m.text.isNotEmpty()) MenuRow(Ic.Copy, "Copy text", onClick = onCopy)
+                    if ((m.type == "text" || m.type == "link") && m.text.isNotEmpty()) MenuRow(Ic.Copy, "Copy text", onClick = onCopy)
                     if (canPin) MenuRow(Ic.Pin, if (pinned) "Unpin" else "Pin", onClick = onPin)
                     MenuRow(Ic.Forward, "Forward", onClick = onForward)
                     if (mine && m.type == "text") MenuRow(Ic.Edit, "Edit", onClick = onEdit)
@@ -551,22 +641,36 @@ private fun ForwardSheet(onDismiss: () -> Unit, onPick: (ChatRef) -> Unit) {
 fun StickerSheet(onDismiss: () -> Unit, onPick: (String) -> Unit) {
     val ctx = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
-    val names = listOf("Animated", "Moods", "Reactions", "Words")
+    // tabs: animated packs first, then the illustrated ones
+    val tabs: List<Triple<String, Boolean, List<String>>> =
+        Anim.packs.map { Triple(it.name, it.locked, it.codes.map { c -> "a:$c" }) } +
+        listOf(Triple("Moods", false, StickerPacks.moods.map { "s:$it" }), Triple("Reactions", false, StickerPacks.reactions.map { "s:$it" }), Triple("Words", false, StickerPacks.words.map { "s:$it" }))
+    val (_, locked, items) = tabs[tab]
     Sheet(onDismiss) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            names.forEachIndexed { i, n ->
-                Text(n, color = if (tab == i) We.onPrimary else We.text, style = T.small.copy(fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (tab == i) We.primary else We.field).combinedClickable(onClick = { tab = i }).padding(horizontal = 16.dp, vertical = 8.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            tabs.forEachIndexed { i, (n, lk, _) ->
+                Row(Modifier.clip(RoundedCornerShape(18.dp)).background(if (tab == i) We.primary else We.field).combinedClickable(onClick = { tab = i }).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (lk) { Icon(Ic.Lock, if (tab == i) We.onPrimary else We.text2, 13.dp); Spacer(Modifier.width(5.dp)) }
+                    Text(n, color = if (tab == i) We.onPrimary else We.text, style = T.small.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, softWrap = false)
+                }
             }
         }
-        val items: List<String> = when (tab) { 0 -> Anim.stickers.map { "a:$it" }; 1 -> StickerPacks.moods.map { "s:$it" }; 2 -> StickerPacks.reactions.map { "s:$it" }; else -> StickerPacks.words.map { "s:$it" } }
+        if (locked) Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(We.primary.copy(alpha = .1f)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Ic.Lock, We.primary, 18.dp); Spacer(Modifier.width(10.dp))
+            Text("This pack is locked. WeTalks Plus is coming soon and will unlock extra animated packs.", color = We.text, style = T.small)
+        }
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp).heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
             items.chunked(4).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEach { p ->
-                        Box(Modifier.weight(1f).aspectRatio(1f).padding(5.dp).combinedClickable(onClick = { onPick(p) }), contentAlignment = Alignment.Center) {
-                            if (p.startsWith("a:")) AnimEmoji(p.removePrefix("a:"), 64.dp)
-                            else { val bmp = remember(p) { Pics.asset(ctx, p.removePrefix("s:")) }; if (bmp != null) Image(bmp, null, Modifier.fillMaxSize()) }
+                        Box(Modifier.weight(1f).aspectRatio(1f).padding(5.dp).combinedClickable(onClick = { if (locked) Nav.say("Locked · coming soon with WeTalks Plus") else onPick(p) }), contentAlignment = Alignment.Center) {
+                            Box(Modifier.fillMaxSize().then(if (locked) Modifier.scale(.92f) else Modifier), contentAlignment = Alignment.Center) {
+                                if (p.startsWith("a:")) AnimEmoji(p.removePrefix("a:"), 64.dp, loop = !locked)
+                                else { val bmp = remember(p) { Pics.asset(ctx, p.removePrefix("s:")) }; if (bmp != null) Image(bmp, null, Modifier.fillMaxSize()) }
+                            }
+                            if (locked) Box(Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)).background(We.surface.copy(alpha = .55f)), contentAlignment = Alignment.BottomEnd) {
+                                Box(Modifier.padding(4.dp).size(22.dp).clip(CircleShape).background(We.text.copy(alpha = .7f)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, We.surface, 12.dp) }
+                            }
                         }
                     }
                     repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
