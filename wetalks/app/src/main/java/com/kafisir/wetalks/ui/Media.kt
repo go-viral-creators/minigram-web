@@ -32,6 +32,15 @@ object Pics {
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }
 
+    /** Down-sampled decode for grids and thumbnails. */
+    fun decodeSampled(bytes: ByteArray, target: Int): ImageBitmap? {
+        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o)
+        var s = 1
+        while (maxOf(o.outWidth, o.outHeight) / (s * 2) >= target) s *= 2
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = s })?.asImageBitmap()
+    }
+
     fun decode(bytes: ByteArray): ImageBitmap? = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
     fun decodeB64(s: String): ImageBitmap? = if (s.isEmpty()) null else try { decode(Base64.decode(s, Base64.NO_WRAP)) } catch (e: Exception) { null }
     fun asset(ctx: Context, name: String): ImageBitmap? = try { ctx.assets.open("stickers/$name.webp").use { BitmapFactory.decodeStream(it)?.asImageBitmap() } } catch (e: Exception) { null }

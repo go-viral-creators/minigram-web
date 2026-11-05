@@ -158,8 +158,8 @@ fun DiscoverScreen() {
     LaunchedEffect(q) { loading = true; delay(300); results = try { Repo.searchChannels(q) } catch (e: Exception) { emptyList() }; loading = false }
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Discover channels", onBack = { Nav.pop() })
-        SearchBox(q, { q = it }, "Search channels by @link")
-        if (results.isEmpty()) Box(Modifier.weight(1f)) { Empty(Ic.Mega, if (loading) "Loading…" else "No channels found", "Public channels appear here. Create one to get started.") }
+        SearchBox(q, { q = it }, "Search channels")
+        if (results.isEmpty()) Box(Modifier.weight(1f)) { Empty(Ic.Mega, if (loading) "Loading…" else "No channels found", "Search by channel name, @handle or a channel link.") }
         else LazyColumn(Modifier.weight(1f)) {
             item { SectionLabel(if (q.isEmpty()) "Popular channels" else "Results") }
             items(results, key = { it.id }) { c ->
@@ -170,85 +170,6 @@ fun DiscoverScreen() {
                 Divider(start = 80.dp)
             }
         }
-    }
-}
-
-@Composable
-fun ChannelInfoScreen(id: String) {
-    val c by Repo.channel(id).collectAsState()
-    val scope = rememberCoroutineScope()
-    val subscribed by produceState(false, id) { value = Repo.isSubscribed(id) }
-    var joined by remember { mutableStateOf<Boolean?>(null) }
-    val isSub = joined ?: subscribed
-    var editing by remember { mutableStateOf(false) }
-    val ch = c ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Channel", onBack = { Nav.pop() }) }; return }
-    val owner = ch.owner == Repo.uid
-    if (editing) { EditNameScreen("Edit channel", ch.name, ch.about, ch.photo, ch.id, { n, a, p -> Repo.updateChannel(id, n, a, p) }) { editing = false }; return }
-    Column(Modifier.fillMaxSize().background(We.bg)) {
-        TopBar("Channel info", onBack = { Nav.pop() }, actions = { if (owner) IconBtn(Ic.Edit, We.onAppBar, { editing = true }) })
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Avatar(ch.name, ch.photo, 96.dp, ch.id); Spacer(Modifier.height(14.dp))
-                Text(ch.name, color = We.text, style = T.title); Text("@${ch.handle} · ${ch.subCount} followers", color = We.text2, style = T.body)
-                if (ch.about.isNotEmpty()) Text(ch.about, color = We.text, style = T.body, modifier = Modifier.padding(top = 12.dp))
-            }
-            Divider()
-            if (!owner) Box(Modifier.padding(16.dp)) {
-                if (isSub) OutlineButton("Leave channel", { scope.launch { Repo.unsubscribe(id); joined = false; Nav.say("You left the channel") } })
-                else PrimaryButton("Join channel", { scope.launch { Repo.subscribe(id); joined = true } })
-            }
-            Box(Modifier.padding(horizontal = 16.dp)) { PrimaryButton(if (isSub || owner) "Open channel" else "Preview posts", { Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.CHANNEL))) }) }
-        }
-    }
-}
-
-@Composable
-fun GroupInfoScreen(id: String) {
-    val g by Repo.group(id).collectAsState()
-    val scope = rememberCoroutineScope()
-    var editing by remember { mutableStateOf(false) }
-    var memberMenu by remember { mutableStateOf<String?>(null) }
-    var confirmLeave by remember { mutableStateOf(false) }
-    val group = g ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Group", onBack = { Nav.pop() }) }; return }
-    val me = Repo.uid
-    val admin = group.members[me] == "admin"
-    if (editing) { EditNameScreen("Edit group", group.name, group.about, group.photo, group.id, { n, a, p -> Repo.updateGroup(id, n, a, p) }) { editing = false }; return }
-    Column(Modifier.fillMaxSize().background(We.bg)) {
-        TopBar("Group info", onBack = { Nav.pop() }, actions = { if (admin) IconBtn(Ic.Edit, We.onAppBar, { editing = true }) })
-        LazyColumn(Modifier.fillMaxSize()) {
-            item {
-                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Avatar(group.name, group.photo, 96.dp, group.id); Spacer(Modifier.height(14.dp))
-                    Text(group.name, color = We.text, style = T.title); Text("${group.members.size} members", color = We.text2, style = T.body)
-                    if (group.about.isNotEmpty()) Text(group.about, color = We.text, style = T.body, modifier = Modifier.padding(top = 12.dp))
-                    Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Ic.Lock, We.ok, 15.dp); Spacer(Modifier.width(6.dp)); Text("End-to-end encrypted", color = We.ok, style = T.small) }
-                }
-                Divider()
-                if (admin) { Row2(Ic.UserPlus, "Add members", tint = We.primary, onClick = { Nav.push(RAddMembers(id)) }); Divider() }
-                SectionLabel("Members")
-            }
-            items(group.members.entries.sortedBy { if (it.value == "admin") 0 else 1 }.toList(), key = { it.key }) { (uid, role) ->
-                val u by Repo.user(uid).collectAsState()
-                Row(Modifier.fillMaxWidth().clickable { if (uid != me) { if (admin) memberMenu = uid else Nav.push(RProfile(uid)) } }.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(u?.name ?: "", u?.photo ?: "", 44.dp, uid); Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) { Text(if (uid == me) "You" else u?.name ?: "…", color = We.text, style = T.name); Text("@" + (u?.username ?: ""), color = We.text2, style = T.small) }
-                    if (role == "admin") Text("Admin", color = We.primary, style = T.tiny, modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .1f)).padding(horizontal = 8.dp, vertical = 3.dp))
-                }
-            }
-            item { Divider(); Row2(Ic.Logout, "Leave group", tint = We.danger, onClick = { confirmLeave = true }); Spacer(Modifier.height(30.dp)) }
-        }
-    }
-    memberMenu?.let { uid ->
-        val role = group.members[uid]
-        Sheet({ memberMenu = null }) {
-            SheetItem(Ic.User, "View profile") { memberMenu = null; Nav.push(RProfile(uid)) }
-            SheetItem(Ic.Shield, if (role == "admin") "Remove admin" else "Make admin") { scope.launch { Repo.setAdmin(id, uid, role != "admin") }; memberMenu = null }
-            SheetItem(Ic.Trash, "Remove from group", danger = true) { scope.launch { try { Repo.removeMember(id, uid); Nav.say("Removed. The group key was rotated.") } catch (e: Exception) { Nav.say("Could not remove") } }; memberMenu = null }
-        }
-    }
-    if (confirmLeave) Sheet({ confirmLeave = false }) {
-        Text("Leave this group?", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 8.dp))
-        SheetItem(Ic.Logout, "Leave group", danger = true) { confirmLeave = false; scope.launch { Repo.leaveGroup(id); Nav.reset() } }
     }
 }
 

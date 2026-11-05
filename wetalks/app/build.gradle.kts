@@ -13,8 +13,8 @@ android {
         applicationId = "com.kafisir.wetalks"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 5
+        versionName = "1.4.0"
     }
     val ksFile = rootProject.file("keystore.properties")
     signingConfigs {
@@ -66,6 +66,13 @@ dependencies {
     implementation("com.airbnb.android:lottie-compose:6.6.2")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("io.getstream:stream-webrtc-android:1.3.10")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
+    testImplementation("com.microsoft.onnxruntime:onnxruntime:1.19.2")
+    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     testImplementation("junit:junit:4.13.2")
 }
+
+// unit tests run on the desktop JVM: use the desktop ONNX Runtime jar (it bundles the native library) instead of the Android AAR
+configurations.all { if (name.lowercase().contains("unittest")) exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android") }

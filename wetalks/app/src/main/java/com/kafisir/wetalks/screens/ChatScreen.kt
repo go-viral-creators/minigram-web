@@ -11,6 +11,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -68,6 +69,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kafisir.wetalks.data.*
 import com.kafisir.wetalks.ui.*
+import com.kafisir.wetalks.voice.Recorder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -136,6 +138,20 @@ fun ChatScreen(ref: ChatRef) {
     fun toast(m: String) = Nav.say(m)
 
     LaunchedEffect(msgs.size, ref) { Repo.markRead(ref) }
+    // jump to a message picked from the shared-media lists, then flash it so it is easy to spot
+    val jump = remember(ref) { Nav.jumpTo.also { Nav.jumpTo = null } }
+    var highlightId by remember { mutableStateOf<String?>(null) }
+    var jumped by remember { mutableStateOf(false) }
+    LaunchedEffect(msgs, jump) {
+        val j = jump ?: return@LaunchedEffect
+        if (jumped) return@LaunchedEffect
+        val idx = msgs.reversed().indexOfFirst { it.id == j }
+        if (idx >= 0) {
+            jumped = true
+            delay(350); listState.animateScrollToItem(idx)
+            highlightId = j; delay(3200); highlightId = null
+        } else if (msgs.size >= limit && limit < 2000) limit += 300 else if (msgs.isNotEmpty()) { jumped = true; toast("That message is no longer available") }
+    }
     LaunchedEffect(input) { if (ref.kind != Kind.CHANNEL && !saved) { if (input.isNotEmpty()) { Repo.setTyping(ref, true); delay(3000) }; Repo.setTyping(ref, false) } }
     DisposableEffect(ref) { onDispose { Repo.setTyping(ref, false) } }
     androidx.activity.compose.BackHandler(enabled = selecting) { selected.clear() }
@@ -158,11 +174,11 @@ fun ChatScreen(ref: ChatRef) {
         val t = tfs.text.toString().trim(); if (t.isEmpty()) return
         val e = editing; val r = reply
         tfs.clearText(); editing = null; reply = null
-        scope.launch {
+        Repo.scope.launch {
             try {
                 if (e != null) Repo.editMessage(ref, e.id, t)
                 else {
-                    val url = LinkPreviews.firstUrl(t)
+                    val url = if (UiPrefs.linkPreview.value) LinkPreviews.firstUrl(t) else null
                     val prev = if (url != null) { sending = true; try { LinkPreviews.fetch(url) } finally { sending = false } } else null
                     if (prev != null) Repo.send(ref, "link", JSONObject().put("t", t).put("u", prev.url).put("ti", prev.title).put("d", prev.desc).put("i", prev.thumb).toString(), r?.id, t.take(90))
                     else Repo.send(ref, "text", t, r?.id, t.take(90))
@@ -180,7 +196,7 @@ fun ChatScreen(ref: ChatRef) {
         val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
         val replyId = reply?.id; reply = null
-        scope.launch {
+        Repo.scope.launch {
             sending = true
             try {
                 val id = Repo.uploadMedia(ref, bytes, mime)
@@ -200,49 +216,51 @@ fun ChatScreen(ref: ChatRef) {
     }
 
     // ---------------- calls
-    var wantVideo by remember { mutableStateOf(false) }
-    val callPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
-        val micOk = res[Manifest.permission.RECORD_AUDIO] == true || ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val camOk = !wantVideo || res[Manifest.permission.CAMERA] == true || ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (!micOk || (wantVideo && !camOk)) toast(if (!micOk) "Microphone permission is needed for calls" else "Camera permission is needed for video calls")
-        else scope.launch { try { Calls.start(ref.peer!!, wantVideo) } catch (e: Exception) { toast(e.message ?: "Could not start the call") } }
-    }
-    fun placeCall(v: Boolean) {
-        if (Calls.phase != CallPhase.IDLE) { toast("You're already in a call"); return }
-        wantVideo = v
-        val need = buildList { add(Manifest.permission.RECORD_AUDIO); if (v) add(Manifest.permission.CAMERA); if (android.os.Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS) }
-        callPerms.launch(need.toTypedArray())
-    }
+    val startCall = if (ref.kind == Kind.DM && !saved) rememberCallStarter(ref.peer!!) else { _: Boolean -> }
+    fun placeCall(v: Boolean) = startCall(v)
 
-    // ---------------- voice recording (hold to record, slide left to cancel, slide up to lock)
+    // ---------------- voice recording (hold to record, slide left to cancel, slide up to lock hands-free)
     var rec by remember { mutableStateOf<Recorder?>(null) }
     var locked by remember { mutableStateOf(false) }
+    var paused by remember { mutableStateOf(false) }
     var willCancel by remember { mutableStateOf(false) }
     var level by remember { mutableFloatStateOf(0f) }
     var secs by remember { mutableIntStateOf(0) }
-    LaunchedEffect(rec) { while (rec != null) { val r = rec!!; level = r.level(); secs = ((System.currentTimeMillis() - r.startedAt) / 1000).toInt(); delay(90) } }
-    fun startRec() { rec = Recorder(ctx).also { try { it.start() } catch (e: Exception) { rec = null; toast("Could not start recording") } }; locked = false; willCancel = false }
+    var dragX by remember { mutableFloatStateOf(0f) }
+    var dragY by remember { mutableFloatStateOf(0f) }
+    val levels = remember { mutableStateListOf<Float>() }
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val density = ctx.resources.displayMetrics.density
+    val cancelPx = 110f * density; val lockPx = 90f * density
     fun endRec(send: Boolean) {
-        val r = rec ?: return; rec = null; locked = false
+        val r = rec ?: return; rec = null; locked = false; paused = false; willCancel = false; dragX = 0f; dragY = 0f; levels.clear()
         if (!send) { r.cancel(); return }
         val replyId = reply?.id; reply = null
-        scope.launch {
+        Repo.scope.launch {
             sending = true
             try {
                 val res = r.finish()
-                if (res == null || res.seconds < 1) { toast("Hold the mic and release to send"); sending = false; return@launch }
-                val id = Repo.uploadMedia(ref, res.bytes, "audio/mp4")
-                Repo.send(ref, "voice", JSONObject().put("m", id).put("d", res.seconds).put("w", JSONArray(res.wave)).toString(), replyId, "Voice message")
-            } catch (e: Exception) { toast(e.message ?: "Voice failed") }
+                if (res == null) toast("Could not process the recording")
+                else if (res.seconds < 1) toast("Hold the mic and release to send")
+                else {
+                    val id = Repo.uploadMedia(ref, res.bytes, "audio/mp4")
+                    Repo.send(ref, "voice", JSONObject().put("m", id).put("d", res.seconds).put("w", JSONArray(res.wave)).toString(), replyId, "Voice message")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { toast(e.message ?: "Voice failed") }
             sending = false
         }
+    }
+    LaunchedEffect(rec) { while (rec != null) { val r = rec!!; level = r.level(); secs = r.elapsedSec; levels.add(level); if (levels.size > 60) levels.removeAt(0); if (secs >= Recorder.MAX_SECONDS) endRec(true); delay(90) } }
+    fun startRec() {
+        rec = Recorder(ctx).also { try { it.start(); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (e: Exception) { rec = null; toast("Could not start recording") } }
+        locked = false; paused = false; willCancel = false; dragX = 0f; dragY = 0f; levels.clear()
     }
     val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (!ok) toast("Microphone permission is needed for voice messages") }
 
     val wall = UiPrefs.wallpaper.intValue
     val bgBrush = when (wall) { 1 -> Brush.verticalGradient(listOf(We.primary.copy(alpha = .10f), We.bg)); 2 -> Brush.verticalGradient(listOf(We.primary.copy(alpha = .22f), We.primary.copy(alpha = .06f))); else -> SolidColor(We.bg) }
 
-    Column(Modifier.fillMaxSize().background(bgBrush).imePadding()) {
+    Column(Modifier.fillMaxSize().chatWallpaper().imePadding()) {
         if (selecting) {
             Row(Modifier.fillMaxWidth().background(We.appBar).statusBarsPadding().height(58.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconBtn(Ic.Close, We.onAppBar, { selected.clear() })
@@ -304,7 +322,8 @@ fun ChatScreen(ref: ChatRef) {
                     Column {
                         if (older == null || dayLabel(older.ts) != dayLabel(m.ts)) DayChip(dayLabel(m.ts))
                         val sameAsOlder = older != null && older.from == m.from && dayLabel(older.ts) == dayLabel(m.ts)
-                        Row(Modifier.fillMaxWidth().background(if (sel) We.primary.copy(alpha = .14f) else Color.Transparent).padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val hl by animateColorAsState(if (m.id == highlightId) We.primary.copy(alpha = .30f) else Color.Transparent, tween(500), label = "hl")
+                        Row(Modifier.fillMaxWidth().background(if (sel) We.primary.copy(alpha = .14f) else hl).padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (selecting) Box(Modifier.padding(start = 4.dp, end = 6.dp).size(22.dp).clip(CircleShape).background(if (sel) We.primary else We.line), contentAlignment = Alignment.Center) { if (sel) Icon(Ic.Check, We.onPrimary, 14.dp) }
                             Box(Modifier.weight(1f)) {
                                 Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
@@ -314,7 +333,8 @@ fun ChatScreen(ref: ChatRef) {
                                     onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e) })
                             }
                         }
-                        val gap = if (newer == null) 4.dp else if (newer.from == m.from && !isMedia(m) && !isMedia(newer)) 3.dp else if (newer.from == m.from) 7.dp else 12.dp
+                        val tight = UiPrefs.compact.value
+                        val gap = if (newer == null) 4.dp else if (newer.from == m.from && !isMedia(m) && !isMedia(newer)) (if (tight) 1.dp else 3.dp) else if (newer.from == m.from) (if (tight) 3.dp else 7.dp) else (if (tight) 6.dp else 12.dp)
                         Spacer(Modifier.height(gap))
                     }
                 }
@@ -344,23 +364,7 @@ fun ChatScreen(ref: ChatRef) {
             Box {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.Bottom) {
                     if (rec != null) {
-                        if (locked) IconBtn(Ic.Trash, We.danger, { endRec(false) }) else Spacer(Modifier.width(10.dp))
-                        Row(Modifier.weight(1f).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                            val pulse by animateFloatAsState(if (secs % 2 == 0) 1f else .35f, tween(500), label = "p")
-                            Box(Modifier.size(11.dp).clip(CircleShape).background(We.danger.copy(alpha = pulse))); Spacer(Modifier.width(10.dp))
-                            Text("%d:%02d".format(secs / 60, secs % 60), color = We.text, style = T.name)
-                            Spacer(Modifier.width(12.dp))
-                            if (locked) Row(Modifier.weight(1f).height(26.dp), verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(26.dp)) {
-                                    val n = 28; val w = size.width / n
-                                    repeat(n) { i -> val h = (size.height * (0.15f + level * ((i * 37 % 10) / 10f + .2f))).coerceIn(3f, size.height); drawRoundRect(primaryC, androidx.compose.ui.geometry.Offset(i * w + 1f, (size.height - h) / 2), androidx.compose.ui.geometry.Size(w - 3f, h), androidx.compose.ui.geometry.CornerRadius(3f)) }
-                                }
-                            } else Text(if (willCancel) "Release to cancel" else "‹  Slide to cancel", color = if (willCancel) We.danger else We.text2, style = T.body, modifier = Modifier.weight(1f))
-                        }
-                        if (locked) Box(Modifier.size(48.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { endRec(true) }), contentAlignment = Alignment.Center) { Icon(Ic.Send, We.onPrimary, 22.dp) }
-                        else MicGesture(true, willCancel,
-                            onMove = { dx, dy -> willCancel = dx < -with(ctx.resources.displayMetrics) { 110 * density }; if (dy < -with(ctx.resources.displayMetrics) { 90 * density }) locked = true },
-                            onUp = { dx -> if (!locked) endRec(!willCancel && dx > -with(ctx.resources.displayMetrics) { 110 * density }) })
+                        RecorderBar(secs, levels, locked, paused, willCancel, dragX, cancelPx, onTrash = { endRec(false) }, onPauseToggle = { paused = !paused; rec?.paused = paused })
                     } else {
                         IconBtn(Ic.Plus, We.text2, { attach = true })
                         Row(Modifier.weight(1f).heightIn(min = 46.dp).padding(vertical = 2.dp).clip(RoundedCornerShape(23.dp)).background(We.field).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -372,17 +376,27 @@ fun ChatScreen(ref: ChatRef) {
                             }
                             IconBtn(Ic.Smile, We.text2, { stickers = true }, 22.dp, Modifier.size(40.dp))
                         }
-                        Spacer(Modifier.width(6.dp))
-                        if (input.isNotBlank()) Box(Modifier.size(46.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { sendText() }), contentAlignment = Alignment.Center) { Icon(Ic.Send, We.onPrimary, 22.dp) }
-                        else MicGesture(false, false, onStart = {
-                            if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { startRec(); true }
-                            else { micPerm.launch(Manifest.permission.RECORD_AUDIO); false }
-                        })
                     }
+                    // one persistent mic / send button so the press-and-hold gesture is never interrupted
+                    if (rec == null) Spacer(Modifier.width(6.dp))
+                    if ((rec != null && locked) || (rec == null && input.isNotBlank())) Box(Modifier.size(46.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { if (rec != null) endRec(true) else sendText() }), contentAlignment = Alignment.Center) { Icon(Ic.Send, We.onPrimary, 22.dp) }
+                    else MicGesture(rec != null, willCancel, level, dragX, dragY,
+                        onStart = {
+                            if (rec != null) true
+                            else if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { startRec(); rec != null }
+                            else { micPerm.launch(Manifest.permission.RECORD_AUDIO); false }
+                        },
+                        onMove = { dx, dy ->
+                            if (rec != null && !locked) {
+                                dragX = dx.coerceAtMost(0f); dragY = dy.coerceAtMost(0f)
+                                val cancelNow = dx < -cancelPx
+                                if (cancelNow != willCancel) { willCancel = cancelNow; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
+                                if (dy < -lockPx && !willCancel) { locked = true; dragX = 0f; dragY = 0f; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
+                            }
+                        },
+                        onUp = { dx -> if (rec != null && !locked) endRec(!willCancel && dx > -cancelPx) })
                 }
-                if (rec != null && !locked) Column(Modifier.align(Alignment.TopEnd).padding(end = 12.dp).offset(y = (-92).dp).clip(RoundedCornerShape(26.dp)).background(We.surface).padding(vertical = 12.dp, horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Ic.Lock, We.text2, 18.dp); Spacer(Modifier.height(6.dp)); Text("︿", color = We.text2, fontSize = 14.sp)
-                }
+                if (rec != null && !locked) LockPill((-dragY / lockPx).coerceIn(0f, 1f), dragY, Modifier.align(Alignment.TopEnd).padding(end = 9.dp).offset(y = (-118).dp))
             }
         }
     }
@@ -442,26 +456,6 @@ fun ChatScreen(ref: ChatRef) {
     }
 }
 
-/** Mic button: press and hold to record. */
-@Composable
-private fun MicGesture(recording: Boolean, cancel: Boolean, onStart: (() -> Boolean)? = null, onMove: ((Float, Float) -> Unit)? = null, onUp: ((Float) -> Unit)? = null) {
-    val sc by animateFloatAsState(if (recording) 1.6f else 1f, tween(160), label = "mic")
-    val onStartS by rememberUpdatedState(onStart); val onMoveS by rememberUpdatedState(onMove); val onUpS by rememberUpdatedState(onUp)
-    Box(Modifier.size(46.dp).scale(sc).clip(CircleShape).background(if (cancel) We.danger else We.primary).pointerInput(Unit) {
-        awaitEachGesture {
-            val down = awaitFirstDown()
-            val started = onStartS?.invoke() ?: true
-            if (!started) { return@awaitEachGesture }
-            while (true) {
-                val ev = awaitPointerEvent(); val ch = ev.changes.first()
-                val dx = ch.position.x - down.position.x; val dy = ch.position.y - down.position.y
-                if (ch.changedToUp()) { onUpS?.invoke(dx); break }
-                onMoveS?.invoke(dx, dy); ch.consume()
-            }
-        }
-    }, contentAlignment = Alignment.Center) { Icon(Ic.Mic, We.onPrimary, 22.dp) }
-}
-
 @Composable
 fun DayChip(t: String) {
     Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
@@ -473,12 +467,13 @@ fun DayChip(t: String) {
 fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit) {
     val r = UiPrefs.bubble.intValue.dp
     val shape = RoundedCornerShape(r, r, if (mine && lastInRun) 4.dp else r, if (!mine && lastInRun) 4.dp else r)
-    val fg = if (mine) We.onSent else We.onRecv
+    val bStyle = UiPrefs.bubbleStyle.intValue
+    val fg = Bubbles.fgFor(bStyle, mine) ?: if (mine) We.onSent else We.onRecv
     val isSticker = (m.type == "sticker" || m.type == "gif") && !m.deleted
     val scale = UiPrefs.textScale.floatValue
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start, modifier = Modifier.widthIn(max = 300.dp)) {
-            Column(Modifier.then(if (isSticker) Modifier else Modifier.clip(shape).background(if (mine) We.sent else We.recv))
+            Column(Modifier.then(if (isSticker) Modifier else Modifier.bubbleLook(mine, shape))
                 .combinedClickable(onClick = onClick, onLongClick = onLong).then(if (isSticker || m.type == "image") Modifier else Modifier.padding(start = 13.dp, end = 13.dp, top = 8.dp, bottom = 7.dp))) {
                 if (showName) { val u by Repo.user(m.from).collectAsState(); Text(u?.name ?: "", color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold), modifier = if (m.type == "image") Modifier.padding(10.dp, 6.dp, 10.dp, 0.dp) else Modifier) }
                 if (quoted != null && !m.deleted) {

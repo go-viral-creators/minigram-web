@@ -218,6 +218,19 @@ object Repo {
     }
 
     fun setPinned(id: String, v: Boolean) { db.getReference("user_chats/$uid/$id/pinned").setValue(v) }
+    fun muteDm(peer: String, v: Boolean) {
+        val b = "user_chats/$uid/${dmId(peer)}"
+        db.getReference(b).updateChildren(mapOf("type" to "dm", "peer" to peer, "muted" to v))
+    }
+
+    /** Turns a scanned/pasted wetalks:// link into a screen: wetalks://u/<username> or wetalks://c/<handle>. */
+    suspend fun resolveLink(text: String): com.kafisir.wetalks.ui.Route? {
+        val m = Regex("""wetalks://([uc])/([A-Za-z0-9_]{3,32})""").find(text.trim()) ?: return null
+        val key = m.groupValues[2].lowercase()
+        return if (m.groupValues[1] == "u") db.getReference("usernames/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RProfile(it) }
+        else db.getReference("channel_handles/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RChannelInfo(it) }
+    }
+
     fun setMuted(id: String, v: Boolean) { db.getReference("user_chats/$uid/$id/muted").setValue(v) }
     fun removeChat(id: String) { db.getReference("user_chats/$uid/$id").removeValue() }
 
@@ -644,12 +657,20 @@ object Repo {
         }
     }
 
+    /** Accepts a handle, @handle, a name, or a link such as wetalks://c/handle or https://…/c/handle. */
     suspend fun searchChannels(q: String): List<Channel> {
-        val t = q.trim().lowercase().removePrefix("@")
-        val src = if (t.isEmpty()) db.getReference("channels").orderByChild("subCount").limitToLast(30).get().await()
-        else db.getReference("channels").orderByChild("handleLower").startAt(t).endAt(t + "").limitToFirst(30).get().await()
-        val list = src.children.mapNotNull { parseChannel(it.key!!, it) }
-        return if (t.isEmpty()) list.sortedByDescending { it.subCount } else list
+        var t = q.trim().lowercase()
+        Regex("""(?:wetalks://c/|/c/|t\.me/|wetalks\.app/)([a-z0-9_]{3,32})""").find(t)?.let { t = it.groupValues[1] }
+        t = t.removePrefix("@")
+        if (t.isEmpty()) {
+            val src = db.getReference("channels").orderByChild("subCount").limitToLast(30).get().await()
+            return src.children.mapNotNull { parseChannel(it.key!!, it) }.sortedByDescending { it.subCount }
+        }
+        val end = t + "\uf8ff"
+        val byHandle = db.getReference("channels").orderByChild("handleLower").startAt(t).endAt(end).limitToFirst(20).get().await()
+        val byName = try { db.getReference("channels").orderByChild("nameLower").startAt(t).endAt(end).limitToFirst(20).get().await().children.toList() } catch (e: Exception) { emptyList() }
+        val seen = HashSet<String>()
+        return (byHandle.children.toList() + byName).mapNotNull { c -> if (seen.add(c.key!!)) parseChannel(c.key!!, c) else null }
     }
 
     suspend fun isSubscribed(cid: String) = db.getReference("channel_subs/$cid/$uid").get().await().exists()

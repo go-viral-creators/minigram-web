@@ -13,6 +13,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
+import com.kafisir.wetalks.voice.VoiceFx
+import androidx.compose.ui.graphics.Color
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -89,29 +93,85 @@ fun AppLockScreen() {
 @Composable
 fun ChatSettingsScreen() {
     val ctx = LocalContext.current
-    val scale by UiPrefs.textScale; val radius by UiPrefs.bubble; val wall by UiPrefs.wallpaper
+    val scale by UiPrefs.textScale; val radius by UiPrefs.bubble; val wall by UiPrefs.wallpaper; val dim by UiPrefs.dim; val style by UiPrefs.bubbleStyle
+    val blur by UiPrefs.blur; val ver by UiPrefs.customVer
+    val hasCustom = remember(ver) { UiPrefs.dir?.let { java.io.File(it, "chat_bg.jpg").exists() } == true }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u: Uri? ->
+        if (u != null) {
+            val r = Pics.jpegFrom(ctx, u, 1440, 82)
+            if (r != null && UiPrefs.dir != null) { Walls.saveCustom(UiPrefs.dir!!, r.first); UiPrefs.customVer.intValue++; UiPrefs.setWallpaper(ctx, Walls.CUSTOM) } else Nav.say("Could not use that picture")
+        }
+    }
+    val locked = { what: String -> Nav.say("$what is locked · coming soon with WeTalks Plus") }
+    val vfxAi by VoiceFx.ai; val vfxPolish by VoiceFx.polish; val linkPrev by UiPrefs.linkPreview; val compact by UiPrefs.compact
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Chat settings", onBack = { Nav.pop() })
         Column(Modifier.verticalScroll(rememberScrollState())) {
             // live preview
-            val bg = when (wall) { 1 -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.primary.copy(alpha = .10f), We.bg)); 2 -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.primary.copy(alpha = .22f), We.primary.copy(alpha = .06f))); else -> androidx.compose.ui.graphics.SolidColor(We.bg) }
-            Column(Modifier.fillMaxWidth().background(bg).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Hello! How is the new design?", color = We.onRecv, style = T.body.copy(fontSize = (15 * scale).sp), modifier = Modifier.clip(RoundedCornerShape(radius.dp)).background(We.recv).padding(12.dp, 8.dp))
-                Text("Looks great, love it", color = We.onSent, style = T.body.copy(fontSize = (15 * scale).sp), modifier = Modifier.align(Alignment.End).clip(RoundedCornerShape(radius.dp)).background(We.sent).padding(12.dp, 8.dp))
+            Box(Modifier.fillMaxWidth().height(170.dp).wallpaperFor(wall, dim, blur, ver)) {
+                Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center) {
+                    val shapeR = RoundedCornerShape(radius.dp)
+                    Text("Hello! How is the new design?", color = Bubbles.fgFor(style, false) ?: We.onRecv, style = T.body.copy(fontSize = (15 * scale).sp), modifier = Modifier.bubbleLook(false, shapeR).padding(12.dp, 8.dp))
+                    Spacer(Modifier.height(if (compact) 4.dp else 10.dp))
+                    Text("Looks great, love it", color = Bubbles.fgFor(style, true) ?: We.onSent, style = T.body.copy(fontSize = (15 * scale).sp), modifier = Modifier.align(Alignment.End).bubbleLook(true, shapeR).padding(12.dp, 8.dp))
+                }
             }
             SectionLabel("Text size")
             Slider(scale, { UiPrefs.setTextScale(ctx, it) }, valueRange = .85f..1.4f, modifier = Modifier.padding(horizontal = 20.dp), colors = SliderDefaults.colors(thumbColor = We.primary, activeTrackColor = We.primary))
             SectionLabel("Bubble corners")
             Slider(radius.toFloat(), { UiPrefs.setBubble(ctx, it.toInt()) }, valueRange = 4f..24f, modifier = Modifier.padding(horizontal = 20.dp), colors = SliderDefaults.colors(thumbColor = We.primary, activeTrackColor = We.primary))
-            SectionLabel("Chat background")
-            Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                listOf("Plain", "Soft", "Tinted").forEachIndexed { i, n ->
-                    val b = when (i) { 1 -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.primary.copy(alpha = .10f), We.bg)); 2 -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.primary.copy(alpha = .22f), We.primary.copy(alpha = .06f))); else -> androidx.compose.ui.graphics.SolidColor(We.bg) }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { UiPrefs.setWallpaper(ctx, i) }) {
-                        Box(Modifier.size(78.dp, 100.dp).clip(RoundedCornerShape(14.dp)).background(b).border(2.dp, if (wall == i) We.primary else We.line, RoundedCornerShape(14.dp)))
-                        Text(n, color = if (wall == i) We.primary else We.text2, style = T.small, modifier = Modifier.padding(top = 6.dp))
+            Row2(Ic.Type, "Compact messages", "Less space between bubbles", trailing = { Toggle(compact) { UiPrefs.setCompact(ctx, it) } })
+
+            SectionLabel("Bubble style")
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Bubbles.all.forEachIndexed { i, b ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable { if (b.locked) locked("${b.name} bubbles") else UiPrefs.setBubbleStyle(ctx, i) }) {
+                        Box(Modifier.size(96.dp, 66.dp).clip(RoundedCornerShape(14.dp)).background(We.field).border(2.dp, if (style == i) We.primary else Color.Transparent, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                            Box(Modifier.bubbleLook(true, RoundedCornerShape(12.dp), i).size(66.dp, 32.dp), contentAlignment = Alignment.Center) { Text("Hi", color = Bubbles.fgFor(i, true) ?: We.onSent, style = T.small) }
+                            if (b.locked) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(We.text.copy(alpha = .7f)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, We.surface, 11.dp) }
+                        }
+                        Text(b.name, color = if (style == i) We.primary else We.text2, style = T.tiny, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
                     }
                 }
+            }
+
+            SectionLabel("Chat background")
+            val tiles = buildList<Int> { add(-1); if (hasCustom) add(Walls.CUSTOM); addAll(Walls.all.indices) }
+            tiles.chunked(4).forEach { row ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { id ->
+                        val w = Walls.all.getOrNull(id)
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(Modifier.fillMaxWidth().aspectRatio(.74f).clip(RoundedCornerShape(14.dp)).then(if (id >= 0) Modifier.wallpaperFor(id, 0f, 0, ver) else Modifier.background(We.field))
+                                .border(2.dp, if (wall == id) We.primary else We.line, RoundedCornerShape(14.dp))
+                                .clickable { when { id == -1 -> pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)); w?.locked == true -> locked("${w.name} background"); else -> UiPrefs.setWallpaper(ctx, id) } },
+                                contentAlignment = Alignment.Center) {
+                                if (id == -1) Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Image, We.primary, 26.dp); Text("My photo", color = We.primary, style = T.tiny) }
+                                if (w?.locked == true) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(Color(0xB0000000)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, Color.White, 11.dp) }
+                                if (wall == id) Box(Modifier.align(Alignment.BottomEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(We.primary), contentAlignment = Alignment.Center) { Icon(Ic.Check, We.onPrimary, 13.dp) }
+                            }
+                            Text(when (id) { -1 -> "Gallery"; Walls.CUSTOM -> "Mine"; else -> w!!.name }, color = if (wall == id) We.primary else We.text2, style = T.tiny, maxLines = 1, modifier = Modifier.padding(top = 3.dp))
+                        }
+                    }
+                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            SectionLabel("Dim background")
+            Slider(dim, { UiPrefs.setDim(ctx, it) }, valueRange = 0f..0.6f, modifier = Modifier.padding(horizontal = 20.dp), colors = SliderDefaults.colors(thumbColor = We.primary, activeTrackColor = We.primary))
+            if (wall == Walls.CUSTOM) {
+                Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 6.dp).clickable { locked("Blur") }, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Ic.Lock, We.text2, 16.dp); Spacer(Modifier.width(8.dp)); Text("Blur my photo", color = We.text2, style = T.body, modifier = Modifier.weight(1f)); Text("Plus", color = We.primary, style = T.tiny)
+                }
+            }
+
+            SectionLabel("Voice notes")
+            Row2(Ic.Mic, "AI noise & echo removal", "DeepFilterNet3 cleans your voice on this phone while you record. Turn off to send the raw sound.", trailing = { Toggle(vfxAi) { VoiceFx.setAi(ctx, it) } })
+            Row2(Ic.Audio, "Volume normalisation", "Evens out loud and quiet speech and finishes the sound (EQ + limiter).", trailing = { Toggle(vfxPolish) { VoiceFx.setPolish(ctx, it) } })
+            SectionLabel("Links")
+            Row2(Ic.Link, "Link previews", "Your phone fetches the page to build the preview card. Turn off to send plain links.", trailing = { Toggle(linkPrev) { UiPrefs.setLinkPreview(ctx, it) } })
+            SectionLabel("More with WeTalks Plus")
+            listOf("A different background for every chat", "Animated backgrounds", "Blur & parallax effects").forEach { t ->
+                Row2(Ic.Lock, t, "Coming soon", onClick = { locked(t) })
             }
             Spacer(Modifier.height(30.dp))
         }

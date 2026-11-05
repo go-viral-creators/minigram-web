@@ -76,5 +76,9 @@ object Ic {
     val VideoOff: ImageVector by lazy { icon("VideoOff", "M3 7h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1ZM15 11l6-3v8l-6-3M3 3l18 18") }
     val MicOff: ImageVector by lazy { icon("MicOff", "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0M12 18v3M3 3l18 18") }
     val Speaker: ImageVector by lazy { icon("Speaker", "M4 9v6h4l5 4V5L8 9H4ZM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11") }
+    val Scan: ImageVector by lazy { icon("Scan", "M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16") }
+    val Qr: ImageVector by lazy { icon("Qr", "M4 4h6v6H4ZM14 4h6v6h-6ZM4 14h6v6H4ZM14 14h2v2h-2ZM18 14h2M14 18h2v2M18 18h2v2") }
+    val Link: ImageVector by lazy { icon("Link", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1") }
+    val Audio: ImageVector by lazy { icon("Audio", "M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2") }
     val Pause2: ImageVector by lazy { icon("Pause2", "M9 5v14M15 5v14") }
 }

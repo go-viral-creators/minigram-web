@@ -31,57 +31,10 @@ import com.kafisir.wetalks.data.ChatRef
 import com.kafisir.wetalks.data.Msg
 import com.kafisir.wetalks.data.Repo
 import com.kafisir.wetalks.ui.*
+import com.kafisir.wetalks.voice.Recorder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
-
-/** AAC recorder (mono, 32 kbps). Samples the loudness every 100 ms so the message can show a waveform. */
-class Recorder(private val ctx: Context) {
-    private val file = File(ctx.cacheDir, "rec_${System.nanoTime()}.m4a")
-    private var rec: MediaRecorder? = null
-    private val amps = ArrayList<Int>()
-    var startedAt = 0L; private set
-
-    @Suppress("DEPRECATION")
-    fun start() {
-        rec = (if (android.os.Build.VERSION.SDK_INT >= 31) MediaRecorder(ctx) else MediaRecorder()).apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC); setOutputFormat(MediaRecorder.OutputFormat.MPEG_4); setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setAudioChannels(1); setAudioSamplingRate(16000); setAudioEncodingBitRate(32000); setMaxDuration(300_000)
-            setOutputFile(file.absolutePath); prepare(); start()
-        }
-        startedAt = System.currentTimeMillis()
-    }
-
-    /** Current loudness 0..1 (also recorded for the waveform). */
-    fun level(): Float {
-        val a = try { rec?.maxAmplitude ?: 0 } catch (e: Exception) { 0 }
-        amps.add(a)
-        return (a / 18000f).coerceIn(0f, 1f)
-    }
-
-    class Result(val bytes: ByteArray, val seconds: Int, val wave: List<Int>)
-
-    fun finish(): Result? {
-        val secs = ((System.currentTimeMillis() - startedAt) / 1000).toInt()
-        return try {
-            rec?.stop(); rec?.release(); rec = null
-            val bytes = file.readBytes(); file.delete()
-            Result(bytes, secs, downsample(amps))
-        } catch (e: Exception) { rec?.release(); rec = null; file.delete(); null }
-    }
-
-    fun cancel() { try { rec?.stop() } catch (_: Exception) {}; rec?.release(); rec = null; file.delete() }
-
-    private fun downsample(a: List<Int>, n: Int = 40): List<Int> {
-        if (a.isEmpty()) return List(n) { 2 }
-        val peak = (a.maxOrNull() ?: 1).coerceAtLeast(1)
-        return List(n) { i ->
-            val from = i * a.size / n; val to = ((i + 1) * a.size / n).coerceAtLeast(from + 1).coerceAtMost(a.size)
-            val m = a.subList(from, to).maxOrNull() ?: 0
-            (m * 31f / peak).toInt().coerceIn(2, 31)
-        }
-    }
-}
 
 @Composable
 fun Waveform(bars: List<Int>, progress: Float, played: Color, idle: Color, modifier: Modifier = Modifier, onSeek: ((Float) -> Unit)? = null) {

@@ -50,7 +50,7 @@ fun CallScreen() {
     val answerPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
         val micOk = ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val camOk = !Calls.video || ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (micOk && camOk) scope.launch { try { Calls.accept() } catch (e: Exception) { Nav.say(e.message ?: "Could not answer") } }
+        if (micOk && camOk) Repo.scope.launch { try { Calls.accept() } catch (e: Exception) { Nav.say(e.message ?: "Could not answer") } }
         else { Nav.say("Allow microphone" + (if (Calls.video) " and camera" else "") + " to answer"); Calls.decline() }
     }
     fun answer() {
@@ -140,5 +140,26 @@ private fun VideoView(track: VideoTrack?, mirror: Boolean, overlay: Boolean, mod
         val v = view
         if (track != null && v != null) track.addSink(v)
         onDispose { if (track != null && v != null) try { track.removeSink(v) } catch (_: Exception) {} }
+    }
+}
+
+
+/** Asks for mic (+camera) permission, then rings [peer]. Returns a function(video: Boolean). */
+@Composable
+fun rememberCallStarter(peer: String): (Boolean) -> Unit {
+    val ctx = LocalContext.current
+    var wantVideo by remember { mutableStateOf(false) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
+        val micOk = ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val camOk = !wantVideo || ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (!micOk || !camOk) Nav.say(if (!micOk) "Microphone permission is needed for calls" else "Camera permission is needed for video calls")
+        else Repo.scope.launch { try { Calls.start(peer, wantVideo) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not start the call") } }
+    }
+    return { v ->
+        if (Calls.phase != CallPhase.IDLE) Nav.say("You're already in a call")
+        else {
+            wantVideo = v
+            launcher.launch(buildList { add(Manifest.permission.RECORD_AUDIO); if (v) add(Manifest.permission.CAMERA); if (android.os.Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS) }.toTypedArray())
+        }
     }
 }

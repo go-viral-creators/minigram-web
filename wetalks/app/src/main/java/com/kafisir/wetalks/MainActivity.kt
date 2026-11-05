@@ -41,7 +41,7 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this) }
+    override fun onCreate() { super.onCreate(); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -52,8 +52,10 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setShowWhenLocked(true); setTurnScreenOn(true)
+        intent?.data?.let { Nav.pendingLink.value = it.toString() }
         setContent { WeTheme { App() } }
     }
+    override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); intent.data?.let { Nav.pendingLink.value = it.toString() } }
 }
 
 @Composable
@@ -76,6 +78,8 @@ fun App() {
             val ver by Nav.profileVersion
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
             LaunchedEffect(uid, me) { if (me == true) { Repo.watchBlocks(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } }
+            val link by Nav.pendingLink
+            LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) Repo.setOnline(true) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (me == true) Repo.setOnline(false) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true }
@@ -129,6 +133,7 @@ fun Main() {
                 RChatSettings -> ChatSettingsScreen()
                 RStorage -> StorageScreen()
                 RAppLock -> AppLockScreen()
+                is RQr -> QrScreen(r)
             }
         }
     }

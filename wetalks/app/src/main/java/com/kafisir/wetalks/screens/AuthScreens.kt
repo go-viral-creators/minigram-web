@@ -165,7 +165,7 @@ fun AuthScreen(onPhone: () -> Unit) {
 fun PhoneScreen(onBack: () -> Unit) {
     val act = LocalContext.current as Activity
     val scope = rememberCoroutineScope()
-    var cc by remember { mutableStateOf("+91") }
+    var country by remember { mutableStateOf(com.kafisir.wetalks.data.Countries.guess(act)) }
     var num by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var vid by remember { mutableStateOf<String?>(null) }
@@ -175,8 +175,9 @@ fun PhoneScreen(onBack: () -> Unit) {
     LaunchedEffect(vid, left) { if (vid != null && left > 0) { delay(1000); left-- } }
 
     fun send() {
-        val full = cc.trim() + num.filter { it.isDigit() }
-        if (num.filter { it.isDigit() }.length < 6) { error = "Enter a valid phone number"; return }
+        val bad = com.kafisir.wetalks.data.Countries.validate(country, num)
+        if (bad != null) { error = bad; return }
+        val full = com.kafisir.wetalks.data.Countries.e164(country, num)
         busy = true; error = null
         Repo.startPhone(act, full,
             onCode = { id -> vid = id; busy = false; left = 45 },
@@ -190,14 +191,11 @@ fun PhoneScreen(onBack: () -> Unit) {
             if (vid == null) {
                 Text("We will text you a 6-digit code to confirm your number.", color = We.text2, style = T.body)
                 Spacer(Modifier.height(22.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Field(cc, { cc = it }, "Code", Modifier.width(96.dp), keyboard = KeyboardType.Phone)
-                    Field(num, { num = it; error = null }, "Phone number", Modifier.weight(1f), keyboard = KeyboardType.Phone, error = error)
-                }
+                PhoneField(country, { country = it; num = com.kafisir.wetalks.data.Countries.clean(it, num); error = null }, num, { num = it; error = null }, error = error)
                 Spacer(Modifier.height(24.dp))
                 PrimaryButton("Send code", loading = busy, onClick = ::send)
             } else {
-                Text("Enter the code sent to $cc ${num.trim()}", color = We.text2, style = T.body)
+                Text("Enter the code sent to +${country.dial} ${num.trim()}", color = We.text2, style = T.body)
                 Spacer(Modifier.height(22.dp))
                 Field(code, { code = it.filter { c -> c.isDigit() }.take(6); error = null }, "6-digit code", keyboard = KeyboardType.NumberPassword, error = error)
                 Spacer(Modifier.height(24.dp))
@@ -220,7 +218,11 @@ fun ProfileSetupScreen(existing: com.kafisir.wetalks.data.User?, onDone: () -> U
     var name by remember { mutableStateOf(existing?.name ?: Nav.pendingName ?: Repo.auth.currentUser?.displayName ?: "") }
     var username by remember { mutableStateOf(existing?.username ?: "") }
     var about by remember { mutableStateOf(existing?.about ?: "") }
-    var phone by remember { mutableStateOf(ctx.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE).getString("my_phone", "") ?: "") }
+    val savedPhone = remember { ctx.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE).getString("my_phone", "") ?: "" }
+    val parsed = remember { com.kafisir.wetalks.data.Countries.parse(savedPhone) }
+    var country by remember { mutableStateOf(parsed?.first ?: com.kafisir.wetalks.data.Countries.guess(ctx)) }
+    var phone by remember { mutableStateOf(parsed?.second ?: savedPhone.filter { it.isDigit() }.takeLast(10)) }
+    var phoneErr by remember { mutableStateOf<String?>(null) }
     var photo by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var ok by remember { mutableStateOf(existing != null) }
@@ -257,19 +259,22 @@ fun ProfileSetupScreen(existing: com.kafisir.wetalks.data.User?, onDone: () -> U
                 Spacer(Modifier.height(14.dp))
                 Field(about, { about = it.take(140) }, "Bio", leading = Ic.Info)
                 Spacer(Modifier.height(14.dp))
-                Field(phone, { phone = it.filter { c -> c.isDigit() || c == '+' || c == ' ' }.take(18) }, "Phone number (optional)", leading = Ic.Phone, keyboard = KeyboardType.Phone)
+                PhoneField(country, { country = it; phone = com.kafisir.wetalks.data.Countries.clean(it, phone); phoneErr = null }, phone, { phone = it; phoneErr = null }, label = "Phone number (optional)", error = phoneErr, hint = false)
                 Text("Lets friends who have your number find you. Only a one-way hash is stored; your number is never shown.", color = We.text2, style = T.small, modifier = Modifier.padding(start = 2.dp, top = 6.dp))
                 Spacer(Modifier.height(24.dp))
             }
         }
         Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp).navigationBarsPadding()) {
             PrimaryButton(if (existing == null) "Continue" else "Save changes", loading = busy, enabled = name.isNotBlank() && ok, onClick = {
+                val pe = if (phone.isEmpty()) null else com.kafisir.wetalks.data.Countries.validate(country, phone)
+                if (pe != null) { phoneErr = pe; return@PrimaryButton }
                 scope.launch {
                     busy = true
                     val err = Repo.saveProfile(name, username, about, photo)
-                    if (err == null && phone.filter { it.isDigit() }.length >= 7) {
-                        try { Repo.registerPhone(phone) } catch (_: Exception) {}
-                        ctx.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE).edit().putString("my_phone", phone).apply()
+                    if (err == null && phone.isNotEmpty()) {
+                        val full = com.kafisir.wetalks.data.Countries.e164(country, phone)
+                        try { Repo.registerPhone(full) } catch (_: Exception) {}
+                        ctx.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE).edit().putString("my_phone", full).apply()
                     }
                     busy = false
                     if (err != null) Nav.say(err) else { Nav.pendingName = null; Nav.profileVersion.intValue++; onDone() }

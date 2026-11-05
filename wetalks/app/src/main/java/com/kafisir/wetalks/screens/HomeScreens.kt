@@ -52,9 +52,10 @@ fun HomeScreen() {
     val blocked by Repo.blockedUsers.collectAsState()
     val visible = chats.filter { !(it.ref.kind == Kind.DM && it.ref.peer in blocked) }
     val titles = listOf("WeTalks", "Groups", "Channels", "Me")
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar(titles[tab], actions = {
-            if (tab == 0) IconBtn(Ic.Search, We.onAppBar, { Nav.push(RNewChat) })
+            if (tab == 0) { IconBtn(Ic.Scan, We.onAppBar, { scanQr(ctx) }); IconBtn(Ic.Search, We.onAppBar, { Nav.push(RNewChat) }) }
             if (tab == 2) IconBtn(Ic.Search, We.onAppBar, { Nav.push(RDiscover) })
         })
         Box(Modifier.weight(1f)) {
@@ -163,14 +164,19 @@ fun DeleteChatDialog(ref: ChatRef, name: String, onDismiss: () -> Unit, onDone: 
 @Composable
 fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     val (name, photo, seed) = titleOf(c.ref)
-    val preview by produceState("", c.lastBody, c.lastType) {
+    val chan = if (c.ref.kind == Kind.CHANNEL) Repo.channel(c.ref.id).collectAsState().value else null
+    val saved = c.ref.kind == Kind.DM && c.ref.peer == Repo.uid
+    val shownTs = if (chan != null && chan.lastTs > c.lastTs) chan.lastTs else c.lastTs
+    val preview by produceState("", c.lastBody, c.lastType, chan?.lastPreview) {
+        if (chan != null && c.lastBody.isEmpty()) { value = chan.lastPreview; return@produceState }
         value = if (c.lastBody.isEmpty()) "" else {
             val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
             if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else if (m.type == "call") callLabel(m, c.lastFrom == Repo.uid) else previewText(m.type, m.text))
         }
     }
     Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLong).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Avatar(name, photo, 52.dp, seed)
+        if (saved) Box(Modifier.size(52.dp).clip(CircleShape).background(We.primary), contentAlignment = Alignment.Center) { Icon(Ic.Bookmark, We.onPrimary, 26.dp) }
+        else Avatar(name, photo, 52.dp, seed)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -178,7 +184,7 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
                 if (c.ref.kind == Kind.CHANNEL) { Icon(Ic.Mega, We.text2, 15.dp); Spacer(Modifier.width(4.dp)) }
                 Text(name, color = We.text, style = T.name, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (c.pinned) { Icon(Ic.Pin, We.text2, 14.dp); Spacer(Modifier.width(6.dp)) }
-                Text(timeShort(c.lastTs), color = if (c.unread > 0 && !c.muted) We.primary else We.text2, style = T.tiny)
+                Text(if (shownTs > 0) timeShort(shownTs) else "", color = if (c.unread > 0 && !c.muted) We.primary else We.text2, style = T.tiny)
             }
             Spacer(Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -211,6 +217,7 @@ fun MeScreen() {
             }
             Divider()
             Row2(Ic.Bookmark, "Saved Messages", "Notes, photos and voice for yourself", onClick = { Nav.push(RChat(Repo.dmRef(Repo.uid))) })
+            Row2(Ic.Qr, "My QR code", "Let friends scan to message you", onClick = { Repo.user(Repo.uid).value?.let { Nav.push(RQr(it.name, "@" + it.username, it.photo, Repo.uid, "wetalks://u/" + it.username)) } })
             Row2(Ic.UserPlus, "New group", "Chat with several people", onClick = { Nav.push(RNewGroup) })
             Row2(Ic.Mega, "New channel", "Broadcast to followers", onClick = { Nav.push(RNewChannel) })
             SectionLabel("Settings")
