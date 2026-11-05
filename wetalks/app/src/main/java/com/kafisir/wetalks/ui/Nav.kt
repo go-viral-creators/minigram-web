@@ -26,6 +26,9 @@ data class RBrowser(val url: String) : Route
 data object RChatSettings : Route
 data object RStorage : Route
 data object RAppLock : Route
+data object RLanguage : Route
+data class RGroupSettings(val id: String) : Route
+data class RChannelSettings(val id: String) : Route
 data class RQr(val title: String, val subtitle: String, val photo: String, val seed: String, val link: String) : Route
 
 object Nav {
@@ -48,5 +51,5 @@ object Nav {
     fun push(r: Route) { stack.add(r) }
     fun pop(): Boolean { if (stack.isEmpty()) return false; stack.removeAt(stack.lastIndex); return true }
     fun reset() { stack.clear(); tab.intValue = 0 }
-    fun say(s: String) { toast.value = s }
+    fun say(s: String) { toast.value = I18n.t(s) }
 }

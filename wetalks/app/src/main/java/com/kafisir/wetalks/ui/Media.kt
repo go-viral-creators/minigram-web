@@ -51,3 +51,25 @@ object StickerPacks {
     val reactions = listOf("hand_like", "big_heart", "big_star")
     val words = listOf("word_ok", "word_lol", "word_thanks", "word_wow_t", "word_haan", "word_nahi", "word_chai", "word_party_t", "word_love_t", "word_gn", "word_gm", "word_omw", "word_sahi", "word_arre")
 }
+
+object Gallery {
+    /** Saves image bytes into Pictures/WeTalks so it shows up in the phone's gallery. */
+    fun save(ctx: Context, bytes: ByteArray, mime: String = "image/jpeg"): Boolean = try {
+        val ext = when { mime.contains("png") -> "png"; mime.contains("gif") -> "gif"; mime.contains("webp") -> "webp"; else -> "jpg" }
+        val name = "WeTalks_${System.currentTimeMillis()}.$ext"
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            val v = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name); put(android.provider.MediaStore.Images.Media.MIME_TYPE, mime)
+                put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/WeTalks"); put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            val uri = ctx.contentResolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v)!!
+            ctx.contentResolver.openOutputStream(uri)!!.use { it.write(bytes) }
+            v.clear(); v.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0); ctx.contentResolver.update(uri, v, null, null)
+        } else {
+            val dir = java.io.File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES), "WeTalks"); dir.mkdirs()
+            val f = java.io.File(dir, name); f.writeBytes(bytes)
+            android.media.MediaScannerConnection.scanFile(ctx, arrayOf(f.absolutePath), arrayOf(mime), null)
+        }
+        true
+    } catch (e: Exception) { false }
+}

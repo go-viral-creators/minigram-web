@@ -219,3 +219,44 @@ test('calls: only the two people see the signalling, nobody can ring as someone 
   await assertSucceeds(remove(ref(db(B), 'incoming_calls/bob/c1')));
   await assertSucceeds(remove(ref(db(A), 'calls/c1')));
 });
+
+test('group permissions: members obey what admins switch off, admins always can', async () => {
+  await assertSucceeds(set(ref(db(B), 'messages/g1/a'), { from: B, ts: 1, type: 'text', body: 'x' }));
+  await assertSucceeds(update(ref(db(A), 'groups/g1'), { 'perms/image': false, 'perms/voice': false }));
+  await assertFails(set(ref(db(B), 'messages/g1/b'), { from: B, ts: 2, type: 'image', body: 'x' }));
+  await assertFails(set(ref(db(B), 'messages/g1/b2'), { from: B, ts: 2, type: 'voice', body: 'x' }));
+  await assertSucceeds(set(ref(db(B), 'messages/g1/c'), { from: B, ts: 3, type: 'text', body: 'x' }));
+  await assertSucceeds(set(ref(db(A), 'messages/g1/d'), { from: A, ts: 4, type: 'image', body: 'x' }));
+  await assertFails(update(ref(db(B), 'groups/g1'), { 'perms/image': true }));          // members cannot change the rules
+  await assertSucceeds(set(ref(db(A), 'groups/g1/perms/send'), false));
+  await assertFails(set(ref(db(B), 'messages/g1/e'), { from: B, ts: 5, type: 'text', body: 'x' }));
+  await assertSucceeds(set(ref(db(A), 'messages/g1/f'), { from: A, ts: 6, type: 'text', body: 'x' }));
+});
+
+test('group slow mode and member pinning', async () => {
+  await assertSucceeds(set(ref(db(A), 'groups/g1/slow'), 60));
+  await assertSucceeds(update(ref(db(B)), { 'messages/g1/s1': { from: B, ts: 1, type: 'text', body: 'x' }, 'slow/g1/bob': Date.now() + 1000 }));
+  await assertFails(set(ref(db(B), 'messages/g1/s2'), { from: B, ts: 2, type: 'text', body: 'x' }));
+  await assertSucceeds(set(ref(db(A), 'messages/g1/s3'), { from: A, ts: 3, type: 'text', body: 'x' }));   // admin is exempt
+  await assertFails(set(ref(db(B), 'pins/g1/s1'), 1));
+  await assertSucceeds(set(ref(db(A), 'groups/g1/perms/pin'), true));
+  await assertSucceeds(set(ref(db(B), 'pins/g1/s1'), 1));
+});
+
+test('channel: followers can only post when the owner allows it', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'channel_subs/c1/bob'), true); });
+  await assertFails(set(ref(db(B), 'messages/c1/f1'), { from: B, ts: 1, type: 'text', body: 'x' }));
+  await assertFails(set(ref(db(B), 'channels/c1/perms/followers'), true));                 // not the owner
+  await assertSucceeds(update(ref(db(A), 'channels/c1'), { 'perms/followers': true, 'perms/image': false, priv: true }));
+  await assertSucceeds(update(ref(db(B)), { 'messages/c1/f2': { from: B, ts: 2, type: 'text', body: 'x' }, 'channels/c1/lastTs': Date.now(), 'channels/c1/lastPreview': 'x' }));
+  await assertFails(set(ref(db(B), 'messages/c1/f3'), { from: B, ts: 3, type: 'image', body: 'x' }));
+  await assertFails(set(ref(db(C), 'messages/c1/f4'), { from: C, ts: 4, type: 'text', body: 'x' }));   // not a follower
+  await assertSucceeds(set(ref(db(A), 'channels/c1/admins/bob'), true));                      // owner promotes
+  await assertSucceeds(set(ref(db(B), 'messages/c1/f5'), { from: B, ts: 5, type: 'image', body: 'x' }));
+});
+
+test('a group member with the pin permission still cannot delete other people\'s messages', async () => {
+  await assertSucceeds(set(ref(db(A), 'messages/g1/x1'), { from: A, ts: 1, type: 'text', body: 'x' }));
+  await assertSucceeds(set(ref(db(A), 'groups/g1/perms/pin'), true));
+  await assertFails(remove(ref(db(B), 'messages/g1/x1')));
+});

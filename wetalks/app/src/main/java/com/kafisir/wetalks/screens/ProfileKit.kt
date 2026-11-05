@@ -16,7 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
+import com.kafisir.wetalks.ui.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -354,6 +354,7 @@ fun ChannelInfoScreen(id: String) {
                     else Tile(Ic.Plus, "Join") { scope.launch { try { Repo.subscribe(id); joined = true } catch (e: Exception) { Nav.say("Could not join") } } })
                 add(Tile(Ic.Share, "Share") { shareText(ctx, "Join ${ch.name} on WeTalks: $link") })
                 add(Tile(Ic.Qr, "QR code") { Nav.push(qr) })
+                if (owner) add(Tile(Ic.Sliders, "Settings") { Nav.push(RChannelSettings(id)) })
                 if (!owner && isSub) add(Tile(Ic.Logout, "Leave", We.danger) { scope.launch { Repo.unsubscribe(id); joined = false; Nav.say("You left the channel") } })
             })
             Spacer(Modifier.height(14.dp))
@@ -397,6 +398,7 @@ fun GroupInfoScreen(id: String) {
                 add(Tile(Ic.Chat, "Message") { Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.GROUP))) })
                 add(Tile(if (muted) Ic.Bell else Ic.BellOff, if (muted) "Unmute" else "Mute") { Repo.setMuted(id, !muted) })
                 if (admin) add(Tile(Ic.UserPlus, "Add") { Nav.push(RAddMembers(id)) })
+                if (admin) add(Tile(Ic.Sliders, "Settings") { Nav.push(RGroupSettings(id)) })
                 add(Tile(Ic.Logout, "Leave", We.danger) { confirmLeave = true })
             })
             Spacer(Modifier.height(14.dp))

@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
+import com.kafisir.wetalks.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -224,6 +224,7 @@ fun MeScreen() {
             Row2(Ic.Shield, "Privacy & security", "Last seen, read receipts, blocked users", onClick = { Nav.push(RPrivacy) })
             Row2(Ic.Fingerprint, "App lock", if (AppLock.enabled) "On · fingerprint or screen lock" else "Off", onClick = { Nav.push(RAppLock) })
             Row2(Ic.Type, "Chat settings", "Text size, bubble shape, wallpaper", onClick = { Nav.push(RChatSettings) })
+            Row2(Ic.Globe, "Language", I18n.byCode(I18n.lang).native + " · translate to " + I18n.byCode(I18n.translateTo).english, onClick = { Nav.push(RLanguage) })
             Row2(Ic.Palette, "Appearance", (when (ThemeMode.mode.intValue) { 1 -> "Light"; 2 -> "Dark"; else -> "Follow system" }) + " · " + UiPrefs.accents[UiPrefs.accent.intValue].first, onClick = { Nav.push(RAppearance) })
             Row2(Ic.Database, "Data & storage", "Cache, downloaded media", onClick = { Nav.push(RStorage) })
             SectionLabel("WeTalks")

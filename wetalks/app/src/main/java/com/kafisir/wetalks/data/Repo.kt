@@ -103,11 +103,13 @@ object Repo {
 
     private fun parseGroup(id: String, s: DataSnapshot) = if (!s.exists()) null else Group(
         id, s.str("name"), s.str("about"), s.str("photo"), s.str("owner"), (s.lng("kv").takeIf { it > 0 } ?: 1L).toInt(),
-        s.child("members").children.associate { it.key!! to (it.getValue(String::class.java) ?: "member") })
+        s.child("members").children.associate { it.key!! to (it.getValue(String::class.java) ?: "member") },
+        s.child("perms").children.associate { it.key!! to (it.getValue(Boolean::class.java) ?: true) }, s.lng("slow").toInt())
 
     private fun parseChannel(id: String, s: DataSnapshot) = if (!s.exists()) null else Channel(
         id, s.str("name"), s.str("handle"), s.str("about"), s.str("photo"), s.str("owner"),
-        s.child("admins").children.mapNotNull { it.key }.toSet(), s.lng("subCount"), s.lng("lastTs"), s.str("lastPreview"))
+        s.child("admins").children.mapNotNull { it.key }.toSet(), s.lng("subCount"), s.lng("lastTs"), s.str("lastPreview"),
+        s.child("perms").children.associate { it.key!! to (it.getValue(Boolean::class.java) ?: true) }, s.lng("slow").toInt(), s.bool("priv"))
 
     fun user(id: String): StateFlow<User?> = userFlows.getOrPut(id) {
         MutableStateFlow<User?>(null).also { f -> watch("users/$id") { f.value = parseUser(id, it) } }
@@ -280,10 +282,10 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ messages
     class Raw(val id: String, val from: String, val ts: Long, val type: String, val body: String, val kv: Int, val rid: String?,
-              val deleted: Boolean, val edited: Boolean, val react: Map<String, String>)
+              val deleted: Boolean, val edited: Boolean, val react: Map<String, String>, val fwd: String? = null)
 
     private fun rawOf(c: DataSnapshot) = Raw(c.key!!, c.str("from"), c.lng("ts"), c.str("type"), c.str("body"), c.lng("kv").toInt(), c.str("rid").ifEmpty { null },
-        c.bool("deleted"), c.bool("edited"), c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") })
+        c.bool("deleted"), c.bool("edited"), c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") }, c.str("fwd").ifEmpty { null })
 
     fun rawMessages(ref: ChatRef, limit: Int): Flow<List<Raw>> = callbackFlow {
         val q = db.getReference("messages/${ref.id}").orderByKey().limitToLast(limit)
@@ -321,7 +323,7 @@ object Repo {
                 }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h)
+        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd)
     }
 
     private suspend fun fanOut(ref: ChatRef, updates: HashMap<String, Any?>, type: String, body: String, preview: String) {
@@ -344,8 +346,27 @@ object Repo {
         }
     }
 
+    private val slowPrefs get() = app.getSharedPreferences("wt_slow", Context.MODE_PRIVATE)
+
+    /** Group / channel rules set by the owner. Throws a readable error when this person may not send [type]; returns the slow-mode seconds that apply. */
+    private fun checkAllowed(ref: ChatRef, type: String): Int {
+        if (ref.kind == Kind.DM) return 0
+        val perms: Map<String, Boolean>; val slow: Int; val privileged: Boolean
+        if (ref.kind == Kind.GROUP) { val g = group(ref.id).value ?: return 0; perms = g.perms; slow = g.slow; privileged = g.members[uid] == "admin" }
+        else { val c = channel(ref.id).value ?: return 0; perms = c.perms; slow = c.slow; privileged = c.owner == uid || uid in c.admins
+            if (!privileged && perms["followers"] != true) throw IllegalStateException("Only admins can post in this channel") }
+        if (privileged) return 0
+        val who = if (ref.kind == Kind.GROUP) "this group" else "this channel"
+        if (perms["send"] == false) throw IllegalStateException("Only admins can send messages in $who")
+        val key = when (type) { "text", "link" -> "text"; "image" -> "image"; "gif", "sticker" -> "sticker"; "voice" -> "voice"; else -> "" }
+        if (key.isNotEmpty() && perms[key] == false) throw IllegalStateException(when (key) { "text" -> "Text messages"; "image" -> "Photos"; "sticker" -> "Stickers and GIFs"; else -> "Voice messages" } + " are turned off in $who")
+        if (slow > 0) { val wait = slowPrefs.getLong(ref.id, 0L) + slow * 1000L - System.currentTimeMillis(); if (wait > 0) throw IllegalStateException("Slow mode is on · wait ${wait / 1000 + 1}s") }
+        return slow
+    }
+
     /** Encrypts (DM/group) and sends. [payload] is the plain text, or a small JSON for image/voice, or a sticker id. */
-    suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String) {
+    suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String, fwd: String? = null) {
+        val slowSecs = checkAllowed(ref, type)
         val kv = if (ref.kind == Kind.GROUP) (group(ref.id).value?.kv ?: groupVersion(ref.id)) else 0
         val key = chatKey(ref, kv)
         if (ref.kind != Kind.CHANNEL && key == null) throw IllegalStateException("Encryption key not available yet. The other person must open WeTalks once.")
@@ -356,9 +377,11 @@ object Repo {
         } else body
         val mid = db.getReference("messages/${ref.id}").push().key!!
         val up = HashMap<String, Any?>()
-        up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid)
+        up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid, "fwd" to fwd)
         fanOut(ref, up, type, listBody, preview)
+        if (slowSecs > 0) up["slow/${ref.id}/$uid"] = ServerValue.TIMESTAMP
         db.reference.updateChildren(up).await()
+        if (slowSecs > 0) slowPrefs.edit().putLong(ref.id, System.currentTimeMillis()).apply()
     }
 
     suspend fun editMessage(ref: ChatRef, id: String, newText: String) {
@@ -518,21 +541,22 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ forward
     suspend fun forward(from: ChatRef, m: Msg, to: ChatRef) {
+        val orig = m.fwd ?: m.from
         when (m.type) {
-            "text" -> send(to, "text", m.text, null, m.text.take(90))
-            "sticker" -> send(to, "sticker", m.text, null, "Sticker")
-            "link" -> send(to, "link", org.json.JSONObject().put("t", m.text).put("u", m.link?.url ?: "").put("ti", m.link?.title ?: "").put("d", m.link?.desc ?: "").put("i", m.link?.thumb ?: "").toString(), null, m.text.take(90))
+            "text" -> send(to, "text", m.text, null, m.text.take(90), orig)
+            "sticker" -> send(to, "sticker", m.text, null, "Sticker", orig)
+            "link" -> send(to, "link", org.json.JSONObject().put("t", m.text).put("u", m.link?.url ?: "").put("ti", m.link?.title ?: "").put("d", m.link?.desc ?: "").put("i", m.link?.thumb ?: "").toString(), null, m.text.take(90), orig)
             "gif" -> {
                 val bytes = loadMedia(from, m.mediaId ?: return) ?: throw IllegalStateException("Media not available")
                 val id = uploadMedia(to, bytes, m.mime.ifEmpty { "image/gif" })
-                send(to, "gif", org.json.JSONObject().put("m", id).put("mime", m.mime).put("w", m.w).put("h", m.h).toString(), null, "GIF")
+                send(to, "gif", org.json.JSONObject().put("m", id).put("mime", m.mime).put("w", m.w).put("h", m.h).toString(), null, "GIF", orig)
             }
             "image", "voice" -> {
                 val bytes = loadMedia(from, m.mediaId ?: return) ?: throw IllegalStateException("Media not available")
                 val id = uploadMedia(to, bytes, if (m.type == "image") "image/jpeg" else "audio/mp4")
                 val j = org.json.JSONObject().put("m", id).put("c", m.text)
                 if (m.type == "voice") { j.put("d", m.dur); j.put("w", org.json.JSONArray(m.wave)) }
-                send(to, m.type, j.toString(), null, if (m.type == "image") "Photo" else "Voice message")
+                send(to, m.type, j.toString(), null, if (m.type == "image") "Photo" else "Voice message", orig)
             }
         }
     }
@@ -630,6 +654,13 @@ object Repo {
         db.getReference("groups/$gid/members/$uid").removeValue().await()
     }
 
+    suspend fun setPerm(kind: Kind, id: String, key: String, v: Boolean) { db.getReference("${if (kind == Kind.GROUP) "groups" else "channels"}/$id/perms/$key").setValue(v).await() }
+    suspend fun setSlow(kind: Kind, id: String, secs: Int) { db.getReference("${if (kind == Kind.GROUP) "groups" else "channels"}/$id/slow").setValue(secs).await() }
+    suspend fun setChannelPrivate(cid: String, v: Boolean) { db.getReference("channels/$cid/priv").setValue(v).await() }
+    suspend fun setChannelAdmin(cid: String, who: String, on: Boolean) { db.getReference("channels/$cid/admins/$who").setValue(if (on) true else null).await() }
+    /** Followers of a channel (only the owner may read this list). */
+    suspend fun subscribers(cid: String): List<String> = db.getReference("channel_subs/$cid").get().await().children.mapNotNull { it.key }
+
     suspend fun setAdmin(gid: String, who: String, admin: Boolean) { db.getReference("groups/$gid/members/$who").setValue(if (admin) "admin" else "member").await() }
     suspend fun updateGroup(gid: String, name: String, about: String, photo: String?) {
         val m = hashMapOf<String, Any?>("name" to name.trim(), "about" to about.trim()); if (photo != null) m["photo"] = photo
@@ -664,13 +695,13 @@ object Repo {
         t = t.removePrefix("@")
         if (t.isEmpty()) {
             val src = db.getReference("channels").orderByChild("subCount").limitToLast(30).get().await()
-            return src.children.mapNotNull { parseChannel(it.key!!, it) }.sortedByDescending { it.subCount }
+            return src.children.mapNotNull { parseChannel(it.key!!, it) }.filter { !it.priv }.sortedByDescending { it.subCount }
         }
         val end = t + "\uf8ff"
         val byHandle = db.getReference("channels").orderByChild("handleLower").startAt(t).endAt(end).limitToFirst(20).get().await()
         val byName = try { db.getReference("channels").orderByChild("nameLower").startAt(t).endAt(end).limitToFirst(20).get().await().children.toList() } catch (e: Exception) { emptyList() }
         val seen = HashSet<String>()
-        return (byHandle.children.toList() + byName).mapNotNull { c -> if (seen.add(c.key!!)) parseChannel(c.key!!, c) else null }
+        return (byHandle.children.toList() + byName).mapNotNull { c -> if (seen.add(c.key!!)) parseChannel(c.key!!, c)?.takeIf { !it.priv || it.owner == uid } else null }
     }
 
     suspend fun isSubscribed(cid: String) = db.getReference("channel_subs/$cid/$uid").get().await().exists()

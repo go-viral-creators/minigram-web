@@ -14,11 +14,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
+import com.kafisir.wetalks.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -41,7 +43,7 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
+    override fun onCreate() { super.onCreate(); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -102,6 +104,7 @@ fun App() {
 fun Main() {
     BackHandler(enabled = Nav.stack.isNotEmpty()) { Nav.pop() }
     val top = Nav.stack.lastOrNull()
+    Box(Modifier.fillMaxSize()) {
     AnimatedContent(top, transitionSpec = {
         if (targetState != null && initialState == null || (targetState != null && Nav.stack.size >= 1))
             (slideInHorizontally { it / 4 } + fadeIn()) togetherWith fadeOut()
@@ -134,7 +137,18 @@ fun Main() {
                 RStorage -> StorageScreen()
                 RAppLock -> AppLockScreen()
                 is RQr -> QrScreen(r)
+                RLanguage -> LanguageScreen()
+                is RGroupSettings -> GroupSettingsScreen(r.id)
+                is RChannelSettings -> ChannelSettingsScreen(r.id)
             }
         }
     }
+    VoiceOverlay()
+    }
+}
+
+@Composable
+private fun BoxScope.VoiceOverlay() {
+    if (com.kafisir.wetalks.voice.VoicePlayer.currentId != null && Nav.stack.lastOrNull() !is RPhotoEdit)
+        MiniPlayer(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 62.dp))
 }

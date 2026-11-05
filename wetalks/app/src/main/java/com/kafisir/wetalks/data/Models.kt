@@ -20,13 +20,13 @@ data class User(
 
 data class Group(
     val id: String = "", val name: String = "", val about: String = "", val photo: String = "",
-    val owner: String = "", val kv: Int = 1, val members: Map<String, String> = emptyMap(),
+    val owner: String = "", val kv: Int = 1, val members: Map<String, String> = emptyMap(), val perms: Map<String, Boolean> = emptyMap(), val slow: Int = 0,
 )
 
 data class Channel(
     val id: String = "", val name: String = "", val handle: String = "", val about: String = "", val photo: String = "",
     val owner: String = "", val admins: Set<String> = emptySet(), val subCount: Long = 0,
-    val lastTs: Long = 0, val lastPreview: String = "",
+    val lastTs: Long = 0, val lastPreview: String = "", val perms: Map<String, Boolean> = emptyMap(), val slow: Int = 0, val priv: Boolean = false,
 )
 
 data class ChatItem(
@@ -40,7 +40,7 @@ data class Msg(
     val rid: String? = null, val deleted: Boolean = false, val edited: Boolean = false,
     val reactions: Map<String, String> = emptyMap(), val unreadable: Boolean = false, val pending: Boolean = false,
     val wave: List<Int> = emptyList(),
-    val link: LinkPreview? = null, val mime: String = "", val w: Int = 0, val h: Int = 0,
+    val link: LinkPreview? = null, val mime: String = "", val w: Int = 0, val h: Int = 0, val fwd: String? = null,
 )
 
 /** Preview card fetched by the sender and sent inside the encrypted message. */
