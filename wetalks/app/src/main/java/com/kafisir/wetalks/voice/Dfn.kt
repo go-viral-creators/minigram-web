@@ -29,6 +29,8 @@ class DfnEngine(encModel: ByteArray, erbModel: ByteArray, dfModel: ByteArray) {
     internal val enc: OrtSession; internal val erbDec: OrtSession; internal val dfDec: OrtSession
     init {
         val o = OrtSession.SessionOptions(); o.setIntraOpNumThreads(2)
+        o.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT)        // the .ort models are already optimised; the minimal runtime has no optimizer
+        o.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL)
         enc = env.createSession(encModel, o); erbDec = env.createSession(erbModel, o); dfDec = env.createSession(dfModel, o)
     }
     fun close() { try { enc.close(); erbDec.close(); dfDec.close() } catch (_: Exception) {} }
@@ -166,6 +168,7 @@ class DfnStream(private val eng: DfnEngine, private val SEG: Int = DEF_SEG, priv
         val lsnr = FloatArray(s)
         var coefs = FloatArray(0)
         val env = eng.env
+        VoiceFx.guardStart()
         val tErb = OnnxTensor.createTensor(env, FloatBuffer.wrap(fe), longArrayOf(1, 1, s.toLong(), NB_ERB.toLong()))
         val tSpec = OnnxTensor.createTensor(env, FloatBuffer.wrap(fs), longArrayOf(1, 2, s.toLong(), NB_DF.toLong()))
         try {
@@ -179,6 +182,7 @@ class DfnStream(private val eng: DfnEngine, private val SEG: Int = DEF_SEG, priv
                 }
             }
         } finally { tErb.close(); tSpec.close() }
+        VoiceFx.guardEnd()
 
         val sp0 = a - 2; val sp1 = b + 2; val sn = sp1 - sp0
         val sre = Array(sn) { FloatArray(NF) }; val sim = Array(sn) { FloatArray(NF) }

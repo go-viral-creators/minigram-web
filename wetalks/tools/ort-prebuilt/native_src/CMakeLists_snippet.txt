@@ -1,0 +1,3 @@
+# add to the module's CMakeLists.txt (project(... LANGUAGES C CXX)); builds libortshim.so
+add_library(ortshim SHARED ortshim.c)
+target_link_options(ortshim PRIVATE -Wl,-z,max-page-size=16384 -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ortshim.map)

@@ -11,10 +11,10 @@ android {
     compileSdk = 35
     defaultConfig {
         applicationId = "com.kafisir.wetalks"
-        minSdk = 24
+        minSdk = 28
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.4.1"
     }
     val ksFile = rootProject.file("keystore.properties")
     signingConfigs {
@@ -41,7 +41,11 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     lint { checkReleaseBuilds = false; abortOnError = false }
-    packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+    packaging {
+        resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+        // our minimal ONNX Runtime (2 MB instead of 17 MB) replaces the full one inside the AAR
+        jniLibs { pickFirsts += listOf("**/libonnxruntime.so", "**/libonnxruntime4j_jni.so") }
+    }
 }
 
 dependencies {
@@ -66,8 +70,8 @@ dependencies {
     implementation("com.airbnb.android:lottie-compose:6.6.2")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("io.getstream:stream-webrtc-android:1.3.10")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
-    testImplementation("com.microsoft.onnxruntime:onnxruntime:1.19.2")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.24.3")
+    testImplementation("com.microsoft.onnxruntime:onnxruntime:1.24.3")
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")

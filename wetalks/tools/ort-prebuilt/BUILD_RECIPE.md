@@ -1,0 +1,9 @@
+# How the runtime was built (summary; commands exactly as used)
+1. `git clone --depth 1 --branch v1.24.3 https://github.com/microsoft/onnxruntime` (GIT_LFS_SKIP_SMUDGE=1)
+2. Check out every dependency of `cmake/deps.txt` (abseil_cpp cxxopts date dlpack eigen flatbuffers fp16 fxdiv googlexnnpack json microsoft_gsl mp11 onnx protobuf psimd pthreadpool pytorch_cpuinfo re2 safeint kleidiai googletest google_benchmark pybind11 microsoft_wil mimalloc) into `deps/<name>` (same tag/commit as deps.txt): the build runs offline.
+3. Host protoc: `cmake -S deps/protobuf -B protoc_host -G Ninja -DCMAKE_BUILD_TYPE=Release -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5 && cmake --build protoc_host --target protoc -j4` (3.21.12)
+4. `python -m venv ortv && ortv/bin/pip install onnxruntime==1.24.3 onnx numpy flatbuffers`, then in the models folder:
+   `python -m onnxruntime.tools.convert_onnx_models_to_ort . --optimization_style Fixed --enable_type_reduction` -> `.ort` files + `required_operators_and_types.config`
+5. `scripts/build_android.REFERENCE.sh <abi>` (tools/ci_build/build.py with --android --android_abi <abi> --android_api 28 --config MinSizeRel --minimal_build --disable_ml_ops --disable_exceptions --disable_rtti --build_shared_lib --no_kleidiai --include_ops_by_config <config> --enable_reduced_operator_type_support --path_to_protoc_exe <protoc> and FETCHCONTENT_FULLY_DISCONNECTED=ON with FETCHCONTENT_SOURCE_DIR_* for each dependency)
+6. `llvm-strip --strip-unneeded -o jniLibs/<abi>/libonnxruntime.so ort_build_<abi>/MinSizeRel/libonnxruntime.so`
+7. JNI: take `libonnxruntime4j_jni.so` from onnxruntime-android-1.24.3.aar (`jni/<abi>/`), `patchelf --add-needed libortshim.so` on it (ortshim.c exports the unused symbol `OrtSessionOptionsAppendExecutionProvider_Nnapi`).

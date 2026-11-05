@@ -8,7 +8,7 @@ import kotlin.math.log10
 import kotlin.math.sqrt
 
 class DfnStreamTest {
-    private fun model(n: String) = File("src/main/assets/dfn3/$n").readBytes()
+    private fun model(n: String) = File("src/test/models/$n").readBytes()
     private fun rms(a: FloatArray, s: Int, e: Int): Double { var x = 0.0; for (i in s until e) x += a[i] * a[i].toDouble(); return sqrt(x / maxOf(1, e - s)) + 1e-12 }
     private fun snr(c: FloatArray, y: FloatArray): Double { var s = 0.0; var e = 0.0; for (i in c.indices) { s += c[i].toDouble() * c[i]; val d = (y[i] - c[i]).toDouble(); e += d * d }; return 10 * log10(s / (e + 1e-12)) }
     private fun db(v: Double) = 20 * log10(v)
@@ -60,5 +60,20 @@ class DfnStreamTest {
         println("noise drop in a silent stretch: $drop dB")
         assertTrue("noise should drop by >12 dB, was $drop", drop > 12)
         eng.close()
+    }
+}
+
+class OrtFormatTest {
+    private fun bytes(p: String) = java.io.File(p).readBytes()
+    @Test fun ortModelsMatchTheOnnxOriginals() {
+        val onnx = DfnEngine(bytes("src/test/models/enc.onnx"), bytes("src/test/models/erb_dec.onnx"), bytes("src/test/models/df_dec.onnx"))
+        val ort = DfnEngine(bytes("src/main/assets/dfn3/enc.ort"), bytes("src/main/assets/dfn3/erb_dec.ort"), bytes("src/main/assets/dfn3/df_dec.ort"))
+        val rnd = java.util.Random(5); val n = 48000 * 3
+        val x = FloatArray(n) { (0.2 * Math.sin(it * 0.05) * (if ((it / 12000) % 2 == 0) 1 else 0) + 0.04 * rnd.nextGaussian()).toFloat() }
+        fun run(e: DfnEngine): FloatArray { val s = DfnStream(e); var p = 0; while (p < n) { val c = minOf(1920, n - p); s.feed(x.copyOfRange(p, p + c)); p += c }; return s.finish() }
+        val a = run(onnx); val b = run(ort)
+        var num = 0.0; var den = 0.0; for (i in a.indices) { val d = (a[i] - b[i]).toDouble(); num += d * d; den += a[i].toDouble() * a[i] }
+        println("onnx vs ort relative difference: ${Math.sqrt(num / den)}")
+        assertTrue("ORT-format models differ from the originals", Math.sqrt(num / den) < 0.01)
     }
 }

@@ -9,7 +9,9 @@ import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -25,20 +27,41 @@ object VoiceFx {
     private var engine: DfnEngine? = null
     private var failed = false
     private fun sp(c: Context) = c.getSharedPreferences("wt_ui", Context.MODE_PRIVATE)
-    fun load(c: Context) { ai.value = sp(c).getBoolean("vfx_ai", true); polish.value = sp(c).getBoolean("vfx_polish", true) }
+    fun load(c: Context) {
+        appCtx = c.applicationContext
+        ai.value = sp(c).getBoolean("vfx_ai", true); polish.value = sp(c).getBoolean("vfx_polish", true)
+        if (sp(c).getBoolean("ort_busy", false)) {            // last run ended inside the native engine
+            sp(c).edit().putBoolean("ort_busy", false).putBoolean("vfx_ai", false).putBoolean("ort_crashed", true).apply()
+            ai.value = false; crashedBefore = true
+        } else crashedBefore = sp(c).getBoolean("ort_crashed", false)
+    }
+    /** The user turned the AI stage back on after a crash: give it another chance. */
+    fun retryAfterCrash(c: Context) { sp(c).edit().putBoolean("ort_crashed", false).apply(); crashedBefore = false; failed = false; setAi(c, true) }
     fun setAi(c: Context, v: Boolean) { ai.value = v; sp(c).edit().putBoolean("vfx_ai", v).apply(); if (v) warmUp(c) }
     fun setPolish(c: Context, v: Boolean) { polish.value = v; sp(c).edit().putBoolean("vfx_polish", v).apply() }
 
+    private var appCtx: Context? = null
+    /** true when the previous run died inside the native AI engine; the AI stage is then switched off so the app keeps working. */
+    var crashedBefore by mutableStateOf(false); private set
+    var engineError by mutableStateOf<String?>(null); private set
+
     @Synchronized
     fun engine(c: Context): DfnEngine? {
-        if (engine == null && !failed) try {
+        appCtx = c.applicationContext
+        if (engine == null && !failed && !crashedBefore) try {
             fun rd(n: String) = c.assets.open("dfn3/$n").use { it.readBytes() }
-            engine = DfnEngine(rd("enc.onnx"), rd("erb_dec.onnx"), rd("df_dec.onnx"))
-        } catch (t: Throwable) { failed = true }
+            sp(c).edit().putBoolean("ort_busy", true).commit()               // cleared again straight away if nothing crashes
+            engine = DfnEngine(rd("enc.ort"), rd("erb_dec.ort"), rd("df_dec.ort"))
+            sp(c).edit().putBoolean("ort_busy", false).commit()
+        } catch (t: Throwable) { failed = true; engineError = t.javaClass.simpleName + ": " + (t.message ?: ""); sp(c).edit().putBoolean("ort_busy", false).commit() }
         return engine
     }
+
+    // A native crash cannot be caught, so the flag is written to disk before each risky call and cleared after it.
+    fun guardStart() { appCtx?.let { sp(it).edit().putBoolean("ort_busy", true).commit() } }
+    fun guardEnd() { appCtx?.let { sp(it).edit().putBoolean("ort_busy", false).apply() } }
     /** Loads the models in the background so the first voice note starts instantly. */
-    fun warmUp(c: Context) { if (ai.value) Thread({ engine(c.applicationContext) }, "dfn-warmup").start() }
+    fun warmUp(c: Context) { if (ai.value && !crashedBefore) Thread({ engine(c.applicationContext) }, "dfn-warmup").start() }
 }
 
 /**
@@ -111,7 +134,7 @@ class Recorder(private val ctx: Context) {
                         if (++count == 5) { synchronized(amps) { amps.add(peak) }; peak = 0; count = 0 }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Throwable) {}
         }, "voice-capture").apply { priority = Thread.MAX_PRIORITY; start() }
     }
 

@@ -6,3 +6,5 @@
 -keep class org.webrtc.** { *; }
 -keep class io.getstream.webrtc.** { *; }
 -dontwarn org.webrtc.**
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**

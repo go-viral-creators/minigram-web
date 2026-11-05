@@ -1,0 +1,6 @@
+VERS_1.24.3 {
+  global:
+    OrtSessionOptionsAppendExecutionProvider_Nnapi;
+  local:
+    *;
+};

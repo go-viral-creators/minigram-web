@@ -1,0 +1,9 @@
+DeepFilterNet3 model weights (enc.onnx, erb_dec.onnx, df_dec.onnx)
+Copyright (c) Hendrik Schröter and contributors - https://github.com/Rikorose/DeepFilterNet
+Licensed under the MIT License or the Apache License 2.0, at your option.
+
+H. Schröter, T. Rosenkranz, A. Maier: "DeepFilterNet: Perceptually Motivated Real-Time Speech Enhancement" (2023)
+H. Schröter et al.: "DeepFilterNet2: Towards Real-Time Speech Enhancement on Embedded Devices for Full-Band Audio" (2022)
+H. Schröter et al.: "DeepFilterNet: A Low Complexity Speech Enhancement Framework for Full-Band Audio based on Deep Filtering" (2022)
+
+The STFT / ERB feature / deep-filtering code in src/main/cpp/dfn.cpp is a re-implementation of libDF (same licence terms).

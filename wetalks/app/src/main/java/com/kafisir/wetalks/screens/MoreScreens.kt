@@ -165,6 +165,7 @@ fun ChatSettingsScreen() {
             }
 
             SectionLabel("Voice notes")
+            if (VoiceFx.crashedBefore) Row2(Ic.Info, "AI noise removal was switched off", "The app closed unexpectedly while it was running on this phone. Tap to try again.", tint = We.danger, onClick = { VoiceFx.retryAfterCrash(ctx) })
             Row2(Ic.Mic, "AI noise & echo removal", "DeepFilterNet3 cleans your voice on this phone while you record. Turn off to send the raw sound.", trailing = { Toggle(vfxAi) { VoiceFx.setAi(ctx, it) } })
             Row2(Ic.Audio, "Volume normalisation", "Evens out loud and quiet speech and finishes the sound (EQ + limiter).", trailing = { Toggle(vfxPolish) { VoiceFx.setPolish(ctx, it) } })
             SectionLabel("Links")
@@ -190,6 +191,9 @@ fun StorageScreen() {
         TopBar("Data & storage", onBack = { Nav.pop() })
         Row2(Ic.Database, "Cache", if (size < 0) "Calculating…" else "%.1f MB used by temporary voice and photo files".format(size / 1048576.0))
         Box(Modifier.padding(20.dp)) { OutlineButton("Clear cache", { scopeClear(ctx); tick++; Nav.say("Cache cleared") }) }
+        com.kafisir.wetalks.data.CrashLog.last(ctx)?.let { rep ->
+            Row2(Ic.Info, "Last crash report", "Tap to share it so the problem can be fixed", onClick = { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, rep), "Share crash report")) })
+        }
         Text("Messages and media live in your encrypted chats on the server. Clearing the cache only removes temporary files from this phone.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 20.dp))
     }
 }
