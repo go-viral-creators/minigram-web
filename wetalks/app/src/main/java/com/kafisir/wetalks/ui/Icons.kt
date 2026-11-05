@@ -56,4 +56,21 @@ object Ic {
     val Palette: ImageVector by lazy { icon("Palette", "M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2s0-2 1.5-2h2a4 4 0 0 0 4-4c0-5-4-10-9-10ZM7.5 11h.01M10 7.5h.01M14.5 7.5h.01") }
     val Trash2: ImageVector by lazy { icon("Trash2", "M5 7h14M9 7V5h6v2M7 7l1 13h8l1-13") }
     val Star: ImageVector by lazy { icon("Star", "M12 3l2.7 5.6l6.1.9l-4.4 4.3l1 6.1L12 17l-5.4 2.9l1-6.1L3.2 9.5l6.1-.9Z") }
+    val Forward: ImageVector by lazy { icon("Forward", "M15 4l6 6l-6 6M21 10H9a6 6 0 0 0-6 6v4") }
+    val Rotate: ImageVector by lazy { icon("Rotate", "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7") }
+    val Crop: ImageVector by lazy { icon("Crop", "M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2") }
+    val Brush: ImageVector by lazy { icon("Brush", "M4 20c2 0 3-1 3-3a3 3 0 0 1 3-3l9-9a2 2 0 0 0-3-3l-9 9a3 3 0 0 0-3 3c0 3-1 4-3 4Z") }
+    val Sliders: ImageVector by lazy { icon("Sliders", "M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6") }
+    val Undo: ImageVector by lazy { icon("Undo", "M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3") }
+    val Share: ImageVector by lazy { icon("Share", "M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4l-4 4M12 2v14") }
+    val Bookmark: ImageVector by lazy { icon("Bookmark", "M6 3h12v18l-6-4l-6 4Z") }
+    val Type: ImageVector by lazy { icon("Type", "M4 7V5h16v2M12 5v14M9 19h6") }
+    val Book: ImageVector by lazy { icon("Book", "M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5ZM8 7h7M8 11h7") }
+    val Database: ImageVector by lazy { icon("Database", "M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3s-8-1.3-8-3s3.6-3 8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3") }
+    val Fingerprint: ImageVector by lazy { icon("Fingerprint", "M12 11v3a6 6 0 0 1-1 3M8 9a4 4 0 0 1 8 0v2M5 12V9a7 7 0 0 1 14 0v3a10 10 0 0 1-2 6M8 14v1a8 8 0 0 1-1 3") }
+    val Select: ImageVector by lazy { icon("Select", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM8 12.5l2.7 2.7L16 9.5") }
+    val Globe: ImageVector by lazy { icon("Globe", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18") }
+    val Invite: ImageVector by lazy { icon("Invite", "M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM3 8l9 6l9-6") }
+    val Text: ImageVector by lazy { icon("Text", "M5 6h14M12 6v13M9 19h6") }
+    val Pause2: ImageVector by lazy { icon("Pause2", "M9 5v14M15 5v14") }
 }

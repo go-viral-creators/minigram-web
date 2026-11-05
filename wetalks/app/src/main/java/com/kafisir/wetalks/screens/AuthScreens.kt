@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,8 +67,17 @@ fun friendly(e: Throwable): String = when (e) {
 }
 
 private suspend fun googleIdToken(activity: Activity): String {
-    val opt = GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(false).setServerClientId(activity.getString(R.string.default_web_client_id)).build()
-    val res = CredentialManager.create(activity).getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(opt).build())
+    val web = activity.getString(R.string.default_web_client_id)
+    val cm = CredentialManager.create(activity)
+    fun req(filter: Boolean) = GetCredentialRequest.Builder().addCredentialOption(
+        GetGoogleIdOption.Builder().setFilterByAuthorizedAccounts(filter).setServerClientId(web).setAutoSelectEnabled(false).build()).build()
+    val res = try { cm.getCredential(activity, req(true)) }
+    catch (e: androidx.credentials.exceptions.NoCredentialException) {
+        try { cm.getCredential(activity, req(false)) }
+        catch (e2: androidx.credentials.exceptions.NoCredentialException) {
+            cm.getCredential(activity, GetCredentialRequest.Builder().addCredentialOption(com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(web).build()).build())
+        }
+    }
     return GoogleIdTokenCredential.createFrom(res.credential.data).idToken
 }
 
@@ -202,7 +212,7 @@ fun PhoneScreen(onBack: () -> Unit) {
     }
 }
 
-/** First-run profile: name, unique username, about and photo. */
+/** Profile editor / first-run setup: header with photo, one card of fields, discoverable by phone (optional). */
 @Composable
 fun ProfileSetupScreen(existing: com.kafisir.wetalks.data.User?, onDone: () -> Unit, onBack: (() -> Unit)? = null) {
     val ctx = LocalContext.current
@@ -210,6 +220,7 @@ fun ProfileSetupScreen(existing: com.kafisir.wetalks.data.User?, onDone: () -> U
     var name by remember { mutableStateOf(existing?.name ?: Nav.pendingName ?: Repo.auth.currentUser?.displayName ?: "") }
     var username by remember { mutableStateOf(existing?.username ?: "") }
     var about by remember { mutableStateOf(existing?.about ?: "") }
+    var phone by remember { mutableStateOf(ctx.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE).getString("my_phone", "") ?: "") }
     var photo by remember { mutableStateOf<String?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var ok by remember { mutableStateOf(existing != null) }
@@ -228,25 +239,38 @@ fun ProfileSetupScreen(existing: com.kafisir.wetalks.data.User?, onDone: () -> U
 
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar(if (existing == null) "Set up your profile" else "Edit profile", onBack = onBack)
-        Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp)) {
-            Box(Modifier.align(Alignment.CenterHorizontally).clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                Avatar(name.ifEmpty { "?" }, photo ?: existing?.photo ?: "", 104.dp, seed = Repo.uid)
-                Box(Modifier.align(Alignment.BottomEnd).size(34.dp).clip(CircleShape).background(We.primary), contentAlignment = Alignment.Center) { Icon(Ic.Camera, We.onPrimary, 18.dp) }
+        Column(Modifier.weight(1f).imePadding().verticalScroll(rememberScrollState())) {
+            Column(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.appBar, We.bg))).padding(top = 18.dp, bottom = 26.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.clickable { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    Box(Modifier.clip(CircleShape).background(We.bg).padding(4.dp)) { Avatar(name.ifEmpty { "?" }, photo ?: existing?.photo ?: "", 112.dp, seed = Repo.uid) }
+                    Box(Modifier.align(Alignment.BottomEnd).size(38.dp).clip(CircleShape).background(We.primary).border2(We.bg), contentAlignment = Alignment.Center) { Icon(Ic.Camera, We.onPrimary, 20.dp) }
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("Tap to change photo", color = We.text2, style = T.small)
             }
-            Spacer(Modifier.height(24.dp))
-            Field(name, { name = it.take(60) }, "Full name", leading = Ic.User)
-            Spacer(Modifier.height(14.dp))
-            Field(username, { username = it.filter { c -> c.isLetterOrDigit() || c == '_' }.take(20) }, "Username", prefix = "@",
-                error = if (!ok && status != null && status != "Checking…") status else null,
-                trailing = { if (ok) Icon(Ic.Check, We.ok, 20.dp) })
-            if (status != null && (ok || status == "Checking…")) Text(status!!, color = if (ok) We.ok else We.text2, style = T.small, modifier = Modifier.padding(start = 2.dp, top = 4.dp))
-            Spacer(Modifier.height(14.dp))
-            Field(about, { about = it.take(140) }, "About (optional)", leading = Ic.Info)
-            Spacer(Modifier.height(28.dp))
-            PrimaryButton("Continue", loading = busy, enabled = name.isNotBlank() && ok, onClick = {
+            Column(Modifier.padding(horizontal = 20.dp)) {
+                Field(name, { name = it.take(60) }, "Full name", leading = Ic.User)
+                Spacer(Modifier.height(14.dp))
+                Field(username, { username = it.filter { c -> c.isLetterOrDigit() || c == '_' }.take(20) }, "Username", prefix = "@",
+                    error = if (!ok && status != null && status != "Checking…") status else null, trailing = { if (ok) Icon(Ic.Check, We.ok, 20.dp) })
+                if (status != null && (ok || status == "Checking…")) Text(status!!, color = if (ok) We.ok else We.text2, style = T.small, modifier = Modifier.padding(start = 2.dp, top = 4.dp))
+                Spacer(Modifier.height(14.dp))
+                Field(about, { about = it.take(140) }, "Bio", leading = Ic.Info)
+                Spacer(Modifier.height(14.dp))
+                Field(phone, { phone = it.filter { c -> c.isDigit() || c == '+' || c == ' ' }.take(18) }, "Phone number (optional)", leading = Ic.Phone, keyboard = KeyboardType.Phone)
+                Text("Lets friends who have your number find you. Only a one-way hash is stored; your number is never shown.", color = We.text2, style = T.small, modifier = Modifier.padding(start = 2.dp, top = 6.dp))
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+        Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp).navigationBarsPadding()) {
+            PrimaryButton(if (existing == null) "Continue" else "Save changes", loading = busy, enabled = name.isNotBlank() && ok, onClick = {
                 scope.launch {
                     busy = true
                     val err = Repo.saveProfile(name, username, about, photo)
+                    if (err == null && phone.filter { it.isDigit() }.length >= 7) {
+                        try { Repo.registerPhone(phone) } catch (_: Exception) {}
+                        ctx.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE).edit().putString("my_phone", phone).apply()
+                    }
                     busy = false
                     if (err != null) Nav.say(err) else { Nav.pendingName = null; Nav.profileVersion.intValue++; onDone() }
                 }
@@ -254,3 +278,5 @@ fun ProfileSetupScreen(existing: com.kafisir.wetalks.data.User?, onDone: () -> U
         }
     }
 }
+
+private fun Modifier.border2(c: androidx.compose.ui.graphics.Color) = this.then(Modifier.border(3.dp, c, CircleShape))

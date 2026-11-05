@@ -85,6 +85,15 @@ fun AppearanceScreen() {
     val mode by ThemeMode.mode
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Appearance", onBack = { Nav.pop() })
+        SectionLabel("Accent colour")
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            UiPrefs.accents.forEachIndexed { i, (n, c) ->
+                val col = androidx.compose.ui.graphics.Color(if (We.dark) c.second else c.first)
+                Box(Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(col).clickable { UiPrefs.setAccent(ctx, i) }, contentAlignment = Alignment.Center) {
+                    if (UiPrefs.accent.intValue == i) Icon(Ic.Check, androidx.compose.ui.graphics.Color.White, 22.dp)
+                }
+            }
+        }
         SectionLabel("Theme")
         listOf(0 to "Follow system", 1 to "Light", 2 to "Dark").forEach { (m, label) ->
             Row(Modifier.fillMaxWidth().clickable { ThemeMode.set(ctx, m) }.padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -120,7 +129,7 @@ fun AboutScreen() {
         TopBar("About", onBack = { Nav.pop() })
         Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Logo(96.dp); Spacer(Modifier.height(14.dp))
-            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.0.0", color = We.text2, style = T.body)
+            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.1.0", color = We.text2, style = T.body)
             Spacer(Modifier.height(20.dp))
             Text("Private messaging with groups and channels. Direct chats and groups are end-to-end encrypted with X25519 + AES-256-GCM; your keys stay on your phone.", color = We.text2, style = T.body, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }

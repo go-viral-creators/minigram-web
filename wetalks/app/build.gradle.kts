@@ -13,8 +13,8 @@ android {
         applicationId = "com.kafisir.wetalks"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
     val ksFile = rootProject.file("keystore.properties")
     signingConfigs {
@@ -63,5 +63,8 @@ dependencies {
     implementation("com.google.firebase:firebase-database")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
     implementation("com.google.crypto.tink:tink-android:1.15.0")
+    implementation("com.airbnb.android:lottie-compose:6.6.2")
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
     testImplementation("junit:junit:4.13.2")
 }

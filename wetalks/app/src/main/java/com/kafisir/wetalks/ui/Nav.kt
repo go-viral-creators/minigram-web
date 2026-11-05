@@ -21,6 +21,11 @@ data object RBlocked : Route
 data object RAbout : Route
 data class RAddMembers(val gid: String) : Route
 data class RImage(val ref: ChatRef, val mediaId: String) : Route
+data object RPhotoEdit : Route
+data class RBrowser(val url: String) : Route
+data object RChatSettings : Route
+data object RStorage : Route
+data object RAppLock : Route
 
 object Nav {
     val stack = mutableStateListOf<Route>()
@@ -28,6 +33,9 @@ object Nav {
     val profileVersion = mutableIntStateOf(0)
     val toast = mutableStateOf<String?>(null)
     var pendingName: String? = null
+    var pendingPhotos: List<android.net.Uri> = emptyList()
+    var pendingRef: ChatRef? = null
+    var pendingReply: String? = null
     fun push(r: Route) { stack.add(r) }
     fun pop(): Boolean { if (stack.isEmpty()) return false; stack.removeAt(stack.lastIndex); return true }
     fun reset() { stack.clear(); tab.intValue = 0 }

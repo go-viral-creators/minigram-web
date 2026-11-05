@@ -59,9 +59,7 @@ fun HomeScreen() {
             when (tab) {
                 0 -> ChatList(visible.filter { it.ref.kind == Kind.DM }, Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.")
                 1 -> ChatList(visible.filter { it.ref.kind == Kind.GROUP }, Ic.Group, "No groups yet", "Create a group to chat with several people at once.")
-                2 -> ChatList(visible.filter { it.ref.kind == Kind.CHANNEL }, Ic.Mega, "No channels yet", "Follow public channels or start your own broadcast.", header = {
-                    Row2(Ic.Search, "Discover channels", "Find public channels to follow", We.primary, { Nav.push(RDiscover) }); Divider()
-                })
+                2 -> ChatList(visible.filter { it.ref.kind == Kind.CHANNEL }, Ic.Mega, "No channels yet", "Tap the search icon to find public channels, or + to start your own.")
                 else -> MeScreen()
             }
             if (tab < 3) Box(Modifier.align(Alignment.BottomEnd).padding(18.dp).size(56.dp).clip(CircleShape).background(We.primary)
@@ -115,7 +113,7 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
 @Composable
 fun titleOf(ref: ChatRef): Triple<String, String, String> {   // name, photo, seed
     return when (ref.kind) {
-        Kind.DM -> { val u by Repo.user(ref.peer!!).collectAsState(); Triple(u?.name ?: "…", u?.photo ?: "", ref.peer) }
+        Kind.DM -> { val u by Repo.user(ref.peer!!).collectAsState(); if (ref.peer == Repo.uid) Triple("Saved Messages", "", ref.peer) else Triple(u?.name ?: "…", u?.photo ?: "", ref.peer) }
         Kind.GROUP -> { val g by Repo.group(ref.id).collectAsState(); Triple(g?.name ?: "Group", g?.photo ?: "", ref.id) }
         Kind.CHANNEL -> { val c by Repo.channel(ref.id).collectAsState(); Triple(c?.name ?: "Channel", c?.photo ?: "", ref.id) }
     }
@@ -164,22 +162,31 @@ fun MeScreen() {
     var confirmOut by remember { mutableStateOf(false) }
     androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize()) {
         item {
-            Row(Modifier.fillMaxWidth().combinedClickableNoRipple { Nav.push(REditProfile) }.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                Avatar(me?.name ?: "", me?.photo ?: "", 72.dp, Repo.uid)
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(me?.name ?: "", color = We.text, style = T.title)
-                    Text("@" + (me?.username ?: ""), color = We.primary, style = T.body)
-                    if (!me?.about.isNullOrEmpty()) Text(me!!.about, color = We.text2, style = T.small, maxLines = 2)
+            Column(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.appBar, We.bg))).padding(top = 22.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.clip(CircleShape).background(We.bg).padding(4.dp).tap { Nav.push(REditProfile) }) { Avatar(me?.name ?: "", me?.photo ?: "", 104.dp, Repo.uid) }
+                Spacer(Modifier.height(12.dp))
+                Text(me?.name ?: "", color = We.text, style = T.title)
+                Text("@" + (me?.username ?: ""), color = We.primary, style = T.body)
+                if (!me?.about.isNullOrEmpty()) Text(me!!.about, color = We.text2, style = T.small, modifier = Modifier.padding(top = 4.dp, start = 32.dp, end = 32.dp), maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(22.dp)).background(We.primary.copy(alpha = .12f)).tap { Nav.push(REditProfile) }.padding(horizontal = 18.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Ic.Edit, We.primary, 16.dp); Spacer(Modifier.width(8.dp)); Text("Edit profile", color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
                 }
-                Icon(Ic.Chevron, We.text2, 20.dp)
             }
             Divider()
-            SectionLabel("Account")
-            Row2(Ic.Edit, "Edit profile", "Name, username, photo, about", onClick = { Nav.push(REditProfile) })
+            Row2(Ic.Bookmark, "Saved Messages", "Notes, photos and voice for yourself", onClick = { Nav.push(RChat(Repo.dmRef(Repo.uid))) })
+            Row2(Ic.UserPlus, "New group", "Chat with several people", onClick = { Nav.push(RNewGroup) })
+            Row2(Ic.Mega, "New channel", "Broadcast to followers", onClick = { Nav.push(RNewChannel) })
+            SectionLabel("Settings")
             Row2(Ic.Shield, "Privacy & security", "Last seen, read receipts, blocked users", onClick = { Nav.push(RPrivacy) })
-            SectionLabel("App")
-            Row2(Ic.Palette, "Appearance", when (ThemeMode.mode.intValue) { 1 -> "Light"; 2 -> "Dark"; else -> "Follow system" }, onClick = { Nav.push(RAppearance) })
+            Row2(Ic.Fingerprint, "App lock", if (AppLock.enabled) "On · fingerprint or screen lock" else "Off", onClick = { Nav.push(RAppLock) })
+            Row2(Ic.Type, "Chat settings", "Text size, bubble shape, wallpaper", onClick = { Nav.push(RChatSettings) })
+            Row2(Ic.Palette, "Appearance", (when (ThemeMode.mode.intValue) { 1 -> "Light"; 2 -> "Dark"; else -> "Follow system" }) + " · " + UiPrefs.accents[UiPrefs.accent.intValue].first, onClick = { Nav.push(RAppearance) })
+            Row2(Ic.Database, "Data & storage", "Cache, downloaded media", onClick = { Nav.push(RStorage) })
+            SectionLabel("WeTalks")
+            Row2(Ic.Invite, "Invite friends", "Tell your friends about WeTalks", onClick = {
+                ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, "Join me on WeTalks: private messaging with end-to-end encrypted chats, groups and channels."), "Invite friends"))
+            })
             Row2(Ic.Info, "About WeTalks", "Version, encryption, licences", onClick = { Nav.push(RAbout) })
             Divider()
             Row2(Ic.Logout, "Sign out", tint = We.danger, onClick = { confirmOut = true })

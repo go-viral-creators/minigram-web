@@ -39,4 +39,5 @@ data class Msg(
     val text: String, val mediaId: String? = null, val dur: Int = 0,
     val rid: String? = null, val deleted: Boolean = false, val edited: Boolean = false,
     val reactions: Map<String, String> = emptyMap(), val unreadable: Boolean = false, val pending: Boolean = false,
+    val wave: List<Int> = emptyList(),
 )

@@ -16,6 +16,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
@@ -175,6 +176,7 @@ object Repo {
         if (uid.isEmpty()) return
         val exists = db.getReference("users/$uid/name").get().await().exists()
         if (exists) db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await()
+        if (exists) auth.currentUser?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { registerPhone(it) }
     }
 
     fun setPrivacy(key: String, v: Boolean) { db.getReference("users/$uid/$key").setValue(v) }
@@ -292,13 +294,14 @@ object Repo {
             val key = chatKey(ref, r.kv)
             plain = if (key == null) { bad = true; "" } else try { Crypto.openText(key, r.body) } catch (e: Exception) { bad = true; "" }
         }
-        var mediaId: String? = null; var dur = 0; var text = plain
+        var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
         if (!bad && (r.type == "image" || r.type == "voice")) {
             try {
                 val j = org.json.JSONObject(plain); mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c")
+                j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad)
+        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave)
     }
 
     private suspend fun fanOut(ref: ChatRef, updates: HashMap<String, Any?>, type: String, body: String, preview: String) {
@@ -311,7 +314,7 @@ object Repo {
             updates["$b/unread"] = if (mine) 0 else ServerValue.increment(1)
         }
         when (ref.kind) {
-            Kind.DM -> { entry(uid, "dm", ref.peer, true); entry(ref.peer!!, "dm", uid, false) }
+            Kind.DM -> { entry(uid, "dm", ref.peer, true); if (ref.peer != uid) entry(ref.peer!!, "dm", uid, false) }
             Kind.GROUP -> {
                 val members = group(ref.id).value?.members?.keys
                     ?: db.getReference("groups/${ref.id}/members").get().await().children.mapNotNull { it.key }
@@ -405,6 +408,69 @@ object Repo {
         return bytes
     }
 
+    // ------------------------------------------------------------------------------------------ pinned messages
+    fun pins(ref: ChatRef): Flow<List<String>> = callbackFlow {
+        val r = db.getReference("pins/${ref.id}")
+        val l = object : ValueEventListener {
+            override fun onDataChange(s: DataSnapshot) { trySend(s.children.sortedBy { it.getValue(Long::class.java) ?: 0L }.mapNotNull { it.key }) }
+            override fun onCancelled(e: DatabaseError) {}
+        }
+        r.addValueEventListener(l)
+        awaitClose { r.removeEventListener(l) }
+    }
+
+    fun setPin(ref: ChatRef, mid: String, on: Boolean) {
+        val r = db.getReference("pins/${ref.id}/$mid")
+        if (on) r.setValue(System.currentTimeMillis()) else r.removeValue()
+    }
+
+    // ------------------------------------------------------------------------------------------ forward
+    suspend fun forward(from: ChatRef, m: Msg, to: ChatRef) {
+        when (m.type) {
+            "text" -> send(to, "text", m.text, null, m.text.take(90))
+            "sticker" -> send(to, "sticker", m.text, null, "Sticker")
+            "image", "voice" -> {
+                val bytes = loadMedia(from, m.mediaId ?: return) ?: throw IllegalStateException("Media not available")
+                val id = uploadMedia(to, bytes, if (m.type == "image") "image/jpeg" else "audio/mp4")
+                val j = org.json.JSONObject().put("m", id).put("c", m.text)
+                if (m.type == "voice") { j.put("d", m.dur); j.put("w", org.json.JSONArray(m.wave)) }
+                send(to, m.type, j.toString(), null, if (m.type == "image") "Photo" else "Voice message")
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ contact discovery (hashed phone numbers)
+    fun phoneKey(raw: String): String? {
+        val d = raw.filter { it.isDigit() }
+        if (d.length < 7) return null
+        val h = java.security.MessageDigest.getInstance("SHA-256").digest(("wt:" + d.takeLast(10)).toByteArray())
+        return h.joinToString("") { "%02x".format(it) }.take(32)
+    }
+
+    /** Lets friends who have your number find you. Only a hash of the last 10 digits is stored. */
+    suspend fun registerPhone(raw: String) {
+        val key = phoneKey(raw) ?: return
+        val old = db.getReference("users/$uid/phoneKey").get().await().getValue(String::class.java)
+        if (old != null && old != key) db.getReference("phones/$old").removeValue()
+        try { db.getReference("phones/$key").setValue(uid).await() } catch (_: Exception) { return }
+        db.getReference("users/$uid/phoneKey").setValue(key).await()
+    }
+
+    suspend fun myPhoneRegistered(): Boolean = db.getReference("users/$uid/phoneKey").get().await().exists()
+
+    /** key -> uid for every key that belongs to a WeTalks account. */
+    suspend fun lookupPhones(keys: List<String>): Map<String, String> {
+        val out = java.util.concurrent.ConcurrentHashMap<String, String>()
+        kotlinx.coroutines.coroutineScope {
+            keys.chunked(40).forEach { chunk ->
+                chunk.map { k -> async(Dispatchers.IO) {
+                    try { db.getReference("phones/$k").get().await().getValue(String::class.java)?.let { out[k] = it } } catch (_: Exception) {}
+                } }.forEach { it.await() }
+            }
+        }
+        return out
+    }
+
     // ------------------------------------------------------------------------------------------ groups
     suspend fun createGroup(name: String, about: String, photo: String, members: List<String>): String {
         val gid = db.getReference("groups").push().key!!
@@ -475,16 +541,22 @@ object Repo {
     // ------------------------------------------------------------------------------------------ channels
     suspend fun handleFree(lower: String) = !db.getReference("channel_handles/$lower").get().await().exists()
 
-    suspend fun createChannel(name: String, handle: String, about: String, photo: String): String? {
+    /** Returns (channelId, null) or (null, error message). */
+    suspend fun createChannel(name: String, handle: String, about: String, photo: String): Pair<String?, String?> {
         val lower = handle.lowercase()
         val cid = db.getReference("channels").push().key!!
-        try { db.getReference("channel_handles/$lower").setValue(cid).await() } catch (e: Exception) { return null }
-        db.getReference("channels/$cid").setValue(hashMapOf("name" to name.trim(), "handle" to handle, "handleLower" to lower, "nameLower" to name.trim().lowercase(),
-            "about" to about.trim(), "photo" to photo, "owner" to uid, "createdAt" to ServerValue.TIMESTAMP, "subCount" to 1,
-            "admins" to mapOf(uid to true))).await()
-        db.getReference("channel_subs/$cid/$uid").setValue(true).await()
-        db.getReference("user_chats/$uid/$cid").updateChildren(mapOf("type" to "channel", "lastTs" to ServerValue.TIMESTAMP)).await()
-        return cid
+        try { db.getReference("channel_handles/$lower").setValue(cid).await() } catch (e: Exception) { return null to "That link is already taken" }
+        return try {
+            db.getReference("channels/$cid").setValue(hashMapOf("name" to name.trim(), "handle" to handle, "handleLower" to lower, "nameLower" to name.trim().lowercase(),
+                "about" to about.trim(), "photo" to photo, "owner" to uid, "createdAt" to ServerValue.TIMESTAMP, "subCount" to 1,
+                "admins" to mapOf(uid to true))).await()
+            db.getReference("channel_subs/$cid/$uid").setValue(true).await()
+            db.getReference("user_chats/$uid/$cid").updateChildren(mapOf("type" to "channel", "lastTs" to ServerValue.TIMESTAMP)).await()
+            cid to null
+        } catch (e: Exception) {
+            try { db.getReference("channel_handles/$lower").removeValue().await() } catch (_: Exception) {}
+            null to (e.message ?: "Could not create channel")
+        }
     }
 
     suspend fun searchChannels(q: String): List<Channel> {

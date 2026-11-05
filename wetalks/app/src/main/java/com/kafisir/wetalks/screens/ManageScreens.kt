@@ -39,30 +39,13 @@ fun UserRow(u: User, onClick: () -> Unit, trailing: @Composable (() -> Unit)? = 
 }
 
 @Composable
-private fun SearchBox(q: String, onChange: (String) -> Unit, hint: String) {
+internal fun SearchBox(q: String, onChange: (String) -> Unit, hint: String) {
     Row(Modifier.fillMaxWidth().padding(12.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).background(We.field).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Ic.Search, We.text2, 20.dp); Spacer(Modifier.width(10.dp))
         Box(Modifier.weight(1f)) {
             if (q.isEmpty()) Text(hint, color = We.text2, style = T.body)
             androidx.compose.foundation.text.BasicTextField(q, onChange, Modifier.fillMaxWidth(), singleLine = true, textStyle = T.body.copy(color = We.text), cursorBrush = androidx.compose.ui.graphics.SolidColor(We.primary))
         }
-    }
-}
-
-/** Search people by name / @username and open a private chat. */
-@Composable
-fun NewChatScreen() {
-    var q by remember { mutableStateOf("") }
-    var results by remember { mutableStateOf<List<User>>(emptyList()) }
-    var busy by remember { mutableStateOf(false) }
-    LaunchedEffect(q) { busy = true; delay(350); results = try { Repo.searchUsers(q) } catch (e: Exception) { emptyList() }; busy = false }
-    Column(Modifier.fillMaxSize().background(We.bg)) {
-        TopBar("New chat", onBack = { Nav.pop() })
-        SearchBox(q, { q = it }, "Search by name or @username")
-        Row2(Ic.Group, "New group", "Chat with several people", We.primary, { Nav.pop(); Nav.push(RNewGroup) }); Divider()
-        Row2(Ic.Mega, "New channel", "Broadcast to followers", We.primary, { Nav.pop(); Nav.push(RNewChannel) }); Divider()
-        if (results.isEmpty()) Box(Modifier.weight(1f)) { Empty(Ic.Search, if (q.trim().length < 2) "Find people" else if (busy) "Searching…" else "No one found", "Type at least 2 letters of a name or username.") }
-        else LazyColumn(Modifier.weight(1f)) { items(results, key = { it.uid }) { u -> UserRow(u, { Nav.pop(); Nav.push(RChat(Repo.dmRef(u.uid))) }) } }
     }
 }
 
@@ -158,9 +141,9 @@ fun NewChannelScreen() {
             PrimaryButton("Create channel", loading = busy, enabled = name.isNotBlank() && free == true, onClick = {
                 scope.launch {
                     busy = true
-                    val id = try { Repo.createChannel(name, handle, about, photo ?: "") } catch (e: Exception) { null }
+                    val (id, err) = Repo.createChannel(name, handle, about, photo ?: "")
                     busy = false
-                    if (id == null) Nav.say("Could not create channel") else { Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.CHANNEL))) }
+                    if (id == null) Nav.say(err ?: "Could not create channel") else { Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.CHANNEL))) }
                 }
             })
         }

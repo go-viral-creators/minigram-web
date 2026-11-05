@@ -74,7 +74,7 @@
         "photo": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid", ".validate": "newData.isString() && newData.val().length <= 60000" },
         "lastTs": { ".write": "auth != null && (root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())" },
         "lastPreview": { ".write": "auth != null && (root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())", ".validate": "newData.isString() && newData.val().length <= 200" },
-        "subCount": { ".write": "auth != null", ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() === data.val() + 1 || newData.val() === data.val() - 1)" }
+        "subCount": { ".write": "auth != null", ".validate": "newData.isNumber() && newData.val() >= 0 && ((!data.exists() && newData.val() === 1) || newData.val() === data.val() + 1 || newData.val() === data.val() - 1)" }
       }
     },
 
@@ -100,6 +100,23 @@
             "$ruid": { ".write": "auth != null && auth.uid === $ruid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())", ".validate": "newData.isString() && newData.val().length <= 8" }
           }
         }
+      }
+    },
+
+    "pins": {
+      "$cid": {
+        ".read": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())",
+        "$mid": {
+          ".write": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())"
+        }
+      }
+    },
+
+    "phones": {
+      "$h": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() && newData.val() === auth.uid || data.val() === auth.uid)",
+        ".validate": "$h.matches(/^[a-f0-9]{32}$/) && newData.isString()"
       }
     },
 

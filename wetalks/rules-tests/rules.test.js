@@ -124,3 +124,39 @@ test('blocks are private to their owner', async () => {
   await assertFails(get(ref(db(B), 'blocks/alice')));
   await assertFails(set(ref(db(B), 'blocks/alice/carol'), true));
 });
+
+test('creating a channel works end to end (regression)', async () => {
+  const d = db(C);
+  await assertSucceeds(set(ref(d, 'channel_handles/wetalks'), 'cNew'));
+  await assertSucceeds(set(ref(d, 'channels/cNew'), { name: 'WeTalks', handle: 'wetalks', handleLower: 'wetalks', nameLower: 'wetalks', about: 'Hello', photo: '', owner: C, createdAt: serverTimestamp(), subCount: 1, admins: { carol: true } }));
+  await assertSucceeds(set(ref(d, 'channel_subs/cNew/carol'), true));
+  await assertSucceeds(update(ref(d, 'user_chats/carol/cNew'), { type: 'channel', lastTs: serverTimestamp() }));
+  await assertFails(set(ref(db(B), 'channels/cNew2'), { name: 'x', owner: C, subCount: 5 }));
+});
+
+test('pins: DM members and group admins only', async () => {
+  await assertSucceeds(set(ref(db(A), `pins/${AB}/m1`), 1));
+  await assertSucceeds(get(ref(db(B), `pins/${AB}`)));
+  await assertFails(set(ref(db(C), `pins/${AB}/m2`), 1));
+  await assertFails(get(ref(db(C), `pins/${AB}`)));
+  await assertSucceeds(set(ref(db(A), 'pins/g1/m1'), 1));
+  await assertFails(set(ref(db(B), 'pins/g1/m1'), 1));          // plain member
+  await assertSucceeds(set(ref(db(A), 'pins/c1/p1'), 1));        // channel owner
+  await assertFails(set(ref(db(B), 'pins/c1/p1'), 1));
+});
+
+test('phone discovery: one hash per account, no hijack', async () => {
+  const h = 'a'.repeat(32);
+  await assertSucceeds(set(ref(db(A), `phones/${h}`), A));
+  await assertFails(set(ref(db(B), `phones/${h}`), B));
+  await assertFails(remove(ref(db(B), `phones/${h}`)));
+  await assertSucceeds(get(ref(db(B), `phones/${h}`)));
+  await assertFails(set(ref(db(B), 'phones/short'), B));
+  await assertSucceeds(remove(ref(db(A), `phones/${h}`)));
+});
+
+test('saved messages (chat with yourself)', async () => {
+  await assertSucceeds(set(ref(db(A), 'messages/alice_alice/m1'), msg(A)));
+  await assertSucceeds(update(ref(db(A), 'user_chats/alice/alice_alice'), { type: 'dm', peer: A, lastTs: Date.now() }));
+  await assertFails(get(ref(db(B), 'messages/alice_alice')));
+});

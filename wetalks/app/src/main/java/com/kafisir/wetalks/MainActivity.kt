@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,10 +41,10 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); Repo.init(this); ThemeMode.load(this) }
+    override fun onCreate() { super.onCreate(); Repo.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this) }
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -55,6 +56,15 @@ class MainActivity : ComponentActivity() {
 fun App() {
     val uid by remember { Repo.authState() }.collectAsState(initial = Repo.uid.ifEmpty { null })
     var phone by remember { mutableStateOf(false) }
+    // status-bar icons: white on our blue/slate app bars, dark only on the plain sign-in page in light mode
+    val view = androidx.compose.ui.platform.LocalView.current
+    val darkNow = We.dark
+    SideEffect {
+        val w = (view.context as android.app.Activity).window
+        val ctl = androidx.core.view.WindowCompat.getInsetsController(w, view)
+        ctl.isAppearanceLightStatusBars = uid == null && !phone && !darkNow
+        ctl.isAppearanceLightNavigationBars = !darkNow
+    }
     Box(Modifier.fillMaxSize().background(We.bg)) {
         if (uid == null) {
             if (phone) PhoneScreen { phone = false } else AuthScreen { phone = true }
@@ -64,10 +74,11 @@ fun App() {
             LaunchedEffect(uid, me) { if (me == true) { Repo.watchBlocks(); Repo.publishKey() } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) Repo.setOnline(true) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (me == true) Repo.setOnline(false) }
+            LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true }
             when (me) {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) }
                 false -> ProfileSetupScreen(null, onDone = {})
-                true -> Main()
+                true -> if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
         val toast by Nav.toast
@@ -108,6 +119,11 @@ fun Main() {
                 RBlocked -> BlockedScreen()
                 RAbout -> AboutScreen()
                 is RImage -> ImageViewer(r.ref, r.mediaId)
+                RPhotoEdit -> PhotoEditorScreen()
+                is RBrowser -> BrowserScreen(r.url)
+                RChatSettings -> ChatSettingsScreen()
+                RStorage -> StorageScreen()
+                RAppLock -> AppLockScreen()
             }
         }
     }

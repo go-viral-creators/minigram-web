@@ -58,11 +58,34 @@ object ThemeMode {
     fun set(c: Context, m: Int) { mode.intValue = m; c.getSharedPreferences("wt_ui", Context.MODE_PRIVATE).edit().putInt("theme", m).apply() }
 }
 
+/** Accent colours (light / dark variants), chat text size and bubble shape. */
+object UiPrefs {
+    val accents = listOf("Blue" to (0xFF1F6FEB to 0xFF4F9CFF), "Violet" to (0xFF6D4AFF to 0xFF9B85FF), "Green" to (0xFF12A66A to 0xFF3DD68C),
+        "Orange" to (0xFFF2733A to 0xFFFF9A5C), "Pink" to (0xFFE0457B to 0xFFFF7DA8), "Teal" to (0xFF0E9AA7 to 0xFF38D0DC))
+    val accent = mutableIntStateOf(0)
+    val textScale = androidx.compose.runtime.mutableFloatStateOf(1f)
+    val bubble = mutableIntStateOf(16)
+    val wallpaper = mutableIntStateOf(0)
+    private fun sp(c: Context) = c.getSharedPreferences("wt_ui", Context.MODE_PRIVATE)
+    fun load(c: Context) { val s = sp(c); accent.intValue = s.getInt("accent", 0); textScale.floatValue = s.getFloat("tscale", 1f); bubble.intValue = s.getInt("bubble", 16); wallpaper.intValue = s.getInt("wall", 0) }
+    fun setAccent(c: Context, i: Int) { accent.intValue = i; sp(c).edit().putInt("accent", i).apply() }
+    fun setTextScale(c: Context, v: Float) { textScale.floatValue = v; sp(c).edit().putFloat("tscale", v).apply() }
+    fun setBubble(c: Context, v: Int) { bubble.intValue = v; sp(c).edit().putInt("bubble", v).apply() }
+    fun setWallpaper(c: Context, v: Int) { wallpaper.intValue = v; sp(c).edit().putInt("wall", v).apply() }
+}
+
+private fun WeColors.accented(a: Color): WeColors {
+    val sent = if (dark) androidx.compose.ui.graphics.lerp(Color(0xFF17212B), a, .42f) else androidx.compose.ui.graphics.lerp(Color.White, a, .17f)
+    return WeColors(dark, a, onPrimary, bg, surface, if (dark) appBar else a, onAppBar, text, text2, line, sent, onSent, recv, onRecv, danger, ok, field)
+}
+
 @Composable
 fun WeTheme(content: @Composable () -> Unit) {
     val m by ThemeMode.mode
+    val ai by UiPrefs.accent
     val dark = when (m) { 1 -> false; 2 -> true; else -> isSystemInDarkTheme() }
-    val c = if (dark) DarkWe else LightWe
+    val acc = UiPrefs.accents[ai.coerceIn(0, UiPrefs.accents.lastIndex)].second
+    val c = (if (dark) DarkWe else LightWe).accented(Color(if (dark) acc.second else acc.first))
     val scheme = if (dark) darkColorScheme(primary = c.primary, background = c.bg, surface = c.surface, onSurface = c.text)
     else lightColorScheme(primary = c.primary, background = c.bg, surface = c.surface, onSurface = c.text)
     CompositionLocalProvider(LocalWe provides c) { MaterialTheme(colorScheme = scheme, content = content) }
