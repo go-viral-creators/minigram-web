@@ -295,10 +295,11 @@ object Repo {
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
         var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0
-        if (!bad && r.type in listOf("image", "voice", "gif", "link")) {
+        if (!bad && r.type in listOf("image", "voice", "gif", "link", "call")) {
             try {
                 val j = org.json.JSONObject(plain)
                 when (r.type) {
+                    "call" -> { dur = j.optInt("d"); mime = j.optString("s"); w = j.optInt("v") }
                     "link" -> { text = j.optString("t"); link = LinkPreview(j.optString("u"), j.optString("ti"), j.optString("d"), j.optString("i")) }
                     else -> {
                         mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")

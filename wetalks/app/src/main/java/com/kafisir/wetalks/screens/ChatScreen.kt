@@ -85,7 +85,7 @@ private fun dayLabel(ts: Long): String {
         else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(Date(ts))
     }
 }
-private fun isMedia(m: Msg) = m.type == "image" || m.type == "sticker" || m.type == "voice" || m.type == "gif" || m.type == "link"
+private fun isMedia(m: Msg) = m.type == "call" || m.type == "image" || m.type == "sticker" || m.type == "voice" || m.type == "gif" || m.type == "link"
 
 @Composable private fun nameOf(uid: String, fallback: String): String { val u by Repo.user(uid).collectAsState(); return u?.name ?: fallback }
 
@@ -199,6 +199,21 @@ fun ChatScreen(ref: ChatRef) {
         if (us.isNotEmpty()) { Nav.pendingPhotos = us; Nav.pendingRef = ref; Nav.pendingReply = reply?.id; reply = null; Nav.push(RPhotoEdit) }
     }
 
+    // ---------------- calls
+    var wantVideo by remember { mutableStateOf(false) }
+    val callPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
+        val micOk = res[Manifest.permission.RECORD_AUDIO] == true || ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val camOk = !wantVideo || res[Manifest.permission.CAMERA] == true || ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (!micOk || (wantVideo && !camOk)) toast(if (!micOk) "Microphone permission is needed for calls" else "Camera permission is needed for video calls")
+        else scope.launch { try { Calls.start(ref.peer!!, wantVideo) } catch (e: Exception) { toast(e.message ?: "Could not start the call") } }
+    }
+    fun placeCall(v: Boolean) {
+        if (Calls.phase != CallPhase.IDLE) { toast("You're already in a call"); return }
+        wantVideo = v
+        val need = buildList { add(Manifest.permission.RECORD_AUDIO); if (v) add(Manifest.permission.CAMERA); if (android.os.Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS) }
+        callPerms.launch(need.toTypedArray())
+    }
+
     // ---------------- voice recording (hold to record, slide left to cancel, slide up to lock)
     var rec by remember { mutableStateOf<Recorder?>(null) }
     var locked by remember { mutableStateOf(false) }
@@ -243,7 +258,13 @@ fun ChatScreen(ref: ChatRef) {
         } else TopBar(title, onBack = { Nav.pop() }, subtitle = subtitle,
             leading = { if (saved) Box(Modifier.size(38.dp).clip(CircleShape).background(We.onAppBar.copy(alpha = .2f)), contentAlignment = Alignment.Center) { Icon(Ic.Bookmark, We.onAppBar, 20.dp) } else Avatar(title, photo, 38.dp, seed) },
             titleClick = { if (!saved) when (ref.kind) { Kind.DM -> Nav.push(RProfile(ref.peer!!)); Kind.GROUP -> Nav.push(RGroupInfo(ref.id)); Kind.CHANNEL -> Nav.push(RChannelInfo(ref.id)) } },
-            actions = { IconBtn(Ic.Dots, We.onAppBar, { menu = true }) })
+            actions = {
+                if (ref.kind == Kind.DM && !saved) {
+                    IconBtn(Ic.Phone, We.onAppBar, { placeCall(false) })
+                    IconBtn(Ic.Video, We.onAppBar, { placeCall(true) })
+                }
+                IconBtn(Ic.Dots, We.onAppBar, { menu = true })
+            })
         if (sending) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = We.primary, trackColor = Color.Transparent)
 
         // pinned message banner
@@ -476,6 +497,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.type == "voice" -> VoiceBody(m, ref, fg)
                     m.type == "sticker" -> StickerBody(m.text)
                     m.type == "gif" -> GifBody(m, ref)
+                    m.type == "call" -> CallBody(m, mine, fg)
                     m.type == "link" && m.link != null -> {
                         Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
                         LinkCard(m.link, fg, onLong)
@@ -527,6 +549,21 @@ private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Co
         if (hasCap) {
             Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp))
             Box(Modifier.padding(end = 12.dp, bottom = 8.dp).align(Alignment.End)) { Column { MetaRow(m, mine, read, fg, pinned) } }
+        }
+    }
+}
+
+@Composable
+private fun CallBody(m: Msg, mine: Boolean, fg: Color) {
+    val missed = m.mime != "ended" && m.mime != "declined" && !mine
+    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(if (missed) We.danger.copy(alpha = .15f) else fg.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
+            Icon(if (m.w == 1) Ic.Video else Ic.Phone, if (missed) We.danger else fg, 20.dp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(if (m.w == 1) "Video call" else "Voice call", color = if (missed) We.danger else fg, style = T.body.copy(fontWeight = FontWeight.SemiBold))
+            Text(when (m.mime) { "ended" -> "%d:%02d".format(m.dur / 60, m.dur % 60); "declined" -> "Declined"; else -> if (mine) "No answer" else "Missed" }, color = fg.copy(alpha = .65f), style = T.small)
         }
     }
 }

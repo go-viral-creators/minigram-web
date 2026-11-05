@@ -65,6 +65,7 @@ dependencies {
     implementation("com.google.crypto.tink:tink-android:1.15.0")
     implementation("com.airbnb.android:lottie-compose:6.6.2")
     implementation("androidx.biometric:biometric:1.1.0")
+    implementation("io.getstream:stream-webrtc-android:1.3.10")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     testImplementation("junit:junit:4.13.2")
 }

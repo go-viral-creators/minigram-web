@@ -3,3 +3,6 @@
 -keepclassmembers class com.kafisir.wetalks.data.** { *; }
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
+-keep class org.webrtc.** { *; }
+-keep class io.getstream.webrtc.** { *; }
+-dontwarn org.webrtc.**

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.kafisir.wetalks.data.ChatItem
 import com.kafisir.wetalks.data.ChatRef
 import com.kafisir.wetalks.data.Kind
+import com.kafisir.wetalks.data.Msg
 import com.kafisir.wetalks.data.Repo
 import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.launch
@@ -123,7 +124,7 @@ fun titleOf(ref: ChatRef): Triple<String, String, String> {   // name, photo, se
 }
 
 fun previewText(type: String, text: String) = when (type) {
-    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; else -> text
+    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; "call" -> "Call"; else -> text
 }
 
 /** Telegram-style dialog: optionally tick "Also delete for X" to wipe the chat on both phones. */
@@ -165,7 +166,7 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     val preview by produceState("", c.lastBody, c.lastType) {
         value = if (c.lastBody.isEmpty()) "" else {
             val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
-            if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else previewText(m.type, m.text))
+            if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else if (m.type == "call") callLabel(m, c.lastFrom == Repo.uid) else previewText(m.type, m.text))
         }
     }
     Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLong).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -236,3 +237,13 @@ fun MeScreen() {
 }
 
 fun Modifier.combinedClickableNoRipple(onClick: () -> Unit): Modifier = this.then(Modifier.tap(onClick))
+
+
+fun callLabel(m: Msg, mine: Boolean): String {
+    val kind = if (m.w == 1) "Video call" else "Voice call"
+    return when (m.mime) {
+        "ended" -> kind + " · " + "%d:%02d".format(m.dur / 60, m.dur % 60)
+        "declined" -> "$kind · declined"
+        else -> if (mine) "$kind · no answer" else "Missed " + kind.lowercase()
+    }
+}

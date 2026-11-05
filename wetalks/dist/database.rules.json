@@ -104,6 +104,21 @@
       }
     },
 
+    "calls": {
+      "$cid": {
+        ".read": "auth != null && (data.child('from').val() === auth.uid || data.child('to').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('from').val() === auth.uid) || data.child('from').val() === auth.uid || data.child('to').val() === auth.uid)",
+        ".validate": "!newData.exists() || newData.hasChildren(['from','to','ts','state'])"
+      }
+    },
+
+    "incoming_calls": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$cid": { ".write": "auth != null && (auth.uid === $uid || newData.child('from').val() === auth.uid)" }
+      }
+    },
+
     "pins": {
       "$cid": {
         ".write": "auth != null && !newData.exists() && $cid.contains('_') && $cid.contains(auth.uid)",

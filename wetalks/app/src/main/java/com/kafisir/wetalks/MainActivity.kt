@@ -41,13 +41,17 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); Repo.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this) }
+    override fun onCreate() { super.onCreate(); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
+    override fun onStart() { super.onStart(); com.kafisir.wetalks.data.Calls.foreground = true }
+    override fun onStop() { super.onStop(); com.kafisir.wetalks.data.Calls.foreground = false }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        setShowWhenLocked(true); setTurnScreenOn(true)
         setContent { WeTheme { App() } }
     }
 }
@@ -71,14 +75,15 @@ fun App() {
         } else {
             val ver by Nav.profileVersion
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
-            LaunchedEffect(uid, me) { if (me == true) { Repo.watchBlocks(); Repo.publishKey() } }
+            LaunchedEffect(uid, me) { if (me == true) { Repo.watchBlocks(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) Repo.setOnline(true) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (me == true) Repo.setOnline(false) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true }
             when (me) {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) }
                 false -> ProfileSetupScreen(null, onDone = {})
-                true -> if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
+                true -> if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
+                    else if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
         val toast by Nav.toast

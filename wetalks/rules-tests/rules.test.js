@@ -201,3 +201,21 @@ test('media: only the uploader can delete it', async () => {
   await assertSucceeds(remove(ref(db(A), 'media/x1')));
   await assertSucceeds(set(ref(db(A), `messages/${AB}/big`), { from: A, ts: 1, type: 'link', body: 'x'.repeat(50000) }));
 });
+
+test('calls: only the two people see the signalling, nobody can ring as someone else', async () => {
+  const call = { from: A, to: B, video: true, ts: Date.now(), state: 'ringing', offer: 'sealed' };
+  await assertSucceeds(set(ref(db(A), 'calls/c1'), call));
+  await assertFails(set(ref(db(C), 'calls/c2'), { ...call, from: A }));                 // forged caller
+  await assertSucceeds(set(ref(db(A), 'incoming_calls/bob/c1'), { from: A, video: true, ts: 1 }));
+  await assertFails(set(ref(db(C), 'incoming_calls/bob/c9'), { from: A, video: true, ts: 1 }));
+  await assertFails(get(ref(db(C), 'incoming_calls/bob')));
+  await assertSucceeds(get(ref(db(B), 'incoming_calls/bob')));
+  await assertSucceeds(get(ref(db(B), 'calls/c1')));
+  await assertFails(get(ref(db(C), 'calls/c1')));
+  await assertSucceeds(update(ref(db(B), 'calls/c1'), { state: 'accepted', answer: 'sealed' }));
+  await assertSucceeds(set(ref(db(B), 'calls/c1/ice_callee/k1'), 'sealed'));
+  await assertFails(set(ref(db(C), 'calls/c1/ice_callee/k2'), 'x'));
+  await assertFails(update(ref(db(C), 'calls/c1'), { state: 'ended' }));
+  await assertSucceeds(remove(ref(db(B), 'incoming_calls/bob/c1')));
+  await assertSucceeds(remove(ref(db(A), 'calls/c1')));
+});
