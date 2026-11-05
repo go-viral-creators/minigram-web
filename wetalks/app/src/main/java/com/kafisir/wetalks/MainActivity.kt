@@ -79,7 +79,7 @@ fun App() {
         } else {
             val ver by Nav.profileVersion
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
-            LaunchedEffect(uid, me) { if (me == true) { Repo.watchBlocks(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } }
+            LaunchedEffect(uid, me) { if (me == true) { try { Repo.watchBlocks(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) Repo.setOnline(true) }
@@ -88,7 +88,7 @@ fun App() {
             when (me) {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) }
                 false -> ProfileSetupScreen(null, onDone = {})
-                true -> if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
+                true -> if (Repo.keyConflict.collectAsState().value) RestoreKeyScreen() else if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
                     else if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
@@ -103,6 +103,15 @@ fun App() {
 @Composable
 fun Main() {
     BackHandler(enabled = Nav.stack.isNotEmpty()) { Nav.pop() }
+    // Android 13+: notifications (calls, voice-message controls) need a one-time permission
+    val ctx0 = androidx.compose.ui.platform.LocalContext.current
+    val notifPerm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        val sp = ctx0.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE)
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !sp.getBoolean("notif_asked", false) && ctx0.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            sp.edit().putBoolean("notif_asked", true).apply(); notifPerm.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     val top = Nav.stack.lastOrNull()
     Box(Modifier.fillMaxSize()) {
     AnimatedContent(top, transitionSpec = {

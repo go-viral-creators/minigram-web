@@ -77,3 +77,25 @@ class OrtFormatTest {
         assertTrue("ORT-format models differ from the originals", Math.sqrt(num / den) < 0.01)
     }
 }
+
+class SilenceCutTest {
+    private val sr = 48000
+    private fun burst(ms: Int, f: Double = 220.0) = FloatArray(sr * ms / 1000) { (0.3 * Math.sin(2 * Math.PI * f * it / sr) * (0.6 + 0.4 * Math.sin(it * 0.002))).toFloat() }
+    private fun quiet(ms: Int) = FloatArray(sr * ms / 1000) { (0.0005 * Math.sin(it * 0.37)).toFloat() }
+    @Test fun longPausesAreShortenedAndShortOnesStay() {
+        val x = quiet(900) + burst(700) + quiet(1000) + burst(600) + quiet(150) + burst(500) + quiet(2000)
+        val y = SilenceCut.cut(x, sr)
+        val before = x.size / sr.toDouble(); val after = y.size / sr.toDouble()
+        println("silence cut: %.2fs -> %.2fs".format(before, after))
+        // 900 lead -> <=80, 1000 pause -> ~120, 150 pause untouched, 2000 tail -> <=80 : about 1.85 s removed or more
+        assertTrue("expected a big reduction, got $after of $before", after < before - 3.0)
+        assertTrue("speech must survive", after > 1.8 + 0.05)
+        // the speech itself (peak) is intact
+        assertTrue(y.maxOrNull()!! > 0.25f)
+    }
+    @Test fun audioWithoutClearSilenceIsLeftAlone() {
+        val x = burst(3000)
+        assertEquals(x.size, SilenceCut.cut(x, sr).size)
+    }
+    @Test fun waveHasFortyBars() { assertEquals(40, SilenceCut.wave(burst(1000)).size) }
+}

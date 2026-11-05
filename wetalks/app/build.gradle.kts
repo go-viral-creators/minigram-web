@@ -13,8 +13,8 @@ android {
         applicationId = "com.kafisir.wetalks"
         minSdk = 28
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.4.1"
+        versionCode = 7
+        versionName = "1.5.0"
     }
     val ksFile = rootProject.file("keystore.properties")
     signingConfigs {
@@ -73,6 +73,7 @@ dependencies {
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.24.3")
     testImplementation("com.microsoft.onnxruntime:onnxruntime:1.24.3")
     implementation("com.google.zxing:core:3.5.3")
+    implementation("androidx.media:media:1.7.0")
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
     testImplementation("junit:junit:4.13.2")

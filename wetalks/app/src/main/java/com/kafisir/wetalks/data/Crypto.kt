@@ -59,7 +59,7 @@ object Crypto {
         val sp = ctx.getSharedPreferences("wt_keys", Context.MODE_PRIVATE)
         val w = sp.getString("priv", null)
         val p = if (w != null) {
-            try { val priv = unwrap(w); Pair(priv, X25519.publicFromPrivate(priv)) } catch (e: Exception) { null }
+            try { val priv = unwrap(w); Pair(priv, X25519.publicFromPrivate(priv)) } catch (e: Exception) { throw IllegalStateException("The encryption key on this phone could not be unlocked right now", e) }
         } else null
         val result = p ?: run {
             val priv = X25519.generatePrivateKey()
@@ -68,6 +68,16 @@ object Crypto {
         }
         pair = result
         return result
+    }
+
+    /** Key derived from a passphrase for the encrypted key backup. */
+    fun passKey(pass: String, salt: ByteArray, iter: Int): ByteArray =
+        javax.crypto.SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(javax.crypto.spec.PBEKeySpec(pass.toCharArray(), salt, iter, 256)).encoded
+
+    /** Replaces this phone's key pair with a restored private key. */
+    @Synchronized fun install(ctx: Context, priv: ByteArray) {
+        ctx.getSharedPreferences("wt_keys", Context.MODE_PRIVATE).edit().putString("priv", wrap(priv)).commit()
+        pair = Pair(priv, X25519.publicFromPrivate(priv))
     }
 
     fun clear(ctx: Context) { pair = null; ctx.getSharedPreferences("wt_keys", Context.MODE_PRIVATE).edit().clear().apply() }

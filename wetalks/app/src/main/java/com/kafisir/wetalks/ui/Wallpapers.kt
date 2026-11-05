@@ -5,9 +5,11 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -36,6 +38,29 @@ import kotlin.random.Random
 
 /** One procedurally drawn chat background. [draw] receives (dark mode, accent colour). */
 class Wall(val name: String, val locked: Boolean, val draw: DrawScope.(Boolean, Color) -> Unit)
+
+/** One shared animation clock (seconds). Animated backgrounds and bubbles read it while drawing, so only they redraw each frame. */
+object Clock { var t by androidx.compose.runtime.mutableFloatStateOf(0f) }
+
+class AWall(val name: String, val locked: Boolean, val draw: DrawScope.(Float, Boolean, Color) -> Unit)
+
+object AWalls {
+    const val BASE = 200
+    private fun DrawScope.blob(c: Color, x: Float, y: Float, r: Float, a: Float) = drawCircle(Brush.radialGradient(listOf(c.copy(alpha = a), Color.Transparent), Offset(x, y), r), r, Offset(x, y))
+    private fun fr(t: Float) = t - kotlin.math.floor(t)
+    val all: List<AWall> = listOf(
+        AWall("Drift", false) { t, d, a -> repeat(4) { i -> blob(lerp(a, Color(0xFF9B6BFF), i / 4f), size.width * (.5f + .4f * sin(t * .25f + i * 1.7f)), size.height * (.5f + .4f * cos(t * .2f + i * 2.3f)), size.width * .8f, if (d) .30f else .22f) } },
+        AWall("Rising bubbles", false) { t, _, a -> val r = Random(21); repeat(26) { val sp = .05f + r.nextFloat() * .08f; val ph = r.nextFloat(); val y = size.height * (1.1f - fr(t * sp + ph) * 1.25f); val x = size.width * r.nextFloat() + 14f * sin(t + ph * 9); drawCircle(a.copy(alpha = .22f), (6 + r.nextInt(18)) * Walls.density, Offset(x, y), style = Stroke(1.5f * Walls.density)) } },
+        AWall("Snowfall", false) { t, d, _ -> val r = Random(5); repeat(70) { val sp = .06f + r.nextFloat() * .1f; val ph = r.nextFloat(); val y = size.height * (fr(t * sp + ph) * 1.1f - .05f); val x = size.width * r.nextFloat() + 18f * sin(t * .8f + ph * 10); drawCircle((if (d) Color.White else Color(0xFF8FB2FF)).copy(alpha = .55f), (1.5f + r.nextFloat() * 2.5f) * Walls.density, Offset(x, y)) } },
+        AWall("Fireflies", false) { t, d, a -> val r = Random(8); repeat(34) { val x = size.width * (r.nextFloat() + .06f * sin(t * .4f + it)) ; val y = size.height * (r.nextFloat() + .05f * cos(t * .35f + it * 2)); val al = (.35f + .65f * (.5f + .5f * sin(t * 1.6f + it * 1.9f))); blob(if (d) Color(0xFFFFE066) else a, x, y, 26 * Walls.density, al * .5f); drawCircle(if (d) Color(0xFFFFF3B0) else a, 2.2f * Walls.density, Offset(x, y)) } },
+        AWall("Flowing waves", false) { t, _, a -> for (k in 0 until 7) { val p = Path(); val y0 = size.height * (k + 1) / 8f; p.moveTo(0f, y0); var x = 0f; while (x <= size.width) { p.lineTo(x, y0 + 18 * Walls.density * sin(x / size.width * 5 + t * (.5f + k * .08f) + k)); x += 8f }; drawPath(p, a.copy(alpha = .16f), style = Stroke(1.8f * Walls.density, cap = StrokeCap.Round)) } },
+        AWall("Aurora flow", true) { t, _, _ -> drawRect(Color(0xFF071427)); blob(Color(0xFF16D9A5), size.width * (.3f + .25f * sin(t * .2f)), size.height * .25f, size.width, .55f); blob(Color(0xFF7B5CFF), size.width * (.75f - .25f * sin(t * .17f)), size.height * (.5f + .1f * cos(t * .3f)), size.width * 1.05f, .5f); blob(Color(0xFFFF5CA8), size.width * (.4f + .2f * cos(t * .23f)), size.height * .88f, size.width * .85f, .4f) },
+        AWall("Twinkling stars", true) { t, _, _ -> val r = Random(3); drawRect(Brush.verticalGradient(listOf(Color(0xFF05081C), Color(0xFF1B2A5A)))); repeat(130) { val x = r.nextFloat() * size.width; val y = r.nextFloat() * size.height; val ph = r.nextFloat() * 6f; drawCircle(Color.White.copy(alpha = (.2f + .8f * (.5f + .5f * sin(t * (.8f + r.nextFloat() * 1.8f) + ph)))), (.6f + r.nextFloat() * 2f) * Walls.density, Offset(x, y)) } },
+        AWall("Rain", true) { t, _, _ -> drawRect(Brush.verticalGradient(listOf(Color(0xFF1B2A3C), Color(0xFF3B5368)))); val r = Random(12); repeat(80) { val sp = .6f + r.nextFloat() * .6f; val x = size.width * r.nextFloat(); val y = size.height * (fr(t * sp + r.nextFloat()) * 1.2f - .1f); drawLine(Color.White.copy(alpha = .25f), Offset(x, y), Offset(x - 6f, y + 22f * Walls.density), 1.4f * Walls.density) } },
+        AWall("Lava lamp", true) { t, _, _ -> drawRect(Color(0xFF2A0A1A)); repeat(5) { i -> blob(listOf(Color(0xFFFF4D2E), Color(0xFFFFB02E), Color(0xFFFF2E92), Color(0xFFFF6B3D), Color(0xFFFFD166))[i], size.width * (.5f + .35f * sin(t * (.18f + i * .05f) + i)), size.height * (.5f + .42f * cos(t * (.15f + i * .04f) + i * 2)), size.width * .55f, .75f) } },
+        AWall("Digital rain", true) { t, _, _ -> drawRect(Color(0xFF02120A)); val r = Random(4); val cols = (size.width / (14 * Walls.density)).toInt(); for (c in 0 until cols) { val sp = .15f + r.nextFloat() * .3f; val ph = r.nextFloat(); val head = size.height * (fr(t * sp + ph) * 1.3f); val x = c * 14 * Walls.density + 7 * Walls.density; for (k in 0 until 10) drawCircle(Color(0xFF3DFF8F).copy(alpha = (1f - k / 10f) * .7f), 2.2f * Walls.density, Offset(x, head - k * 12 * Walls.density)) } },
+    )
+}
 
 object Walls {
     const val CUSTOM = 100
@@ -84,6 +109,8 @@ object Walls {
         Wall("Confetti", true) { d, _ -> drawRect(if (d) Color(0xFF14101F) else Color(0xFFFFFBF2)); val r = Random(4); val cols = listOf(Color(0xFFFF5C8A), Color(0xFFFFC53D), Color(0xFF3DD6A3), Color(0xFF4F9CFF), Color(0xFF9B6BFF)); repeat(90) { val x = r.nextFloat() * size.width; val y = r.nextFloat() * size.height; rotate(r.nextFloat() * 180f, Offset(x, y)) { drawRoundRect(cols[r.nextInt(cols.size)].copy(alpha = .75f), Offset(x, y), Size(4.dpPx() + r.nextInt(6).dpPx(), 3.dpPx()), CornerRadius(2f)) } } },
     )
 
+    fun isLocked(id: Int) = if (id >= AWalls.BASE) AWalls.all.getOrNull(id - AWalls.BASE)?.locked == true else all.getOrNull(id)?.locked == true
+    fun nameOf(id: Int) = if (id >= AWalls.BASE) AWalls.all.getOrNull(id - AWalls.BASE)?.name ?: "" else all.getOrNull(id)?.name ?: ""
     private fun Number.dpPx(): Float = toFloat() * density
     var density = 3f
 
@@ -109,8 +136,10 @@ fun Modifier.wallpaperFor(id: Int, dim: Float, blur: Int, ver: Int): Modifier {
     Walls.density = density
     val custom = remember(id, blur, ver) { if (id == Walls.CUSTOM) UiPrefs.dir?.let { Walls.loadCustom(it, blur) } else null }
     val wall = Walls.all.getOrNull(id)
+    val awall = if (id >= AWalls.BASE) AWalls.all.getOrNull(id - AWalls.BASE) else null
     return this.background(bg).drawWithCache {
         onDrawBehind {
+            if (awall != null) { awall.draw.invoke(this, Clock.t, dark, accent); if (dim > 0f) drawRect(Color.Black.copy(alpha = dim)); return@onDrawBehind }
             if (custom != null) {
                 val sc = max(size.width / custom.width, size.height / custom.height)
                 val w = custom.width * sc; val h = custom.height * sc
@@ -126,10 +155,13 @@ class BubbleStyle(val name: String, val locked: Boolean)
 
 object Bubbles {
     /** Dark locked looks need light text. */
-    fun fgFor(style: Int, mine: Boolean): Color? = if (style == 7 || style == 9) Color.White else null
+    fun fgFor(style: Int, mine: Boolean): Color? = if (style == 7 || style == 9 || style == 19) Color.White else null
+    fun animated(style: Int) = style >= 12
 
     val all = listOf(BubbleStyle("Classic", false), BubbleStyle("Gradient", false), BubbleStyle("Outline", false), BubbleStyle("Dots", false), BubbleStyle("Stripes", false), BubbleStyle("Paper", false), BubbleStyle("Glass", false),
-        BubbleStyle("Neon", true), BubbleStyle("Aurora", true), BubbleStyle("Carbon", true), BubbleStyle("Candy", true), BubbleStyle("Sunrise", true))
+        BubbleStyle("Neon", true), BubbleStyle("Aurora", true), BubbleStyle("Carbon", true), BubbleStyle("Candy", true), BubbleStyle("Sunrise", true),
+        BubbleStyle("Shimmer", false), BubbleStyle("Pulse", false), BubbleStyle("Flow", false), BubbleStyle("Sparkle", false), BubbleStyle("Wave", false),
+        BubbleStyle("Rainbow", true), BubbleStyle("Float", true), BubbleStyle("Neon pulse", true), BubbleStyle("Liquid", true), BubbleStyle("Glitter", true))
 }
 
 /** Fills a bubble according to the chosen style; [fg] is the text colour (used to tint textures). */
@@ -139,6 +171,7 @@ fun Modifier.bubbleLook(mine: Boolean, shape: Shape, override: Int? = null): Mod
     val base = if (mine) We.sent else We.recv
     val fg = if (mine) We.onSent else We.onRecv
     val accent = We.primary
+    val darkNow = We.dark
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     fun dp(v: Float) = v * density
     val clipped = this.then(Modifier.clip(shape))
@@ -154,6 +187,16 @@ fun Modifier.bubbleLook(mine: Boolean, shape: Shape, override: Int? = null): Mod
         9 -> clipped.background(Color(0xFF1B1B1F)).drawWithCache { onDrawBehind { val s = dp(6f); var y = 0f; while (y < size.height) { var x = if (((y / s).toInt() and 1) == 0) 0f else s / 2; while (x < size.width) { drawRect(Color.White.copy(alpha = .05f), Offset(x, y), Size(s / 2, s / 2)); x += s }; y += s / 2 } } }
         10 -> clipped.background(Brush.linearGradient(listOf(Color(0xFFFFC2E2), Color(0xFFB8F2E6))))
         11 -> clipped.background(Brush.linearGradient(listOf(Color(0xFFFFD36B), Color(0xFFFF8E5C))))
+        12 -> clipped.background(base).drawBehind { val w = size.width; val h = size.height; val x = (Clock.t % 2.6f) / 2.6f * (w + h * 2) - h; drawRect(Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = if (darkNow) .16f else .55f), Color.Transparent), Offset(x, 0f), Offset(x + h, h))) }
+        13 -> clipped.background(base).drawBehind { drawRect(accent.copy(alpha = .05f + .13f * (.5f + .5f * sin(Clock.t * 2.2f)))) }
+        14 -> clipped.background(base).drawBehind { val w = size.width; val o = ((Clock.t % 4f) / 4f) * w * 2 - w; drawRect(Brush.linearGradient(listOf(Color.Transparent, accent.copy(alpha = .30f), Color.Transparent), Offset(o, 0f), Offset(o + w, size.height))) }
+        15 -> clipped.background(base).drawBehind { val r = Random(size.width.toInt()); repeat(9) { val x = r.nextFloat() * size.width; val y = r.nextFloat() * size.height; val a = (.5f + .5f * sin(Clock.t * 3f + it * 1.7f)); drawCircle(Color.White.copy(alpha = a * .75f), dp(1.6f), Offset(x, y)); drawLine(Color.White.copy(alpha = a * .5f), Offset(x - dp(4f), y), Offset(x + dp(4f), y), dp(.8f)); drawLine(Color.White.copy(alpha = a * .5f), Offset(x, y - dp(4f)), Offset(x, y + dp(4f)), dp(.8f)) } }
+        16 -> clipped.background(base).drawBehind { val p = androidx.compose.ui.graphics.Path(); val y0 = size.height * .62f; p.moveTo(0f, size.height); var x = 0f; while (x <= size.width + 6f) { p.lineTo(x, y0 + dp(5f) * sin(x / dp(22f) + Clock.t * 2.4f)); x += 6f }; p.lineTo(size.width, size.height); p.close(); drawPath(p, accent.copy(alpha = .20f)) }
+        17 -> clipped.background(base).drawBehind { val h0 = (Clock.t * 45f) % 360f; val cs = listOf(0f, 70f, 140f).map { Color.hsv((h0 + it) % 360f, .5f, 1f).copy(alpha = .55f) }; drawRect(Brush.linearGradient(cs, Offset.Zero, Offset(size.width, size.height))) }
+        18 -> clipped.background(base).drawBehind { val r = Random(size.height.toInt()); repeat(7) { val sp = .12f + r.nextFloat() * .18f; val x = r.nextFloat() * size.width; val y = size.height * (1.1f - ((Clock.t * sp + r.nextFloat()) % 1f) * 1.2f); drawCircle(accent.copy(alpha = .30f), dp(3f + r.nextInt(5)), Offset(x, y), style = androidx.compose.ui.graphics.drawscope.Stroke(dp(1f))) } }
+        19 -> clipped.background(Color(0xFF0B0B1A)).border2(Color(0xFFFF2BD6).copy(alpha = .8f), shape).drawBehind { val a = .15f + .35f * (.5f + .5f * sin(Clock.t * 2.6f)); drawRect(Brush.horizontalGradient(listOf(Color(0xFF28F2FF).copy(alpha = a), Color(0xFFFF2BD6).copy(alpha = a)))) }
+        20 -> clipped.background(base).drawBehind { val w = size.width; val h = size.height; for (i in 0 until 2) { val c = Offset(w * (.5f + .4f * sin(Clock.t * (.9f + i * .4f) + i * 2)), h * (.5f + .35f * cos(Clock.t * (.7f + i * .3f)))); drawCircle(Brush.radialGradient(listOf((if (i == 0) accent else Color(0xFFFF5CA8)).copy(alpha = .45f), Color.Transparent), c, h), h, c) } }
+        21 -> clipped.background(base).drawBehind { val r = Random(size.width.toInt() * 3); repeat(40) { val a = (.5f + .5f * sin(Clock.t * (2f + r.nextFloat() * 3f) + it)); drawCircle(Color(0xFFFFD36B).copy(alpha = a * .8f), dp(.9f), Offset(r.nextFloat() * size.width, r.nextFloat() * size.height)) } }
         else -> clipped.background(base)
     }
 }

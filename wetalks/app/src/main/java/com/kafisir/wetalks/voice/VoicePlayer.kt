@@ -32,8 +32,11 @@ object VoicePlayer {
     var speed by mutableFloatStateOf(1f); private set
     private var mp: MediaPlayer? = null
     private var ticker: Job? = null
+    private var appCtx: Context? = null
+    private fun notifyService() { appCtx?.let { PlaybackService.sync(it) } }
 
     fun toggle(ctx: Context, chat: ChatRef, m: Msg, who: String) {
+        appCtx = ctx.applicationContext
         if (currentId == m.id && mp != null) { if (playing) pause() else resume(); return }
         stop()
         Repo.scope.launch {
@@ -45,7 +48,7 @@ object VoicePlayer {
                 val p = MediaPlayer().apply { setDataSource(f.absolutePath); prepare(); setOnCompletionListener { finished() } }
                 mp = p; currentId = m.id; ref = chat; title = who; total = p.duration; pos = 0
                 ctx.getSharedPreferences("wt_listened", Context.MODE_PRIVATE).edit().putBoolean(m.id, true).apply()
-                p.start(); playing = true; applySpeed(); startTicker()
+                p.start(); playing = true; applySpeed(); startTicker(); notifyService()
             } catch (e: Exception) { stop(); Nav.say("Could not play this voice message") }
             loadingId = null
         }
@@ -53,10 +56,10 @@ object VoicePlayer {
 
     private fun startTicker() { ticker?.cancel(); ticker = Repo.scope.launch { while (playing) { pos = try { mp?.currentPosition ?: 0 } catch (e: Exception) { 0 }; delay(80) } } }
     private fun finished() { playing = false; pos = 0; try { mp?.seekTo(0) } catch (_: Exception) {}; stop() }
-    fun pause() { try { mp?.pause() } catch (_: Exception) {}; playing = false }
-    fun resume() { try { mp?.start() } catch (_: Exception) {}; playing = true; applySpeed(); startTicker() }
+    fun pause() { try { mp?.pause() } catch (_: Exception) {}; playing = false; notifyService() }
+    fun resume() { try { mp?.start() } catch (_: Exception) {}; playing = true; applySpeed(); startTicker(); notifyService() }
     fun seek(frac: Float) { mp?.let { val t = (frac * total).toInt(); try { it.seekTo(t) } catch (_: Exception) {}; pos = t } }
     fun cycleSpeed() { speed = when (speed) { 1f -> 1.5f; 1.5f -> 2f; else -> 1f }; applySpeed() }
     private fun applySpeed() { try { mp?.let { if (playing) it.playbackParams = PlaybackParams().setSpeed(speed) } } catch (_: Exception) {} }
-    fun stop() { ticker?.cancel(); try { mp?.release() } catch (_: Exception) {}; mp = null; playing = false; currentId = null; pos = 0; total = 0 }
+    fun stop() { ticker?.cancel(); try { mp?.release() } catch (_: Exception) {}; mp = null; playing = false; currentId = null; pos = 0; total = 0; notifyService() }
 }

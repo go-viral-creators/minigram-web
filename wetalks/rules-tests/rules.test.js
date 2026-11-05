@@ -260,3 +260,12 @@ test('a group member with the pin permission still cannot delete other people\'s
   await assertSucceeds(set(ref(db(A), 'groups/g1/perms/pin'), true));
   await assertFails(remove(ref(db(B), 'messages/g1/x1')));
 });
+
+test('encryption key backups are private to their owner', async () => {
+  const bk = { s: 'salt', i: 210000, c: 'sealed', pub: 'pub' };
+  await assertSucceeds(set(ref(db(A), 'key_backups/alice'), bk));
+  await assertSucceeds(get(ref(db(A), 'key_backups/alice')));
+  await assertFails(get(ref(db(B), 'key_backups/alice')));
+  await assertFails(set(ref(db(B), 'key_backups/alice'), bk));
+  await assertFails(set(ref(db(A), 'key_backups/alice'), { ...bk, c: 'x'.repeat(500) }));
+});

@@ -91,7 +91,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear() }
+    private fun detachAll() { listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); keyConflict.value = false; Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -177,9 +177,42 @@ object Repo {
     suspend fun publishKey() {
         if (uid.isEmpty()) return
         val exists = db.getReference("users/$uid/name").get().await().exists()
-        if (exists) db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await()
+        val mine = Crypto.b64(Crypto.keys(app).pub)
+        val onServer = db.getReference("users/$uid/pk").get().await().getValue(String::class.java).orEmpty()
+        // This phone has a different key than the one the server knows (reinstall / new phone). If a backup exists, ask the user to
+        // restore it instead of silently replacing the key, which would make every old chat unreadable.
+        if (exists && onServer.isNotEmpty() && onServer != mine && hasKeyBackup()) { keyConflict.value = true; return }
+        if (exists) db.getReference("users/$uid/pk").setValue(mine).await()
         if (exists) auth.currentUser?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { registerPhone(it) }
     }
+
+    val keyConflict = MutableStateFlow(false)
+    suspend fun hasKeyBackup(): Boolean = try { db.getReference("key_backups/$uid").get().await().exists() } catch (e: Exception) { false }
+
+    /** Encrypts the private key with a passphrase (PBKDF2 + AES-GCM) and stores it where only the owner can read it. */
+    suspend fun backupKey(pass: String) {
+        val salt = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }; val iter = 210_000
+        val k = Crypto.passKey(pass, salt, iter)
+        val me = Crypto.keys(app)
+        db.getReference("key_backups/$uid").setValue(hashMapOf("s" to Crypto.b64(salt), "i" to iter, "c" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub), "ts" to ServerValue.TIMESTAMP)).await()
+    }
+
+    /** Restores the backed-up key on this phone. Returns false when the passphrase is wrong. */
+    suspend fun restoreKey(pass: String): Boolean {
+        val s = db.getReference("key_backups/$uid").get().await()
+        if (!s.exists()) return false
+        return try {
+            val k = Crypto.passKey(pass, Crypto.unb64(s.str("s")), s.lng("i").toInt())
+            val priv = Crypto.open(k, s.str("c"))
+            Crypto.install(app, priv)
+            dmKeys.clear(); groupKeys.clear()
+            db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await()
+            keyConflict.value = false
+            true
+        } catch (e: Exception) { false }
+    }
+    /** "Start fresh": keep this phone's new key; old chats stay unreadable. */
+    suspend fun keepNewKey() { db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await(); keyConflict.value = false }
 
     fun setPrivacy(key: String, v: Boolean) { db.getReference("users/$uid/$key").setValue(v) }
 
@@ -208,6 +241,9 @@ object Repo {
                     val type = c.str("type")
                     val kind = when (type) { "group" -> Kind.GROUP; "channel" -> Kind.CHANNEL; else -> Kind.DM }
                     val id = c.key ?: return@mapNotNull null
+                    // half-written entries (no type / no peer) must never reach the UI: they used to crash the app on start
+                    if (type.isEmpty() && c.str("peer").isEmpty() && c.str("lastBody").isEmpty() && c.lng("lastTs") == 0L) return@mapNotNull null
+                    if (kind == Kind.DM && c.str("peer").isEmpty()) return@mapNotNull null
                     ChatItem(ChatRef(id, kind, c.str("peer").ifEmpty { null }), c.lng("lastTs"), c.str("lastBody"), c.str("lastType"),
                         c.str("lastFrom"), c.lng("unread"), c.bool("pinned"), c.bool("muted"))
                 }
@@ -219,7 +255,7 @@ object Repo {
         awaitClose { ref.removeEventListener(l) }
     }
 
-    fun setPinned(id: String, v: Boolean) { db.getReference("user_chats/$uid/$id/pinned").setValue(v) }
+    fun setPinned(id: String, v: Boolean) { val me = uid; db.getReference("user_chats/$me/$id/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$id/pinned").setValue(v) } }
     fun muteDm(peer: String, v: Boolean) {
         val b = "user_chats/$uid/${dmId(peer)}"
         db.getReference(b).updateChildren(mapOf("type" to "dm", "peer" to peer, "muted" to v))
@@ -233,7 +269,7 @@ object Repo {
         else db.getReference("channel_handles/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RChannelInfo(it) }
     }
 
-    fun setMuted(id: String, v: Boolean) { db.getReference("user_chats/$uid/$id/muted").setValue(v) }
+    fun setMuted(id: String, v: Boolean) { val me = uid; db.getReference("user_chats/$me/$id/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$id/muted").setValue(v) } }
     fun removeChat(id: String) { db.getReference("user_chats/$uid/$id").removeValue() }
 
     fun dmId(peer: String) = listOf(uid, peer).sorted().joinToString("_")
@@ -305,7 +341,7 @@ object Repo {
         var bad = false
         if (ref.kind == Kind.CHANNEL) plain = r.body
         else {
-            val key = chatKey(ref, r.kv)
+            val key = try { chatKey(ref, r.kv) } catch (e: Exception) { null }
             plain = if (key == null) { bad = true; "" } else try { Crypto.openText(key, r.body) } catch (e: Exception) { bad = true; "" }
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
@@ -471,7 +507,10 @@ object Repo {
 
     fun markRead(ref: ChatRef) {
         if (user(uid).value?.readReceipts != false) db.getReference("reads/${ref.id}/$uid").setValue(ServerValue.TIMESTAMP)
-        if (ref.kind != Kind.CHANNEL) db.getReference("user_chats/$uid/${ref.id}/unread").setValue(0)
+        if (ref.kind != Kind.CHANNEL) {
+            val me = uid; val cid = ref.id
+            db.getReference("user_chats/$me/$cid/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$cid/unread").setValue(0) }
+        }
     }
 
     fun readTs(ref: ChatRef, who: String): Flow<Long> = callbackFlow {

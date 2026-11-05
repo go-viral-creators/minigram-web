@@ -135,6 +135,14 @@
       }
     },
 
+    "key_backups": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['s','i','c','pub']) && newData.child('c').isString() && newData.child('c').val().length <= 400"
+      }
+    },
+
     "slow": {
       "$cid": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } }
     },

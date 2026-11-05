@@ -152,6 +152,8 @@ fun ChatScreen(ref: ChatRef) {
     fun toast(m: String) = Nav.say(m)
 
     LaunchedEffect(msgs.size, ref) { Repo.markRead(ref) }
+    val animOn = UiPrefs.wallpaper.intValue >= AWalls.BASE || Bubbles.animated(UiPrefs.bubbleStyle.intValue)
+    LaunchedEffect(animOn) { while (animOn) androidx.compose.runtime.withFrameNanos { Clock.t = (it / 1_000_000_000.0 % 3600.0).toFloat() } }
     // jump to a message picked from the shared-media lists, then flash it so it is easy to spot
     val jump = remember(ref) { Nav.jumpTo.also { Nav.jumpTo = null } }
     var highlightId by remember { mutableStateOf<String?>(null) }

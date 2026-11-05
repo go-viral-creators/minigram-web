@@ -101,20 +101,34 @@ object Calls {
     val peerRef get() = ChatRef(Repo.dmId(peer), Kind.DM, peer)
 
     // ------------------------------------------------------------------------------------------ incoming listener
+    private var incomingRef: com.google.firebase.database.DatabaseReference? = null
+    private var incomingL: ChildEventListener? = null
+    private var offsetL: Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>? = null
+    /** Called on sign-out so the next account gets its own incoming-call listener. */
+    fun reset() {
+        try { incomingL?.let { incomingRef?.removeEventListener(it) }; offsetL?.let { it.first.removeEventListener(it.second) } } catch (_: Exception) {}
+        incomingL = null; incomingRef = null; offsetL = null; incomingListening = false
+        if (phase != CallPhase.IDLE) try { teardown() } catch (_: Exception) {}
+    }
+
     fun listen() {
         if (incomingListening || Repo.uid.isEmpty()) return
         incomingListening = true
-        Repo.db.getReference(".info/serverTimeOffset").addValueEventListener(object : ValueEventListener {
+        val offRef = Repo.db.getReference(".info/serverTimeOffset")
+        val offL = object : ValueEventListener {
             override fun onDataChange(s: DataSnapshot) { serverOffset = s.getValue(Long::class.java) ?: 0L }
             override fun onCancelled(e: DatabaseError) {}
-        })
-        Repo.db.getReference("incoming_calls/${Repo.uid}").addChildEventListener(object : ChildEventListener {
+        }
+        offRef.addValueEventListener(offL); offsetL = offRef to offL
+        incomingRef = Repo.db.getReference("incoming_calls/${Repo.uid}")
+        incomingL = object : ChildEventListener {
             override fun onChildAdded(s: DataSnapshot, prev: String?) { val id = s.key ?: return; scope.launch { onIncoming(id) } }
             override fun onChildChanged(s: DataSnapshot, prev: String?) {}
             override fun onChildRemoved(s: DataSnapshot) {}
             override fun onChildMoved(s: DataSnapshot, prev: String?) {}
             override fun onCancelled(e: DatabaseError) { incomingListening = false }
-        })
+        }
+        incomingRef!!.addChildEventListener(incomingL!!)
     }
 
     private suspend fun onIncoming(id: String) {

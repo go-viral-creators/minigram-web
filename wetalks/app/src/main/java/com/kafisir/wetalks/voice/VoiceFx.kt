@@ -24,12 +24,13 @@ import kotlin.math.sqrt
 object VoiceFx {
     val ai = mutableStateOf(true)          // neural noise + echo removal
     val polish = mutableStateOf(true)      // speech EQ, compression, loudness normalisation
+    val cut = mutableStateOf(true)         // shorten pauses longer than 300 ms
     private var engine: DfnEngine? = null
     private var failed = false
     private fun sp(c: Context) = c.getSharedPreferences("wt_ui", Context.MODE_PRIVATE)
     fun load(c: Context) {
         appCtx = c.applicationContext
-        ai.value = sp(c).getBoolean("vfx_ai", true); polish.value = sp(c).getBoolean("vfx_polish", true)
+        ai.value = sp(c).getBoolean("vfx_ai", true); polish.value = sp(c).getBoolean("vfx_polish", true); cut.value = sp(c).getBoolean("vfx_cut", true)
         if (sp(c).getBoolean("ort_busy", false)) {            // last run ended inside the native engine
             sp(c).edit().putBoolean("ort_busy", false).putBoolean("vfx_ai", false).putBoolean("ort_crashed", true).apply()
             ai.value = false; crashedBefore = true
@@ -38,6 +39,7 @@ object VoiceFx {
     /** The user turned the AI stage back on after a crash: give it another chance. */
     fun retryAfterCrash(c: Context) { sp(c).edit().putBoolean("ort_crashed", false).apply(); crashedBefore = false; failed = false; setAi(c, true) }
     fun setAi(c: Context, v: Boolean) { ai.value = v; sp(c).edit().putBoolean("vfx_ai", v).apply(); if (v) warmUp(c) }
+    fun setCut(c: Context, v: Boolean) { cut.value = v; sp(c).edit().putBoolean("vfx_cut", v).apply() }
     fun setPolish(c: Context, v: Boolean) { polish.value = v; sp(c).edit().putBoolean("vfx_polish", v).apply() }
 
     private var appCtx: Context? = null
@@ -158,12 +160,13 @@ class Recorder(private val ctx: Context) {
             var x: FloatArray? = null
             if (dfnOk) try { x = stream!!.finish() } catch (_: Throwable) { x = null }
             if (x == null) x = readRaw(n.toInt())
+            if (VoiceFx.cut.value) x = SilenceCut.cut(x, SR)
             if (VoiceFx.polish.value) {
                 Dsp.speechEq(x, SR); Dsp.compress(x, SR, -26.0, 2.5, 8.0, 160.0); Dsp.normalize(x, SR, -16.0)
             } else Dsp.limit(x, SR)
             Dsp.fade(x, SR)
             val bytes = VoiceEncoder.encodeAac(x, File(ctx.cacheDir, "voice_${System.nanoTime()}.m4a"))
-            Result(bytes, seconds, downsample(synchronized(amps) { ArrayList(amps) }))
+            Result(bytes, if (VoiceFx.cut.value) maxOf(1, Math.round(x.size / SR.toFloat())) else seconds, SilenceCut.wave(x))
         } catch (e: Throwable) { null } finally { raw.delete() }
     }
 
