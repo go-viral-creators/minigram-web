@@ -1,0 +1,128 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      ".indexOn": ["usernameLower", "nameLower"],
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+        "username": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_]{3,20}$/)" },
+        "usernameLower": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_]{3,20}$/)" },
+        "about": { ".validate": "newData.isString() && newData.val().length <= 140" },
+        "photo": { ".validate": "newData.isString() && newData.val().length <= 60000" },
+        "pk": { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "$other": { ".validate": "true" }
+      }
+    },
+
+    "usernames": {
+      ".read": "auth != null",
+      "$name": {
+        ".write": "auth != null && (newData.val() === auth.uid && !data.exists() || !newData.exists() && data.val() === auth.uid)",
+        ".validate": "$name.matches(/^[a-z0-9_]{3,20}$/) && newData.isString()"
+      }
+    },
+
+    "blocks": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
+
+    "user_chats": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$cid": {
+          ".write": "auth != null && (auth.uid === $uid || ($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists())"
+        }
+      }
+    },
+
+    "groups": {
+      "$gid": {
+        ".read": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
+        ".write": "auth != null && !data.exists() && newData.child('owner').val() === auth.uid",
+        "name": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'", ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+        "about": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'" },
+        "photo": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'", ".validate": "newData.isString() && newData.val().length <= 60000" },
+        "kv": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'" },
+        "members": {
+          ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'",
+          "$m": { ".write": "auth != null && ((root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin') || (auth.uid === $m && !newData.exists()))" }
+        }
+      }
+    },
+
+    "group_keys": {
+      "$gid": {
+        "$kv": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'"
+          }
+        }
+      }
+    },
+
+    "channels": {
+      ".indexOn": ["handleLower", "nameLower", "subCount"],
+      ".read": "auth != null",
+      "$cid": {
+        ".write": "auth != null && !data.exists() && newData.child('owner').val() === auth.uid",
+        "name": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid", ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+        "nameLower": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid" },
+        "about": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid" },
+        "photo": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid", ".validate": "newData.isString() && newData.val().length <= 60000" },
+        "lastTs": { ".write": "auth != null && (root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())" },
+        "lastPreview": { ".write": "auth != null && (root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())", ".validate": "newData.isString() && newData.val().length <= 200" },
+        "subCount": { ".write": "auth != null", ".validate": "newData.isNumber() && newData.val() >= 0 && (newData.val() === data.val() + 1 || newData.val() === data.val() - 1)" }
+      }
+    },
+
+    "channel_handles": {
+      ".read": "auth != null",
+      "$h": { ".write": "auth != null && !data.exists() && newData.isString()", ".validate": "$h.matches(/^[a-z0-9_]{3,32}$/)" }
+    },
+
+    "channel_subs": {
+      "$cid": {
+        ".read": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid",
+        "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" }
+      }
+    },
+
+    "messages": {
+      "$cid": {
+        ".read": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())",
+        "$mid": {
+          ".write": "auth != null && ( (!data.exists() && newData.child('from').val() === auth.uid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())) || (data.exists() && data.child('from').val() === auth.uid && newData.child('from').val() === auth.uid) || !newData.exists() && data.child('from').val() === auth.uid )",
+          ".validate": "!newData.exists() || (newData.hasChildren(['from','ts','type','body']) && newData.child('body').isString() && newData.child('body').val().length <= 20000)",
+          "react": {
+            "$ruid": { ".write": "auth != null && auth.uid === $ruid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || root.child('channels').child($cid).exists())", ".validate": "newData.isString() && newData.val().length <= 8" }
+          }
+        }
+      }
+    },
+
+    "typing": {
+      "$cid": {
+        ".read": "auth != null",
+        "$uid": { ".write": "auth != null && auth.uid === $uid" }
+      }
+    },
+
+    "reads": {
+      "$cid": {
+        ".read": "auth != null",
+        "$uid": { ".write": "auth != null && auth.uid === $uid" }
+      }
+    },
+
+    "media": {
+      "$id": {
+        ".read": "auth != null",
+        ".write": "auth != null && !data.exists() && newData.child('from').val() === auth.uid",
+        ".validate": "newData.hasChildren(['from','mime','data']) && newData.child('data').isString() && newData.child('data').val().length <= 1800000"
+      }
+    }
+  }
+}

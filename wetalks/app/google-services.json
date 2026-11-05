@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "198902874582",
+    "project_id": "wetalks-78e5a",
+    "storage_bucket": "wetalks-78e5a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:198902874582:android:3d2bf7e5cab37143b12477",
+        "android_client_info": {
+          "package_name": "com.kafisir.wetalks"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9k0-Z4SuY3BJ_RWlYA6Ac4d2tdBOIVMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

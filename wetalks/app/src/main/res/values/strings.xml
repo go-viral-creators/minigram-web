@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WeTalks</string>
+    <string name="default_web_client_id" translatable="false">198902874582-7ti3n5h8n3kg3ne1mo8puakvdqvc8bku.apps.googleusercontent.com</string>
+</resources>

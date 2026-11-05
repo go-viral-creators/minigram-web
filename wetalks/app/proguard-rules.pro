@@ -1,0 +1,5 @@
+-keepattributes Signature,*Annotation*
+-keep class com.kafisir.wetalks.data.** { *; }
+-keepclassmembers class com.kafisir.wetalks.data.** { *; }
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**

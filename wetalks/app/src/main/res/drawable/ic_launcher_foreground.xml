@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- logo content occupies ~60% of the canvas, centred, so no launcher mask can crop it -->
+    <group android:scaleX="0.476" android:scaleY="0.476" android:translateX="5.45" android:translateY="4.0">
+        <path android:fillColor="#FFFFFF" android:pathData="M62,42H138Q166,42 166,70V112Q166,140 138,140H106L70,168V140Q34,138 34,112V70Q34,42 62,42Z" />
+        <path android:pathData="M58,72L78,114L100,82L122,114L142,72" android:strokeColor="#6D5BF6" android:strokeWidth="13" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M132,156L140,164L156,146" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M146,156L154,164L170,146" android:strokeColor="#FFFFFF" android:strokeWidth="7" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>

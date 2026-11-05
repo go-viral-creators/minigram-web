@@ -1,0 +1,44 @@
+package com.kafisir.wetalks.ui
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Base64
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import java.io.ByteArrayOutputStream
+
+object Pics {
+    /** Decodes a picked image and scales it so the longest side is [max] px; returns JPEG bytes. */
+    fun jpegFrom(ctx: Context, uri: Uri, max: Int, quality: Int): Triple<ByteArray, Int, Int>? {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+        if (opts.outWidth <= 0) return null
+        var sample = 1
+        while (maxOf(opts.outWidth, opts.outHeight) / sample > max * 2) sample *= 2
+        val o2 = BitmapFactory.Options().apply { inSampleSize = sample }
+        val bmp = ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, o2) } ?: return null
+        val scale = max.toFloat() / maxOf(bmp.width, bmp.height)
+        val out = if (scale < 1f) Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt(), (bmp.height * scale).toInt(), true) else bmp
+        val bo = ByteArrayOutputStream()
+        out.compress(Bitmap.CompressFormat.JPEG, quality, bo)
+        return Triple(bo.toByteArray(), out.width, out.height)
+    }
+
+    /** Square avatar thumbnail as base64 (about 10-20 KB). */
+    fun avatarB64(ctx: Context, uri: Uri): String? {
+        val (bytes, _, _) = jpegFrom(ctx, uri, 256, 80) ?: return null
+        return Base64.encodeToString(bytes, Base64.NO_WRAP)
+    }
+
+    fun decode(bytes: ByteArray): ImageBitmap? = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    fun decodeB64(s: String): ImageBitmap? = if (s.isEmpty()) null else try { decode(Base64.decode(s, Base64.NO_WRAP)) } catch (e: Exception) { null }
+    fun asset(ctx: Context, name: String): ImageBitmap? = try { ctx.assets.open("stickers/$name.webp").use { BitmapFactory.decodeStream(it)?.asImageBitmap() } } catch (e: Exception) { null }
+}
+
+object StickerPacks {
+    val moods = listOf("face_happy", "face_laugh", "face_love", "face_cool", "face_cry", "face_angry", "face_sleepy", "face_wow", "face_wink", "face_party", "face_kiss", "face_shock", "face_star", "face_sad")
+    val reactions = listOf("hand_like", "big_heart", "big_star")
+    val words = listOf("word_ok", "word_lol", "word_thanks", "word_wow_t", "word_haan", "word_nahi", "word_chai", "word_party_t", "word_love_t", "word_gn", "word_gm", "word_omw", "word_sahi", "word_arre")
+}
