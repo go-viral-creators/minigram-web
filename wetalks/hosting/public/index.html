@@ -1,36 +1,82 @@
 <!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>WeTalks</title>
-<meta property="og:title" content="WeTalks"><meta property="og:description" content="Private messaging with groups and channels.">
+<meta name="theme-color" content="#0b1020">
+<meta property="og:title" content="WeTalks"><meta property="og:description" content="Private, end-to-end encrypted messaging with groups and channels.">
+<meta property="og:image" content="/logo.png">
+<link rel="icon" href="/logo.png">
 <style>
-  :root{color-scheme:light dark;--bg:#f4f8fb;--card:#fff;--tx:#0f1b2d;--tx2:#6b7a90;--pr:#1f6feb}
-  @media(prefers-color-scheme:dark){:root{--bg:#0e1621;--card:#17212b;--tx:#e8eef5;--tx2:#8a9bb0}}
-  body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  .card{background:var(--card);border-radius:24px;padding:32px 28px;width:min(92vw,380px);text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.08)}
-  .logo{width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#1f6feb,#7b5cff);display:grid;place-items:center;margin:0 auto 14px;color:#fff;font-weight:800;font-size:34px}
-  h1{margin:.2em 0 .1em;font-size:22px} p{color:var(--tx2);margin:.3em 0 1.2em}
-  a.btn{display:block;padding:14px;border-radius:14px;background:var(--pr);color:#fff;text-decoration:none;font-weight:600;margin:10px 0}
-  small{color:var(--tx2)}
+  *{box-sizing:border-box}
+  :root{--a:#4f7cff;--b:#8a5cff;--c:#22d3b6}
+  html,body{height:100%;margin:0}
+  body{background:#0b1020;color:#eef2ff;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;display:grid;place-items:center;padding:20px}
+  /* drifting aurora behind everything */
+  .bg{position:fixed;inset:0;overflow:hidden;z-index:0}
+  .bg i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(70px);opacity:.55;animation:drift 16s ease-in-out infinite alternate}
+  .bg i:nth-child(1){background:var(--a);left:-20vmax;top:-18vmax}
+  .bg i:nth-child(2){background:var(--b);right:-24vmax;top:10vmax;animation-delay:-5s}
+  .bg i:nth-child(3){background:var(--c);left:10vmax;bottom:-30vmax;opacity:.35;animation-delay:-9s}
+  @keyframes drift{to{transform:translate3d(8vmax,6vmax,0) scale(1.15)}}
+  .card{position:relative;z-index:1;width:min(100%,380px);padding:84px 26px 26px;border-radius:32px;text-align:center;
+    background:linear-gradient(160deg,rgba(255,255,255,.14),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.18);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);box-shadow:0 30px 80px rgba(0,0,0,.45);animation:rise .7s cubic-bezier(.2,.9,.3,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(24px) scale(.97)}}
+  /* avatar with a rotating ring and the app logo as a badge */
+  .av{position:absolute;left:50%;top:-52px;width:112px;height:112px;margin-left:-56px}
+  .ring{position:absolute;inset:-5px;border-radius:50%;background:conic-gradient(var(--a),var(--b),var(--c),var(--a));animation:spin 6s linear infinite}
+  .face{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:46px;color:#fff;border:4px solid #0b1020}
+  .face.app{background:#fff;overflow:hidden}.face.app img{width:100%;height:100%;object-fit:cover}
+  .badge{position:absolute;right:-6px;bottom:-4px;width:40px;height:40px;border-radius:13px;background:#0b1020;padding:3px;box-shadow:0 4px 14px rgba(0,0,0,.5);display:none}
+  .badge img{width:100%;height:100%;border-radius:10px;display:block}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .kind{display:inline-block;margin:6px 0 2px;padding:3px 12px;border-radius:99px;background:rgba(255,255,255,.12);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#c7d2fe}
+  h1{margin:6px 0 4px;font-size:28px;letter-spacing:-.02em;word-break:break-word}
+  p{margin:0 0 22px;color:#aab4d4}
+  .btn{display:block;padding:15px;border-radius:16px;color:#fff;text-decoration:none;font-weight:700;font-size:17px;
+    background:linear-gradient(135deg,var(--a),var(--b));box-shadow:0 10px 30px rgba(79,124,255,.45);transition:transform .15s}
+  .btn:active{transform:scale(.97)}
+  .alt{display:block;margin-top:12px;color:#aab4d4;font-size:14px;text-decoration:none}
+  .lock{margin-top:18px;font-size:12px;color:#8e99bd;display:flex;gap:6px;align-items:center;justify-content:center}
+  .bub{display:flex;flex-direction:column;gap:6px;margin:0 auto 20px;width:70%}
+  .bub b{height:10px;border-radius:9px;background:rgba(255,255,255,.14);animation:pulse 2.4s ease-in-out infinite}
+  .bub b:nth-child(2){width:70%;align-self:flex-end;background:rgba(79,124,255,.45);animation-delay:.4s}.bub b:nth-child(3){width:50%;animation-delay:.8s}
+  @keyframes pulse{50%{opacity:.4}}
 </style></head>
-<body><div class="card">
-  <div class="logo">W</div>
+<body>
+<div class="bg"><i></i><i></i><i></i></div>
+<main class="card">
+  <div class="av"><div class="ring"></div><div class="face app" id="face"><img src="/logo.png" alt="WeTalks"></div><div class="badge" id="badge"><img src="/logo.png" alt=""></div></div>
+  <span class="kind" id="k">WeTalks</span>
   <h1 id="t">WeTalks</h1>
   <p id="s">Private messaging with groups and channels.</p>
+  <div class="bub"><b></b><b></b><b></b></div>
   <a class="btn" id="open" href="#">Open in WeTalks</a>
-  <small id="n"></small>
-</div>
+  <a class="alt" id="n" href="#" style="display:none"></a>
+  <div class="lock">🔒 End-to-end encrypted</div>
+</main>
 <script>
+  var $ = function (i) { return document.getElementById(i); };
   var m = location.pathname.match(/^\/([cu])\/([A-Za-z0-9_]{3,32})/), isAndroid = /android/i.test(navigator.userAgent);
+  var q = new URLSearchParams(location.search);
   if (m) {
-    var kind = m[1] === 'c' ? 'channel' : 'profile', name = m[2];
-    document.getElementById('t').textContent = (m[1] === 'c' ? '' : '@') + name;
-    document.getElementById('s').textContent = 'Open this ' + kind + ' in WeTalks.';
+    var isUser = m[1] === 'u', name = m[2];
+    $('t').textContent = (isUser ? '@' : '') + name;
+    $('k').textContent = isUser ? 'Profile' : 'Channel';
+    $('s').textContent = isUser ? 'Say hi to @' + name + ' on WeTalks.' : 'Join the ' + name + ' channel on WeTalks.';
+    // the profile picture is private (only signed-in people can read it), so show a coloured initial badge made from the name
+    var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    var f = $('face'); f.className = 'face'; f.textContent = name.charAt(0).toUpperCase();
+    f.style.background = 'linear-gradient(135deg,hsl(' + h + ',75%,55%),hsl(' + ((h + 50) % 360) + ',80%,45%))';
+    $('badge').style.display = 'block';
     var scheme = 'wetalks://' + m[1] + '/' + name;
-    var intent = 'intent://' + m[1] + '/' + name + '#Intent;scheme=wetalks;package=com.kafisir.wetalks;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+    // if the app is missing, Chrome returns to this page with ?nr=1 - and we then do NOT try again (that was the endless reload loop)
+    var back = location.origin + location.pathname + '?nr=1';
+    var intent = 'intent://' + m[1] + '/' + name + '#Intent;scheme=wetalks;package=com.kafisir.wetalks;S.browser_fallback_url=' + encodeURIComponent(back) + ';end';
     var go = isAndroid ? intent : scheme;
-    document.getElementById('open').href = go;
-    if (isAndroid) setTimeout(function () { location.href = go; }, 350);
-    else document.getElementById('n').textContent = 'WeTalks is a phone app. Open this link on your Android phone.';
-  } else document.getElementById('open').style.display = 'none';
+    $('open').href = go;
+    if (isAndroid && !q.get('nr')) setTimeout(function () { location.href = go; }, 400);
+    else if (isAndroid) { var n = $('n'); n.style.display = 'block'; n.textContent = "App didn't open? Make sure WeTalks is installed, then tap the button again."; n.onclick = function (e) { e.preventDefault(); location.href = go; }; }
+    else { var n2 = $('n'); n2.style.display = 'block'; n2.textContent = 'WeTalks is a phone app. Open this link on your Android phone.'; }
+  } else { $('open').style.display = 'none'; $('t').textContent = 'WeTalks'; $('k').textContent = 'Private messenger'; }
 </script></body></html>
