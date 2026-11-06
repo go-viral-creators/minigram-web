@@ -135,7 +135,7 @@ object Repo {
 
     private fun parseUser(id: String, s: DataSnapshot) = if (!s.exists()) null else User(
         id, s.str("name"), s.str("username"), s.str("about"), s.str("photo"), s.str("pk"), s.bool("online"), s.lng("lastSeen"),
-        s.bool("showLastSeen", true), s.bool("readReceipts", true))
+        s.bool("showLastSeen", true), s.bool("readReceipts", true), s.bool("webProfile", true))
 
     private fun parseGroup(id: String, s: DataSnapshot) = if (!s.exists()) null else Group(
         id, s.str("name"), s.str("about"), s.str("photo"), s.str("owner"), (s.lng("kv").takeIf { it > 0 } ?: 1L).toInt(),
@@ -260,8 +260,34 @@ object Repo {
         m["pk"] = Crypto.b64(Crypto.keys(app).pub)
         if (photoB64 != null) m["photo"] = photoB64
         if (old == null) m["createdAt"] = ServerValue.TIMESTAMP
-        return try { db.getReference("users/$me").updateChildren(m).await(); null } catch (e: Exception) { e.message ?: "Could not save" }
+        return try { db.getReference("users/$me").updateChildren(m).await(); try { publishWebProfile() } catch (_: Exception) {}; null } catch (e: Exception) { e.message ?: "Could not save" }
     }
+
+    // ------------------------------------------------------------------------------------------ public web card
+    // The link page on the web needs a name and picture without signing in. Only what a public profile / public channel already shows
+    // is copied to web/u/<username> and web/c/<handle> (no phone, no keys, no chats). Turned off with the privacy switch / private channel.
+    suspend fun publishWebProfile() {
+        if (uid.isEmpty()) return
+        val u = db.getReference("users/$uid").get().await()
+        val lower = u.child("usernameLower").getValue(String::class.java).orEmpty()
+        if (lower.isEmpty()) return
+        val ref = db.getReference("web/u/$lower")
+        if (u.child("webProfile").getValue(Boolean::class.java) == false) { ref.removeValue().await(); return }
+        val photo = u.child("photo").getValue(String::class.java).orEmpty()
+        ref.setValue(hashMapOf("n" to (u.child("name").getValue(String::class.java) ?: ""), "a" to (u.child("about").getValue(String::class.java) ?: ""),
+            "p" to if (photo.length <= 40000) photo else "")).await()
+    }
+    suspend fun publishWebChannel(cid: String) {
+        val c = db.getReference("channels/$cid").get().await()
+        val lower = c.child("handleLower").getValue(String::class.java).orEmpty()
+        if (lower.isEmpty() || c.child("owner").getValue(String::class.java) != uid) return
+        val ref = db.getReference("web/c/$lower")
+        if (c.child("priv").getValue(Boolean::class.java) == true) { ref.removeValue().await(); return }
+        val photo = c.child("photo").getValue(String::class.java).orEmpty()
+        ref.setValue(hashMapOf("n" to (c.child("name").getValue(String::class.java) ?: ""), "a" to (c.child("about").getValue(String::class.java) ?: ""),
+            "s" to (c.child("subCount").getValue(Long::class.java) ?: 0L), "p" to if (photo.length <= 40000) photo else "")).await()
+    }
+    suspend fun setWebProfile(on: Boolean) { db.getReference("users/$uid/webProfile").setValue(on).await(); publishWebProfile() }
 
     /** Called after every sign-in so a reinstalled phone publishes its new key. */
     suspend fun publishKey() {
@@ -890,7 +916,7 @@ object Repo {
 
     suspend fun setPerm(kind: Kind, id: String, key: String, v: Boolean) { db.getReference("${if (kind == Kind.GROUP) "groups" else "channels"}/$id/perms/$key").setValue(v).await() }
     suspend fun setSlow(kind: Kind, id: String, secs: Int) { db.getReference("${if (kind == Kind.GROUP) "groups" else "channels"}/$id/slow").setValue(secs).await() }
-    suspend fun setChannelPrivate(cid: String, v: Boolean) { db.getReference("channels/$cid/priv").setValue(v).await() }
+    suspend fun setChannelPrivate(cid: String, v: Boolean) { db.getReference("channels/$cid/priv").setValue(v).await(); try { publishWebChannel(cid) } catch (_: Exception) {} }
     suspend fun setChannelAdmin(cid: String, who: String, on: Boolean) { db.getReference("channels/$cid/admins/$who").setValue(if (on) true else null).await() }
     /** Followers of a channel (only the owner may read this list). */
     suspend fun subscribers(cid: String): List<String> = db.getReference("channel_subs/$cid").get().await().children.mapNotNull { it.key }
@@ -915,6 +941,7 @@ object Repo {
                 "admins" to mapOf(uid to true))).await()
             db.getReference("channel_subs/$cid/$uid").setValue(true).await()
             db.getReference("user_chats/$uid/$cid").updateChildren(mapOf("type" to "channel", "lastTs" to ServerValue.TIMESTAMP)).await()
+            try { publishWebChannel(cid) } catch (_: Exception) {}
             cid to null
         } catch (e: Exception) {
             try { db.getReference("channel_handles/$lower").removeValue().await() } catch (_: Exception) {}
@@ -955,5 +982,6 @@ object Repo {
     suspend fun updateChannel(cid: String, name: String, about: String, photo: String?) {
         val m = hashMapOf<String, Any?>("name" to name.trim(), "nameLower" to name.trim().lowercase(), "about" to about.trim()); if (photo != null) m["photo"] = photo
         db.getReference("channels/$cid").updateChildren(m).await()
+        try { publishWebChannel(cid) } catch (_: Exception) {}
     }
 }

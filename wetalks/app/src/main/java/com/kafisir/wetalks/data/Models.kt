@@ -15,7 +15,7 @@ data class User(
     val online: Boolean = false,
     val lastSeen: Long = 0,
     val showLastSeen: Boolean = true,
-    val readReceipts: Boolean = true,
+    val readReceipts: Boolean = true, val webProfile: Boolean = true,
 )
 
 data class Group(

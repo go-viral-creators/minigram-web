@@ -90,7 +90,7 @@ fun App() {
             LaunchedEffect(uid, me) { if (me == true) {
                 // incoming calls first: nothing else may stop the phone from ringing
                 try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
-                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush()
+                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush(); try { Repo.publishWebProfile() } catch (_: Exception) {}
                 try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             val pendChat by Nav.pendingChat

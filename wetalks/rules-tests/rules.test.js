@@ -316,3 +316,16 @@ test('maintenance switch is public to read and impossible to change from the app
   await assertFails(set(ref(db(A), 'fcm_tokens/alice/short'), serverTimestamp()));
   await assertFails(set(ref(db(A), 'fcm_tokens/alice/' + tok), 'text'));
 });
+
+test('web cards: public to read, only the owner writes, unknown fields rejected', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'usernames/alice'), 'alice'); await set(ref(ctx.database(), 'channel_handles/news'), 'c1'); });
+  await assertSucceeds(set(ref(db(A), 'web/u/alice'), { n: 'Alice', a: 'hi', p: '' }));
+  await assertSucceeds(get(ref(anon(), 'web/u/alice')));
+  await assertFails(set(ref(db(B), 'web/u/alice'), { n: 'Fake' }));
+  await assertFails(set(ref(db(A), 'web/u/alice'), { n: 'Alice', phone: '123' }));
+  await assertFails(get(ref(anon(), 'web/u')));
+  await assertSucceeds(set(ref(db(A), 'web/c/news'), { n: 'News', a: '', s: 1, p: '' }));
+  await assertSucceeds(get(ref(anon(), 'web/c/news')));
+  await assertFails(set(ref(db(B), 'web/c/news'), { n: 'Hacked' }));
+  await assertSucceeds(remove(ref(db(A), 'web/u/alice')));
+});

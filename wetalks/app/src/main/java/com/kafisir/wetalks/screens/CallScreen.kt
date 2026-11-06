@@ -104,6 +104,7 @@ fun CallScreen() {
     LaunchedEffect(videoMode) { if (!videoMode) { controls = true; swapped = false } }
     var box by remember { mutableStateOf(IntSize.Zero) }
     var pip by remember { mutableStateOf(Offset.Zero) }
+    var pipShown by remember { mutableStateOf(true) }
     val bigIsLocal = swapped && local != null
     val bigTrack = if (bigIsLocal) local else remote
     val bigShows = videoMode && bigTrack != null && (!bigIsLocal || Calls.camOn)
@@ -133,7 +134,7 @@ fun CallScreen() {
 
         // small window: drag it anywhere, tap it to swap with the big picture
         val pipTrack = if (bigIsLocal) remote else local
-        if (videoMode && (local != null || remote != null)) {
+        if (videoMode && pipShown && (local != null || remote != null)) {
             val pw = 104.dp; val ph = 148.dp
             val pwPx = pw.value * density; val phPx = ph.value * density
             Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 100.dp, end = 14.dp).offset { IntOffset(pip.x.roundToInt(), pip.y.roundToInt()) }
@@ -141,7 +142,7 @@ fun CallScreen() {
                 .pointerInput(Unit) { detectTapGestures(onTap = { swapped = !swapped }) }
                 .pointerInput(Unit) { detectDragGestures { c, d -> c.consume(); pip = Offset((pip.x + d.x).coerceIn(-(box.width - pwPx - 28 * density), 0f), (pip.y + d.y).coerceIn(-70 * density, box.height - phPx - 220 * density)) } }) {
                 val showLocalHere = !bigIsLocal
-                if (pipTrack != null && (!showLocalHere || Calls.camOn)) key(bigIsLocal) { VideoView(pipTrack, mirror = showLocalHere && Calls.frontCam, overlay = true, Modifier.fillMaxSize()) }
+                if (pipTrack != null && (!showLocalHere || Calls.camOn)) key(bigIsLocal) { VideoView(pipTrack, mirror = showLocalHere && Calls.frontCam, overlay = true, Modifier.fillMaxSize(), cornerDp = 24f) }
                 else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(if (showLocalHere) Ic.VideoOff else Ic.User, Color.White.copy(alpha = .8f), 28.dp) }
             }
         }
@@ -154,6 +155,7 @@ fun CallScreen() {
                     if (videoMode || Calls.video) {
                         SmallBtn(if (Calls.camOn) Ic.Video else Ic.VideoOff, !Calls.camOn, if (Calls.camOn) "Camera" else "Camera off") { if (Calls.localVideo == null) turnVideoOn() else Calls.toggleCamera(); touch++ }
                         SmallBtn(Ic.Rotate, false, "Flip") { Calls.flipCamera(); touch++ }
+                        SmallBtn(if (pipShown) Ic.EyeOff else Ic.Eye, !pipShown, if (pipShown) "Hide mini" else "Show mini") { pipShown = !pipShown; touch++ }
                     } else if (phase == CallPhase.ACTIVE) SmallBtn(Ic.Video, false, "Video") { turnVideoOn(); touch++ }
                 }
                 Spacer(Modifier.height(26.dp))
@@ -235,14 +237,22 @@ private fun SmallBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, on: 
 }
 
 @Composable
-private fun VideoView(track: VideoTrack?, mirror: Boolean, overlay: Boolean, modifier: Modifier) {
+private fun VideoView(track: VideoTrack?, mirror: Boolean, overlay: Boolean, modifier: Modifier, cornerDp: Float = 0f) {
     var view by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
     AndroidView(factory = { c ->
         SurfaceViewRenderer(c).apply {
             init(Calls.egl.eglBaseContext, null); setEnableHardwareScaler(true)
             setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL); setZOrderMediaOverlay(overlay)
         }.also { view = it }
-    }, update = { it.setMirror(mirror) }, onRelease = { it.release() }, modifier = modifier)
+    }, update = {
+        it.setMirror(mirror)
+        // a video surface is not clipped by the Compose shape, so round it at the view level (this is what fixes the square corners)
+        if (cornerDp > 0f) {
+            val r = cornerDp * it.resources.displayMetrics.density
+            it.outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, r) } }
+            it.clipToOutline = true
+        }
+    }, onRelease = { it.release() }, modifier = modifier)
     DisposableEffect(track, view) {
         val v = view
         if (track != null && v != null) track.addSink(v)

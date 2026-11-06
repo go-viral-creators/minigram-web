@@ -26,6 +26,28 @@
       }
     },
 
+    "web": {
+      "u": { "$n": {
+        ".read": true,
+        ".write": "auth != null && root.child('usernames').child($n).val() === auth.uid",
+        ".validate": "!newData.exists() || (newData.hasChildren(['n']) && newData.child('n').isString() && newData.child('n').val().length <= 60)",
+        "n": { ".validate": "newData.isString()" },
+        "a": { ".validate": "newData.isString() && newData.val().length <= 140" },
+        "p": { ".validate": "newData.isString() && newData.val().length <= 40000" },
+        "$other": { ".validate": false }
+      } },
+      "c": { "$h": {
+        ".read": true,
+        ".write": "auth != null && root.child('channel_handles').child($h).exists() && root.child('channels').child(root.child('channel_handles').child($h).val()).child('owner').val() === auth.uid",
+        ".validate": "!newData.exists() || (newData.hasChildren(['n']) && newData.child('n').isString() && newData.child('n').val().length <= 60)",
+        "n": { ".validate": "newData.isString()" },
+        "a": { ".validate": "newData.isString() && newData.val().length <= 140" },
+        "p": { ".validate": "newData.isString() && newData.val().length <= 40000" },
+        "s": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      } }
+    },
+
     "config": {
       "maintenance": { ".read": true, ".write": false }
     },
