@@ -50,6 +50,7 @@ object FilePlayer {
 /** The card for a video, audio or document message. Tap = download (first time) and open. */
 @Composable
 fun FileBody(m: Msg, ref: ChatRef, mine: Boolean, fg: Color, onLong: () -> Unit) {
+    val selecting = LocalSelecting.current
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val out = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id } else null
@@ -85,7 +86,7 @@ fun FileBody(m: Msg, ref: ChatRef, mine: Boolean, fg: Color, onLong: () -> Unit)
         }
     }
 
-    Row(Modifier.width(250.dp).clip(RoundedCornerShape(12.dp)).combinedClickableNoRipple(onClick = { open() }, onLong = onLong).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.width(250.dp).clip(RoundedCornerShape(12.dp)).combinedClickableNoRipple(onClick = { if (selecting) onLong() else open() }, onLong = onLong).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(46.dp).clip(CircleShape).background(We.primary.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
             if (busy) androidx.compose.material3.CircularProgressIndicator(progress = { shown.coerceIn(0.03f, 1f) }, modifier = Modifier.size(34.dp), color = We.primary, strokeWidth = 2.5.dp)
             else if (out?.failed == true || failed.isNotEmpty()) Icon(Ic.Alert, We.danger, 22.dp)
@@ -143,6 +144,7 @@ fun VideoPlayerScreen(path: String, title: String) {
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
+    val selecting = LocalSelecting.current
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val out = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id } else null
@@ -169,7 +171,7 @@ fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
             } catch (e: Exception) { progress = -1f; Nav.say(e.message ?: "Could not open the video") }
         }
     }
-    Box(Modifier.width(254.dp).padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { play() }, onLongClick = onLong)) {
+    Box(Modifier.width(254.dp).padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { if (selecting) onLong() else play() }, onLongClick = onLong)) {
         Box(Modifier.fillMaxWidth().aspectRatio(ratio).background(Color(0xFF16202E))) {
             if (thumb != null) androidx.compose.foundation.Image(thumb, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
             Box(Modifier.align(Alignment.Center).size(54.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {

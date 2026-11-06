@@ -115,6 +115,9 @@ fun speechLabel(lang: String, text: String): String? {
     val hits = w.count { it in HINGLISH && it !in setOf("to", "main", "ho", "hu", "per", "par", "ab", "se") }.let { it + w.count { x -> x in setOf("main", "per", "par", "ab", "se", "to", "ho", "hu") } / 2 }
     return if (hits * 100 / w.size >= 18) "Hinglish (Hindi)" else null
 }
+/** True while messages are selected: a tap on anything inside a message (photo, video, file, voice, link, quote, reaction) then selects it instead of opening it. */
+internal val LocalSelecting = androidx.compose.runtime.compositionLocalOf { false }
+
 /** Plain text with tappable links, or Markdown when the message uses it and the setting is on. */
 /** Long messages show the first lines with "Show more", so a pasted file does not take over the chat. */
 @Composable
@@ -519,6 +522,7 @@ fun ChatScreen(ref: ChatRef) {
             val rev = msgs.reversed()
             val rows = remember(msgs) { groupAlbums(rev) }
             val imageIds = remember(msgs) { msgs.filter { it.type == "image" && !it.pending && !it.deleted && !it.mediaId.isNullOrEmpty() }.map { it.mediaId!! } }
+            CompositionLocalProvider(LocalSelecting provides selecting) {
             LazyColumn(Modifier.fillMaxSize(), state = listState, reverseLayout = true, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
                 itemsIndexed(rows, key = { _, g -> g.last().id }) { i, g ->
                     val m = g.last()                       // an album is represented by its first photo (its id never changes while the rest arrive)
@@ -549,6 +553,7 @@ fun ChatScreen(ref: ChatRef) {
                         Spacer(Modifier.height(gap))
                     }
                 }
+            }
             }
             val showDown by remember { derivedStateOf { listState.firstVisibleItemIndex > 3 } }
             androidx.compose.animation.AnimatedVisibility(showDown, Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 12.dp), enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(), exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()) {
@@ -766,6 +771,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
     val bStyle = UiPrefs.bubbleStyle.intValue
     val fg = Bubbles.fgFor(bStyle, mine) ?: if (mine) We.onSent else We.onRecv
     val isSticker = (m.type == "sticker" || m.type == "gif") && !m.deleted
+    val selectingNow = LocalSelecting.current
     val scale = UiPrefs.textScale.floatValue
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start, modifier = Modifier.widthIn(max = 300.dp)) {
@@ -778,7 +784,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 }
                 if ((quoted != null || m.rid != null) && !m.deleted) {
                     Row(Modifier.then(if (m.type == "image") Modifier.width(262.dp).padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 2.dp) else Modifier.fillMaxWidth().padding(bottom = 6.dp)).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
-                        .combinedClickable(onClick = { m.rid?.let(onQuote) }, onLongClick = onLong)) {
+                        .combinedClickable(onClick = { if (selectingNow) onLong() else m.rid?.let(onQuote) }, onLongClick = onLong)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
                         Column(Modifier.padding(8.dp, 5.dp)) {
                             Text(if (quoted == null) "Reply" else if (quoted.from == Repo.uid) "You" else nameOf(quoted.from, ""), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
@@ -791,7 +797,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.unreadable -> Text("🔒 Locked with an older encryption key. Tap for details", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
                     m.type == "image" && album.size > 1 -> AlbumBody(album, ref, mine, read, fg, pinned, onLongOf, allImages)
                     m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong, allImages)
-                    m.type == "voice" -> VoiceBody(m, ref, fg)
+                    m.type == "voice" -> VoiceBody(m, ref, fg, onLong)
                     m.type == "video" -> VideoCard(m, ref, onLong)
                     m.type == "audio" || m.type == "file" -> FileBody(m, ref, mine, fg, onLong)
                     m.type == "sticker" -> StickerBody(m.text)
@@ -821,7 +827,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     groups.forEach { (e, n) ->
                         val mineR = m.reactions[Repo.uid] == e
-                        Row(Modifier.clip(RoundedCornerShape(14.dp)).background(if (mineR) We.primary.copy(alpha = .22f) else We.surface).combinedClickable(onClick = { onReact(e) }).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.clip(RoundedCornerShape(14.dp)).background(if (mineR) We.primary.copy(alpha = .22f) else We.surface).combinedClickable(onClick = { if (selectingNow) onLong() else onReact(e) }).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                             ReactionEmoji(e, 18.dp, loop = false); if (n > 1) Text(" $n", color = We.text, style = T.tiny)
                         }
                     }
@@ -873,13 +879,14 @@ private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color,
 @Composable
 private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLong: () -> Unit, all: List<String> = emptyList()) {
     var manual by remember(m.id) { mutableStateOf(false) }
+    val selecting = LocalSelecting.current
     val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) } == true) || remember { DataPrefs.mayAutoDownload() }
     val bmp = rememberChatBitmap(ref, m.mediaId, allowed)
     val hasCap = m.text.isNotEmpty()
     Column(Modifier.width(236.dp)) {
-        Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it, all.ifEmpty { listOf(it) })) } }, onLongClick = onLong)) {
+        Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { if (selecting) onLong() else m.mediaId?.let { Nav.push(RImage(ref, it, all.ifEmpty { listOf(it) })) } }, onLongClick = onLong)) {
             val b = bmp ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
-            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
+            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { if (selecting) onLong() else manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
             else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
             else Image(b, null, Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)      // always square, centre-cropped: the chat stays short, tap to see the whole photo
             if (m.pending) SendingBadge(Modifier.align(Alignment.Center), Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true)
@@ -927,6 +934,7 @@ fun groupAlbums(rev: List<Msg>): List<List<Msg>> {
 private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLongOf: (Msg) -> Unit, all: List<String> = emptyList()) {
     val ids = all.ifEmpty { list.mapNotNull { it.mediaId } }
     val cap = list.firstOrNull { it.text.isNotEmpty() }?.text ?: ""
+    val selecting = LocalSelecting.current
     val shown = list.take(4); val extra = list.size - shown.size
     val last = list.last()
     @Composable fun Tile(m: Msg, mod: Modifier, more: Int = 0) {
@@ -934,7 +942,7 @@ private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolea
         val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) || Pics.cachedBmp(it) != null } == true) || remember { DataPrefs.mayAutoDownload() }
         val b = rememberChatBitmap(ref, m.mediaId, allowed) ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
         Box(mod.clip(RoundedCornerShape(6.dp)).background(We.field).combinedClickable(
-            onClick = { if (b == null && !allowed) manual = true else m.mediaId?.let { Nav.push(RImage(ref, it, ids)) } }, onLongClick = { onLongOf(m) }), contentAlignment = Alignment.Center) {
+            onClick = { if (selecting) onLongOf(m) else if (b == null && !allowed) manual = true else m.mediaId?.let { Nav.push(RImage(ref, it, ids)) } }, onLongClick = { onLongOf(m) }), contentAlignment = Alignment.Center) {
             if (b != null) Image(b, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
             else if (!allowed) Icon(Ic.Download, We.primary, 26.dp)
             else androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.primary, strokeWidth = 2.dp)
@@ -990,6 +998,7 @@ private fun SendingBadge(modifier: Modifier, failed: Boolean) {
 
 @Composable
 private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
+    val selecting = LocalSelecting.current
     val ctx = LocalContext.current
     val bytes by produceState<ByteArray?>(null, m.mediaId) { m.mediaId?.let { value = Repo.loadMedia(ref, it) } }
     val ratio = if (m.w > 0 && m.h > 0) (m.w.toFloat() / m.h).coerceIn(.5f, 2f) else 1f
@@ -1010,16 +1019,17 @@ private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
                 iv.setImageDrawable(drawable)
                 if (android.os.Build.VERSION.SDK_INT >= 28 && drawable is android.graphics.drawable.AnimatedImageDrawable) { drawable.repeatCount = android.graphics.drawable.AnimatedImageDrawable.REPEAT_INFINITE; drawable.start() }
             }, modifier = Modifier.fillMaxSize())
-        Box(Modifier.fillMaxSize().combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong))
+        Box(Modifier.fillMaxSize().combinedClickable(onClick = { if (selecting) onLong() else m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong))
     }
 }
 
 @Composable
 private fun LinkCard(l: LinkPreview, fg: Color, onLong: () -> Unit) {
+    val selecting = LocalSelecting.current
     val thumb = remember(l.thumb) { Pics.decodeB64(l.thumb) }
     val host = remember(l.url) { try { java.net.URI(l.url).host?.removePrefix("www.") ?: l.url } catch (e: Exception) { l.url } }
     Column(Modifier.padding(top = 6.dp).width(250.dp).clip(RoundedCornerShape(10.dp)).background(fg.copy(alpha = .08f))
-        .combinedClickable(onClick = { Nav.push(RBrowser(l.url)) }, onLongClick = onLong)) {
+        .combinedClickable(onClick = { if (selecting) onLong() else Nav.push(RBrowser(l.url)) }, onLongClick = onLong)) {
         Row(Modifier.height(IntrinsicSize.Min)) {
             Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
             Column(Modifier.padding(10.dp, 8.dp)) {

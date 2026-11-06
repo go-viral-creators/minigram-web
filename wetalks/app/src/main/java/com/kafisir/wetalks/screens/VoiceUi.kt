@@ -52,7 +52,8 @@ fun Waveform(bars: List<Int>, progress: Float, played: Color, idle: Color, modif
 
 /** Telegram-style voice bubble. Playback is owned by [VoicePlayer], so it carries on when you leave this screen. */
 @Composable
-fun VoiceBody(m: Msg, ref: ChatRef, fg: Color) {
+fun VoiceBody(m: Msg, ref: ChatRef, fg: Color, onSelect: () -> Unit = {}) {
+    val selecting = LocalSelecting.current
     val ctx = LocalContext.current
     val who by Repo.user(m.from).collectAsState()
     val active = VoicePlayer.currentId == m.id
@@ -65,7 +66,7 @@ fun VoiceBody(m: Msg, ref: ChatRef, fg: Color) {
     val heard = listened.getBoolean(m.id, false) || m.from == Repo.uid || active
 
     Row(Modifier.width(236.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { if (!m.pending) VoicePlayer.toggle(ctx, ref, m, if (m.from == Repo.uid) "You" else who?.name ?: "Voice message") }), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { if (selecting) onSelect() else if (!m.pending) VoicePlayer.toggle(ctx, ref, m, if (m.from == Repo.uid) "You" else who?.name ?: "Voice message") }), contentAlignment = Alignment.Center) {
             if (loading) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.onPrimary, strokeWidth = 2.dp)
             else Icon(if (playing) Ic.Pause2 else Ic.Play, We.onPrimary, 22.dp)
         }
