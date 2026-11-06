@@ -85,6 +85,8 @@ object Notifier {
             if (c.unread == 0L) { if (prev > 0) cancel(id); continue }
             if (first || c.unread <= prev) continue
             if (c.ref.kind == Kind.CHANNEL || c.muted || c.lastFrom.isEmpty() || c.lastFrom == Repo.uid || isOpen(c.ref)) continue
+            val blockedNow = Repo.blockedUsers.value
+            if (c.lastFrom in blockedNow || (c.ref.kind == Kind.DM && c.ref.peer in blockedNow)) continue   // blocked people never ring the phone
             post(c)
         }
     }

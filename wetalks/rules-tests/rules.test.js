@@ -89,9 +89,12 @@ test('group keys: written by admins, read only by the recipient', async () => {
 
 test('group creation: creator only, as owner', async () => {
   await assertSucceeds(set(ref(db(C), 'groups/g2'), { name: 'N', owner: C, kv: 1, members: { carol: 'admin' } }));
+  await assertFails(set(ref(db(C), 'user_chats/alice/g2/type'), 'group'));            // alice is not a member yet: no stub entries for outsiders
+  await assertSucceeds(set(ref(db(C), 'groups/g2/members/alice'), 'member'));
   await assertFails(set(ref(db(C), 'groups/g3'), { name: 'N', owner: A, kv: 1, members: { carol: 'admin' } }));
   await assertSucceeds(set(ref(db(C), 'user_chats/carol/g2/type'), 'group'));
-  await assertSucceeds(set(ref(db(C), 'user_chats/alice/g2/type'), 'group'));   // creator is admin => member
+  await assertSucceeds(set(ref(db(C), 'user_chats/alice/g2/type'), 'group'));   // creator is admin and alice is a member now
+  await assertSucceeds(update(ref(db(C), 'user_chats/alice/g2'), { lastTs: Date.now(), unread: 0 }));
 });
 
 test('channels: owner posts, others only read; sub count moves by one', async () => {
@@ -277,7 +280,7 @@ test('privacy: last seen, online status and phone number follow the owner\'s cho
   await assertSucceeds(get(ref(db(A), 'presence/alice/lastSeen')));                    // owners always see their own
   await assertSucceeds(set(ref(db(A), 'privacy/alice/online'), 'contacts'));
   await assertFails(get(ref(db(B), 'presence/alice/online')));                         // no chat yet
-  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), `user_chats/alice/${AB}`), { type: 'dm', peer: 'bob' }); });
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'contacts/alice/bob'), true); });
   await assertSucceeds(get(ref(db(B), 'presence/alice/online')));                      // now a contact
   await assertFails(get(ref(db(C), 'presence/alice/online')));
   await assertFails(set(ref(db(B), 'presence/alice/online'), false));
@@ -358,4 +361,65 @@ test('service inbox: only the relay writes, people can switch services off or bl
   await assertFails(remove(ref(db(B), 'service_inbox/alice/m1')));
   await assertSucceeds(remove(ref(db(A), 'service_inbox/alice/m1')));
   await assertFails(set(ref(db(A), 'config/relay'), 'alice'));                              // nobody can make themselves the relay
+});
+
+// ---- remediation H3: the chat list can no longer be forged, "contacts" cannot be faked ----
+test('H3: old-client write shapes keep working (send, refreshLast, clearHistory, createGroup, remove member)', async () => {
+  // DM send fan-out by alice: own entry + bob's entry in one atomic update
+  const t = Date.now();
+  await assertSucceeds(update(ref(db(A)), {
+    [`messages/${AB}/m1`]: msg(A),
+    [`user_chats/alice/${AB}/type`]: 'dm', [`user_chats/alice/${AB}/peer`]: B, [`user_chats/alice/${AB}/lastTs`]: t, [`user_chats/alice/${AB}/lastBody`]: 'ct', [`user_chats/alice/${AB}/lastType`]: 'text', [`user_chats/alice/${AB}/lastFrom`]: A, [`user_chats/alice/${AB}/unread`]: 0,
+    [`user_chats/bob/${AB}/type`]: 'dm', [`user_chats/bob/${AB}/peer`]: A, [`user_chats/bob/${AB}/lastTs`]: t, [`user_chats/bob/${AB}/lastBody`]: 'ct', [`user_chats/bob/${AB}/lastType`]: 'text', [`user_chats/bob/${AB}/lastFrom`]: A, [`user_chats/bob/${AB}/unread`]: increment(1) }));
+  await assertSucceeds(update(ref(db(A)), { [`user_chats/bob/${AB}/lastFrom`]: A, [`user_chats/bob/${AB}/unread`]: increment(1) }));
+  // group fan-out: bob (member) writes alice's entry
+  await assertSucceeds(update(ref(db(B)), { 'user_chats/alice/g1/type': 'group', 'user_chats/alice/g1/lastTs': t, 'user_chats/alice/g1/lastFrom': B, 'user_chats/alice/g1/unread': increment(1) }));
+  // refreshLast: peer entry gets peer = writer; lastFrom may be the other person
+  await assertSucceeds(update(ref(db(A)), { [`user_chats/bob/${AB}/peer`]: A, [`user_chats/bob/${AB}/lastFrom`]: B, [`user_chats/bob/${AB}/lastBody`]: '' }));
+  // clearHistory resets both unread counters
+  await assertSucceeds(update(ref(db(A)), { [`user_chats/bob/${AB}/unread`]: 0, [`user_chats/alice/${AB}/unread`]: 0 }));
+  // owner settings
+  await assertSucceeds(set(ref(db(B), `user_chats/bob/${AB}/pinned`), true));
+  await assertSucceeds(set(ref(db(B), `user_chats/bob/${AB}/muted`), true));
+  // delete for both
+  await assertSucceeds(update(ref(db(A)), { [`user_chats/alice/${AB}`]: null, [`user_chats/bob/${AB}`]: null }));
+  // admin removes a member (the member's entry is deleted after they left the group)
+  await assertSucceeds(set(ref(db(A), 'groups/g1/members/bob'), null));
+  await assertSucceeds(set(ref(db(A), 'user_chats/bob/g1'), null));
+});
+
+test('H3: attacker cannot plant stubs, fake pins/mutes, spam unread or lie about the peer', async () => {
+  await assertFails(set(ref(db(C), 'user_chats/alice/carol_dave/type'), 'dm'));            // chat that does not involve alice
+  await assertFails(set(ref(db(C), 'user_chats/alice/g1/type'), 'group'));                  // group carol is not in
+  await assertFails(set(ref(db(B), 'user_chats/alice/g1x/type'), 'group'));                 // group that does not exist
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/pinned`), true));                // pinned/muted are owner-only
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/muted`), true));
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/junk`), 'x'));                   // unknown fields
+  await assertSucceeds(set(ref(db(B), `user_chats/alice/${AB}/type`), 'dm'));
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/peer`), 'someone_else'));        // peer must be the writer
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/unread`), 999));                 // no inflating
+  await assertSucceeds(set(ref(db(B), `user_chats/alice/${AB}/unread`), 1));
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/unread`), 50));
+  await assertSucceeds(set(ref(db(B), `user_chats/alice/${AB}/unread`), 2));
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/lastBody`), 'x'.repeat(60001)));
+  await assertSucceeds(set(ref(db(A), `user_chats/alice/${AB}/unread`), 40));              // the owner decides her own counter
+});
+
+test('H3: "contacts" privacy cannot be faked with a stub, and blocked people see nothing', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database();
+    await set(ref(d, 'presence/alice'), { online: true, lastSeen: 5 }); await set(ref(d, 'privacy/alice/online'), 'contacts'); await set(ref(d, 'privacy/alice/phone'), 'contacts');
+    await set(ref(d, 'contact_info/alice/phone'), '+910000000000'); });
+  await assertSucceeds(set(ref(db(C), 'user_chats/alice/alice_carol/type'), 'dm'));         // carol can create a chat with alice (that's how DMs start)...
+  await assertFails(get(ref(db(C), 'presence/alice/online')));                               // ...but that does not make her a contact
+  await assertFails(get(ref(db(C), 'contact_info/alice/phone')));
+  await assertFails(set(ref(db(C), 'contacts/alice/carol'), true));                          // the marker is alice's alone
+  await assertSucceeds(set(ref(db(A), 'contacts/alice/bob'), true));
+  await assertSucceeds(get(ref(db(B), 'presence/alice/online')));
+  await assertSucceeds(get(ref(db(B), 'contact_info/alice/phone')));
+  await assertSucceeds(set(ref(db(A), 'reads/alice_dave/alice'), 1));                       // fallback for old clients: alice opened the chat
+  await assertSucceeds(get(ref(db('dave'), 'presence/alice/online')));
+  await assertSucceeds(set(ref(db(A), 'blocks/alice/bob'), true));
+  await assertFails(get(ref(db(B), 'presence/alice/online')));
+  await assertFails(get(ref(db(B), 'contact_info/alice/phone')));
+  await assertFails(get(ref(db(B), 'contacts/alice')));
 });

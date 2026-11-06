@@ -602,7 +602,7 @@ object Repo {
             updates["$b/unread"] = if (mine) 0 else ServerValue.increment(1)
         }
         when (ref.kind) {
-            Kind.DM -> { entry(uid, "dm", ref.peer, true); if (ref.peer != uid) entry(ref.peer!!, "dm", uid, false) }
+            Kind.DM -> { entry(uid, "dm", ref.peer, true); if (ref.peer != uid) { entry(ref.peer!!, "dm", uid, false); updates["contacts/$uid/${ref.peer}"] = true } }
             Kind.GROUP -> {
                 val members = group(ref.id).value?.members?.keys
                     ?: db.getReference("groups/${ref.id}/members").get().await().children.mapNotNull { it.key }
@@ -821,6 +821,7 @@ object Repo {
 
     fun markRead(ref: ChatRef) {
         if (user(uid).value?.readReceipts != false) db.getReference("reads/${ref.id}/$uid").setValue(ServerValue.TIMESTAMP)
+        if (ref.kind == Kind.DM && ref.peer != null && ref.peer != uid) db.getReference("contacts/$uid/${ref.peer}").setValue(true)   // opening a chat makes them a contact (privacy "contacts")
         if (ref.kind != Kind.CHANNEL) {
             val me = uid; val cid = ref.id
             db.getReference("user_chats/$me/$cid/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$cid/unread").setValue(0) }
