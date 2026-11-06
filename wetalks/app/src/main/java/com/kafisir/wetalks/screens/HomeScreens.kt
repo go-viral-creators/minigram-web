@@ -219,7 +219,7 @@ fun MeScreen() {
             }
             Divider()
             Row2(Ic.Bookmark, "Saved Messages", "Notes, photos and voice for yourself", onClick = { Nav.push(RChat(Repo.dmRef(Repo.uid))) })
-            Row2(Ic.Qr, "My QR code", "Let friends scan to message you", onClick = { Repo.user(Repo.uid).value?.let { Nav.push(RQr(it.name, "@" + it.username, it.photo, Repo.uid, "wetalks://u/" + it.username)) } })
+            Row2(Ic.Qr, "My QR code", "Let friends scan to message you", onClick = { Repo.user(Repo.uid).value?.let { Nav.push(RQr(it.name, "@" + it.username, it.photo, Repo.uid, Repo.Links.user(it.username))) } })
             Row2(Ic.UserPlus, "New group", "Chat with several people", onClick = { Nav.push(RNewGroup) })
             Row2(Ic.Mega, "New channel", "Broadcast to followers", onClick = { Nav.push(RNewChannel) })
             SectionLabel("Settings")

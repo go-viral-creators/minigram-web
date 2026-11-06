@@ -1,0 +1,8 @@
+{
+  "hosting": {
+    "public": "hosting/public",
+    "ignore": ["firebase.json", "**/node_modules/**"],
+    "headers": [{ "source": "/.well-known/assetlinks.json", "headers": [{ "key": "Content-Type", "value": "application/json" }] }],
+    "rewrites": [{ "source": "/c/**", "destination": "/index.html" }, { "source": "/u/**", "destination": "/index.html" }]
+  }
+}

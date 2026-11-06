@@ -27,36 +27,48 @@ import kotlin.coroutines.resumeWithException
 object Transcriber {
     private class RecError(val code: Int, msg: String) : Exception(msg)
 
-    suspend fun transcribe(ctx: Context, m4a: ByteArray, langTag: String?): String {
+    class Out(val text: String, val lang: String)
+
+    /**
+     * Voice message -> text with automatic language detection: the clip is recognised in a few likely languages
+     * (your voice-note language, the phone language, Hindi, English) and the answer the recogniser is most sure about wins.
+     */
+    suspend fun transcribe(ctx: Context, m4a: ByteArray, preferred: String?): Out {
         if (Build.VERSION.SDK_INT < 33) throw IllegalStateException("Transcripts need Android 13 or newer")
         val pcm = withContext(Dispatchers.Default) { decodeTo16kMono(ctx, m4a) }
         if (pcm.isEmpty()) throw IllegalStateException("Could not read this voice message")
-        val lang = langTag?.takeIf { it.isNotEmpty() } ?: java.util.Locale.getDefault().toLanguageTag()
-        // phones ship different recognisers; Google's accepts audio files, so try it first, then the on-device one, then the default
-        val tries = ArrayList<Pair<String, () -> SpeechRecognizer?>>()
         val google = android.content.ComponentName("com.google.android.googlequicksearchbox", "com.google.android.voicesearch.serviceapi.GoogleRecognitionService")
-        if (isInstalled(ctx, google.packageName)) tries += "google" to { SpeechRecognizer.createSpeechRecognizer(ctx, google) }
-        if (SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)) tries += "device" to { SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx) }
-        if (SpeechRecognizer.isRecognitionAvailable(ctx)) tries += "default" to { SpeechRecognizer.createSpeechRecognizer(ctx) }
-        if (tries.isEmpty()) throw IllegalStateException("No speech recognition service found on this phone")
-        var last: RecError? = null
-        for ((_, make) in tries) {
-            try { return withTimeout(60_000) { recognise(make, pcm, lang) } }
-            catch (e: RecError) { last = e }
-            catch (e: kotlinx.coroutines.TimeoutCancellationException) { last = RecError(-1, "The speech service took too long") }
+        val makers = ArrayList<() -> SpeechRecognizer?>()
+        if (isInstalled(ctx, google.packageName)) makers += { SpeechRecognizer.createSpeechRecognizer(ctx, google) }
+        if (SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)) makers += { SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx) }
+        if (SpeechRecognizer.isRecognitionAvailable(ctx)) makers += { SpeechRecognizer.createSpeechRecognizer(ctx) }
+        if (makers.isEmpty()) throw IllegalStateException("No speech recognition service found on this phone")
+        val langs = listOfNotNull(preferred?.takeIf { it.isNotEmpty() }, java.util.Locale.getDefault().toLanguageTag(), "hi-IN", "en-IN", "en-US").distinct().take(4)
+        var best: Out? = null; var bestConf = -1f; var last: RecError? = null
+        for (lang in langs) {
+            var got: Pair<String, Float>? = null
+            for (make in makers) {
+                try { got = withTimeout(45_000) { recognise(make, pcm, lang) }; break }
+                catch (e: RecError) { last = e; if (e.code == 12 || e.code == 13) break }           // this language isn't offered: next language
+                catch (e: kotlinx.coroutines.TimeoutCancellationException) { last = RecError(-1, "The speech service took too long") }
+            }
+            val (t, c) = got ?: continue
+            val conf = if (c < 0f) .5f else c
+            if (conf > bestConf) { best = Out(t, lang); bestConf = conf }
+            if (conf >= .75f) break
         }
-        throw IllegalStateException((last?.message ?: "Transcription failed") + " (code ${last?.code})")
+        return best ?: throw IllegalStateException((last?.message ?: "Transcription failed") + " (code ${last?.code})")
     }
 
     private fun isInstalled(ctx: Context, pkg: String) = try { ctx.packageManager.getPackageInfo(pkg, 0); true } catch (e: Exception) { false }
 
-    private suspend fun recognise(make: () -> SpeechRecognizer?, pcm: ByteArray, lang: String): String = withContext(Dispatchers.Main) {
+    private suspend fun recognise(make: () -> SpeechRecognizer?, pcm: ByteArray, lang: String): Pair<String, Float> = withContext(Dispatchers.Main) {
         suspendCancellableCoroutine { cont ->
             val rec = make() ?: run { cont.resumeWithException(RecError(-2, "Speech service unavailable")); return@suspendCancellableCoroutine }
             val pipe = ParcelFileDescriptor.createPipe()
-            fun done(r: Result<String>) { try { rec.destroy() } catch (_: Exception) {}; try { pipe[0].close() } catch (_: Exception) {}; if (cont.isActive) { r.fold({ cont.resume(it) }, { cont.resumeWithException(it) }) } }
+            fun done(r: Result<Pair<String, Float>>) { try { rec.destroy() } catch (_: Exception) {}; try { pipe[0].close() } catch (_: Exception) {}; if (cont.isActive) { r.fold({ cont.resume(it) }, { cont.resumeWithException(it) }) } }
             rec.setRecognitionListener(object : RecognitionListener {
-                override fun onResults(b: Bundle?) { val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull(); done(if (t.isNullOrBlank()) Result.failure(RecError(7, "No speech was recognised")) else Result.success(t)) }
+                override fun onResults(b: Bundle?) { val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull(); val c = b?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)?.firstOrNull() ?: -1f; done(if (t.isNullOrBlank()) Result.failure(RecError(7, "No speech was recognised")) else Result.success(t to c)) }
                 override fun onError(e: Int) { done(Result.failure(RecError(e, when (e) { SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech was recognised"; SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Allow the microphone permission to transcribe"; SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "The speech service could not use this audio file. Open the Google app once and set it as your speech service"; 12, 13 -> "This language isn't available for transcripts"; else -> "Transcription isn't supported by this phone's speech service" }))) }
                 override fun onReadyForSpeech(p: Bundle?) {}; override fun onBeginningOfSpeech() {}; override fun onRmsChanged(v: Float) {}; override fun onBufferReceived(b: ByteArray?) {}
                 override fun onEndOfSpeech() {}; override fun onPartialResults(p: Bundle?) {}; override fun onEvent(t: Int, p: Bundle?) {}

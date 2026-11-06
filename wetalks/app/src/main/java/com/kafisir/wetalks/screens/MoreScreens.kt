@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.draw.rotate
 import com.kafisir.wetalks.data.DataPrefs
 import com.kafisir.wetalks.voice.VoiceFx
+import com.kafisir.wetalks.voice.Premium
 import androidx.compose.ui.graphics.Color
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.foundation.horizontalScroll
@@ -165,10 +166,10 @@ fun ChatSettingsScreen() {
             }
 
             SectionLabel("Voice notes")
-            if (VoiceFx.crashedBefore) Row2(Ic.Info, "AI noise removal was switched off", "The app closed unexpectedly while it was running on this phone. Tap to try again.", tint = We.danger, onClick = { VoiceFx.retryAfterCrash(ctx) })
-            Row2(Ic.Mic, "AI noise & echo removal", "DeepFilterNet3 cleans your voice on this phone while you record. Turn off to send the raw sound.", trailing = { Toggle(vfxAi) { VoiceFx.setAi(ctx, it) } })
-            Row2(Ic.Stop, "Auto-cut silence", "Pauses longer than 0.3 s are shortened so voice notes are shorter and tighter.", trailing = { Toggle(vfxCut) { VoiceFx.setCut(ctx, it) } })
-            Row2(Ic.Audio, "Volume normalisation", "Evens out loud and quiet speech and finishes the sound (EQ + limiter).", trailing = { Toggle(vfxPolish) { VoiceFx.setPolish(ctx, it) } })
+            if (VoiceFx.crashedBefore && Premium.unlocked) Row2(Ic.Info, "AI noise removal was switched off", "The app closed unexpectedly while it was running on this phone. Tap to try again.", tint = We.danger, onClick = { VoiceFx.retryAfterCrash(ctx) })
+            Row2(Ic.Lock, "AI background-noise remover", "DeepFilterNet3 cleans noise and echo while you record · WeTalks Plus", onClick = { locked("AI noise remover") }, trailing = { Text("Plus", color = We.primary, style = T.tiny.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).padding(horizontal = 8.dp, vertical = 3.dp)) })
+            Row2(Ic.Lock, "Auto-cut silence", "Pauses longer than 0.3 s are shortened so voice notes are tighter · WeTalks Plus", onClick = { locked("Auto-cut silence") }, trailing = { Text("Plus", color = We.primary, style = T.tiny.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).padding(horizontal = 8.dp, vertical = 3.dp)) })
+            Row2(Ic.Audio, "Voice enhance", "Clearer, evenly loud speech: speech EQ, level balancing and a peak limiter. Free.", trailing = { Toggle(vfxPolish) { VoiceFx.setPolish(ctx, it) } })
             SectionLabel("Links")
             Row2(Ic.Link, "Link previews", "Your phone fetches the page to build the preview card. Turn off to send plain links.", trailing = { Toggle(linkPrev) { UiPrefs.setLinkPreview(ctx, it) } })
             SectionLabel("More with WeTalks Plus")

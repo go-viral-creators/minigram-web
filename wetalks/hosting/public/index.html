@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WeTalks</title>
+<meta property="og:title" content="WeTalks"><meta property="og:description" content="Private messaging with groups and channels.">
+<style>
+  :root{color-scheme:light dark;--bg:#f4f8fb;--card:#fff;--tx:#0f1b2d;--tx2:#6b7a90;--pr:#1f6feb}
+  @media(prefers-color-scheme:dark){:root{--bg:#0e1621;--card:#17212b;--tx:#e8eef5;--tx2:#8a9bb0}}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .card{background:var(--card);border-radius:24px;padding:32px 28px;width:min(92vw,380px);text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.08)}
+  .logo{width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#1f6feb,#7b5cff);display:grid;place-items:center;margin:0 auto 14px;color:#fff;font-weight:800;font-size:34px}
+  h1{margin:.2em 0 .1em;font-size:22px} p{color:var(--tx2);margin:.3em 0 1.2em}
+  a.btn{display:block;padding:14px;border-radius:14px;background:var(--pr);color:#fff;text-decoration:none;font-weight:600;margin:10px 0}
+  small{color:var(--tx2)}
+</style></head>
+<body><div class="card">
+  <div class="logo">W</div>
+  <h1 id="t">WeTalks</h1>
+  <p id="s">Private messaging with groups and channels.</p>
+  <a class="btn" id="open" href="#">Open in WeTalks</a>
+  <small id="n"></small>
+</div>
+<script>
+  var m = location.pathname.match(/^\/([cu])\/([A-Za-z0-9_]{3,32})/), isAndroid = /android/i.test(navigator.userAgent);
+  if (m) {
+    var kind = m[1] === 'c' ? 'channel' : 'profile', name = m[2];
+    document.getElementById('t').textContent = (m[1] === 'c' ? '' : '@') + name;
+    document.getElementById('s').textContent = 'Open this ' + kind + ' in WeTalks.';
+    var scheme = 'wetalks://' + m[1] + '/' + name;
+    var intent = 'intent://' + m[1] + '/' + name + '#Intent;scheme=wetalks;package=com.kafisir.wetalks;S.browser_fallback_url=' + encodeURIComponent(location.href) + ';end';
+    var go = isAndroid ? intent : scheme;
+    document.getElementById('open').href = go;
+    if (isAndroid) setTimeout(function () { location.href = go; }, 350);
+    else document.getElementById('n').textContent = 'WeTalks is a phone app. Open this link on your Android phone.';
+  } else document.getElementById('open').style.display = 'none';
+</script></body></html>

@@ -59,7 +59,11 @@ import kotlin.math.sqrt
 /** A mark is stored in coordinates normalised to the ROTATED photo (0..1), so it survives crop changes. */
 sealed class Mark(val color: Color, val width: Float)          // width = fraction of the rotated photo's width
 class Pen(color: Color, width: Float, val pts: SnapshotStateList<Offset>) : Mark(color, width)
-class Geo(color: Color, width: Float, val kind: Int, var a: Offset, var b: Offset) : Mark(color, width)   // 0 oval, 1 rectangle, 2 line, 3 arrow
+class Geo(color: Color, width: Float, val kind: Int, a0: Offset, b0: Offset) : Mark(color, width) {   // 0 oval, 1 rectangle, 2 line, 3 arrow
+    // snapshot state, so the canvas redraws on every drag step: shapes now appear live while you draw
+    var a by mutableStateOf(a0)
+    var b by mutableStateOf(b0)
+}
 
 class EditItem(val uri: Uri, val base: Bitmap) {
     var rot by mutableIntStateOf(0)

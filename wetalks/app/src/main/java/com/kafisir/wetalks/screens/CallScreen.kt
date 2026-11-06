@@ -6,8 +6,21 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,9 +30,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -32,82 +52,165 @@ import kotlinx.coroutines.launch
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 private val Navy = Color(0xFF0B1220)
 private val Green = Color(0xFF22C55E)
 private val Red = Color(0xFFEF4444)
 
-/** Full-screen call UI: incoming (answer / decline), calling, connecting and the live call. */
+/** Full-screen call UI: incoming (slide to answer / decline), calling, connecting and the live call. */
 @Composable
 fun CallScreen() {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current.density
     val phase = Calls.phase
     val peerId = Calls.peer
     val user by Repo.user(peerId.ifEmpty { Repo.uid }).collectAsState()
     var tick by remember { mutableLongStateOf(0L) }
     LaunchedEffect(phase) { while (phase == CallPhase.ACTIVE) { tick = System.currentTimeMillis(); delay(500) } }
-    val answerPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
+
+    val answerPerms = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
         val micOk = ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val camOk = !Calls.video || ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (micOk && camOk) Repo.scope.launch { try { Calls.accept() } catch (e: Exception) { Nav.say(e.message ?: "Could not answer") } }
+        if (micOk && camOk) Repo.scope.launch { try { Calls.accept() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not answer") } }
         else { Nav.say("Allow microphone" + (if (Calls.video) " and camera" else "") + " to answer"); Calls.decline() }
     }
-    fun answer() {
-        val need = buildList { add(Manifest.permission.RECORD_AUDIO); if (Calls.video) add(Manifest.permission.CAMERA) }
-        answerPerms.launch(need.toTypedArray())
+    fun answer() { answerPerms.launch(buildList { add(Manifest.permission.RECORD_AUDIO); if (Calls.video) add(Manifest.permission.CAMERA) }.toTypedArray()) }
+    val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (ok) Repo.scope.launch { try { Calls.enableVideo() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not start video") } }
+        else Nav.say("Camera permission is needed for video")
+    }
+    fun turnVideoOn() {
+        if (ctx.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) Repo.scope.launch { try { Calls.enableVideo() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not start video") } }
+        else camPerm.launch(Manifest.permission.CAMERA)
     }
 
-    val live = Calls.video && (phase == CallPhase.ACTIVE || phase == CallPhase.CONNECTING) && Calls.remoteVideo != null
-    Box(Modifier.fillMaxSize().background(Navy)) {
-        if (live) VideoView(Calls.remoteVideo, mirror = false, overlay = false, Modifier.fillMaxSize())
-        else Column(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xFF16305C), Navy))), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.weight(.28f))
-            Avatar(user?.name ?: "", user?.photo ?: "", 128.dp, peerId)
-            Spacer(Modifier.weight(1f))
-        }
+    if (phase == CallPhase.INCOMING) {
+        IncomingCall(user?.name ?: "…", user?.photo ?: "", peerId, Calls.video, ::answer)
+        return
+    }
 
-        Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (live) Spacer(Modifier.height(0.dp)) else Spacer(Modifier.height(0.dp))
-            Text(user?.name ?: "…", color = Color.White, style = T.title.copy(fontSize = 26.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
-            Spacer(Modifier.height(6.dp))
-            val sub = when (phase) {
-                CallPhase.INCOMING -> "Incoming " + (if (Calls.video) "video" else "voice") + " call"
-                CallPhase.ACTIVE -> if (Calls.note.isNotEmpty()) Calls.note else { val s = ((maxOf(tick, Calls.connectedAt) - Calls.connectedAt) / 1000).toInt(); "%d:%02d".format(s / 60, s % 60) }
-                else -> Calls.note.ifEmpty { "Connecting…" }
-            }
-            Text(sub, color = Color.White.copy(alpha = .75f), style = T.body)
-            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Ic.Lock, Color.White.copy(alpha = .55f), 12.dp); Spacer(Modifier.width(5.dp))
-                Text("End-to-end encrypted", color = Color.White.copy(alpha = .55f), style = T.tiny)
-            }
-        }
+    val videoMode = Calls.video && (phase == CallPhase.ACTIVE || phase == CallPhase.CONNECTING)
+    val local = Calls.localVideo; val remote = Calls.remoteVideo
+    var swapped by remember { mutableStateOf(false) }
+    var controls by remember { mutableStateOf(true) }
+    var touch by remember { mutableIntStateOf(0) }
+    LaunchedEffect(videoMode, controls, touch, phase) { if (videoMode && controls && phase == CallPhase.ACTIVE) { delay(4000); controls = false } }
+    LaunchedEffect(videoMode) { if (!videoMode) { controls = true; swapped = false } }
+    var box by remember { mutableStateOf(IntSize.Zero) }
+    var pip by remember { mutableStateOf(Offset.Zero) }
+    val bigIsLocal = swapped && local != null
+    val bigTrack = if (bigIsLocal) local else remote
+    val bigShows = videoMode && bigTrack != null && (!bigIsLocal || Calls.camOn)
 
-        // my own camera, picture-in-picture
-        if (Calls.video && Calls.localVideo != null && phase != CallPhase.INCOMING) Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 96.dp, end = 14.dp).size(104.dp, 148.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black)) {
-            if (Calls.camOn) VideoView(Calls.localVideo, mirror = Calls.frontCam, overlay = true, Modifier.fillMaxSize())
-            else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(Ic.VideoOff, Color.White, 26.dp) }
-        }
+    Box(Modifier.fillMaxSize().background(Navy).onSizeChanged { box = it }.pointerInput(Unit) { detectTapGestures { controls = !controls; touch++ } }) {
+        if (bigShows) key(bigIsLocal) { VideoView(bigTrack, mirror = bigIsLocal && Calls.frontCam, overlay = false, Modifier.fillMaxSize()) }
+        else Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF16305C), Navy))))
 
-        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (phase == CallPhase.INCOMING) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 40.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    BigBtn(Ic.Phone, Red, "Decline", rotate = 135f) { Calls.decline() }
-                    BigBtn(if (Calls.video) Ic.Video else Ic.Phone, Green, "Answer") { answer() }
+        // name / timer
+        AnimatedVisibility(controls || !videoMode, Modifier.align(Alignment.TopCenter), enter = fadeIn(), exit = fadeOut()) {
+            Column(Modifier.statusBarsPadding().padding(top = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(user?.name ?: "…", color = Color.White, style = T.title.copy(fontSize = 26.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(6.dp))
+                val sub = when (phase) {
+                    CallPhase.ACTIVE -> if (Calls.note.isNotEmpty()) Calls.note else { val s = ((maxOf(tick, Calls.connectedAt) - Calls.connectedAt) / 1000).toInt(); "%d:%02d".format(s / 60, s % 60) }
+                    else -> Calls.note.ifEmpty { "Connecting…" }
                 }
-            } else {
+                Text(sub, color = Color.White.copy(alpha = .8f), style = T.body)
+                Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Ic.Lock, Color.White.copy(alpha = .55f), 12.dp); Spacer(Modifier.width(5.dp))
+                    Text("End-to-end encrypted", color = Color.White.copy(alpha = .55f), style = T.tiny)
+                }
+            }
+        }
+        // avatar with real spacing under the text (voice calls and while video is not flowing yet)
+        if (!bigShows) Box(Modifier.align(Alignment.Center).padding(top = 60.dp)) { Avatar(user?.name ?: "", user?.photo ?: "", 140.dp, peerId) }
+
+        // small window: drag it anywhere, tap it to swap with the big picture
+        val pipTrack = if (bigIsLocal) remote else local
+        if (videoMode && (local != null || remote != null)) {
+            val pw = 104.dp; val ph = 148.dp
+            val pwPx = pw.value * density; val phPx = ph.value * density
+            Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 100.dp, end = 14.dp).offset { IntOffset(pip.x.roundToInt(), pip.y.roundToInt()) }
+                .size(pw, ph).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0F1B2D))
+                .pointerInput(Unit) { detectTapGestures(onTap = { swapped = !swapped }) }
+                .pointerInput(Unit) { detectDragGestures { c, d -> c.consume(); pip = Offset((pip.x + d.x).coerceIn(-(box.width - pwPx - 28 * density), 0f), (pip.y + d.y).coerceIn(-70 * density, box.height - phPx - 220 * density)) } }) {
+                val showLocalHere = !bigIsLocal
+                if (pipTrack != null && (!showLocalHere || Calls.camOn)) key(bigIsLocal) { VideoView(pipTrack, mirror = showLocalHere && Calls.frontCam, overlay = true, Modifier.fillMaxSize()) }
+                else Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Icon(if (showLocalHere) Ic.VideoOff else Ic.User, Color.White.copy(alpha = .8f), 28.dp) }
+            }
+        }
+
+        AnimatedVisibility(controls || !videoMode, Modifier.align(Alignment.BottomCenter), enter = fadeIn(), exit = fadeOut()) {
+            Column(Modifier.navigationBarsPadding().padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    SmallBtn(if (Calls.muted) Ic.MicOff else Ic.Mic, Calls.muted, "Mute") { Calls.toggleMute() }
-                    SmallBtn(Ic.Speaker, Calls.speaker, "Speaker") { Calls.toggleSpeaker() }
-                    if (Calls.video) {
-                        SmallBtn(if (Calls.camOn) Ic.Video else Ic.VideoOff, !Calls.camOn, "Camera") { Calls.toggleCamera() }
-                        SmallBtn(Ic.Rotate, false, "Flip") { Calls.flipCamera() }
-                    }
+                    SmallBtn(if (Calls.muted) Ic.MicOff else Ic.Mic, Calls.muted, "Mute") { Calls.toggleMute(); touch++ }
+                    SmallBtn(Ic.Speaker, Calls.speaker, "Speaker") { Calls.toggleSpeaker(); touch++ }
+                    if (videoMode || Calls.video) {
+                        SmallBtn(if (Calls.camOn) Ic.Video else Ic.VideoOff, !Calls.camOn, if (Calls.camOn) "Camera" else "Camera off") { if (Calls.localVideo == null) turnVideoOn() else Calls.toggleCamera(); touch++ }
+                        SmallBtn(Ic.Rotate, false, "Flip") { Calls.flipCamera(); touch++ }
+                    } else if (phase == CallPhase.ACTIVE) SmallBtn(Ic.Video, false, "Video") { turnVideoOn(); touch++ }
                 }
                 Spacer(Modifier.height(26.dp))
                 BigBtn(Ic.Phone, Red, "End", rotate = 135f) { Calls.hangUp() }
             }
         }
+    }
+}
+
+/** Incoming call: the green button drifts up and the red one down with soft waves; slide up to answer, slide down to decline. */
+@Composable
+private fun IncomingCall(name: String, photo: String, seed: String, video: Boolean, onAnswer: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF16305C), Navy)))) {
+        Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(name, color = Color.White, style = T.title.copy(fontSize = 28.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(8.dp))
+            Text("Incoming " + (if (video) "video" else "voice") + " call", color = Color.White.copy(alpha = .8f), style = T.body)
+            Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Ic.Lock, Color.White.copy(alpha = .55f), 12.dp); Spacer(Modifier.width(5.dp)); Text("End-to-end encrypted", color = Color.White.copy(alpha = .55f), style = T.tiny)
+            }
+            Spacer(Modifier.height(56.dp))
+            Avatar(name, photo, 150.dp, seed)
+        }
+        Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 36.dp).fillMaxWidth().padding(horizontal = 44.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            SlideCallButton(false, Ic.Phone, Red, "Slide down to decline", rotate = 135f) { Calls.decline() }
+            SlideCallButton(true, if (video) Ic.Video else Ic.Phone, Green, "Slide up to answer") { onAnswer() }
+        }
+    }
+}
+
+@Composable
+private fun SlideCallButton(answer: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, hint: String, rotate: Float = 0f, onTrigger: () -> Unit) {
+    val d = LocalDensity.current.density
+    val inf = rememberInfiniteTransition(label = "slide")
+    val p by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Restart), label = "p")
+    var drag by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    var fired by remember { mutableStateOf(false) }
+    val travel = 120 * d; val trigger = 80 * d
+    val dir = if (answer) -1f else 1f
+    val auto = dir * sin(PI * p).toFloat() * 30 * d
+    val y = if (dragging) drag else auto
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(150.dp, 260.dp).pointerInput(Unit) {
+            detectVerticalDragGestures(onDragStart = { dragging = true }, onDragEnd = { dragging = false; drag = 0f }, onDragCancel = { dragging = false; drag = 0f },
+                onVerticalDrag = { c, dy ->
+                    c.consume()
+                    drag = if (answer) (drag + dy).coerceIn(-travel, 0f) else (drag + dy).coerceIn(0f, travel)
+                    if (!fired && abs(drag) >= trigger) { fired = true; onTrigger() }
+                })
+        }, contentAlignment = Alignment.Center) {
+            // waves leaving the button
+            Canvas(Modifier.fillMaxSize()) {
+                val c = Offset(size.width / 2, size.height / 2 + y)
+                for (k in 0 until 3) { val q = (p + k / 3f) % 1f; drawCircle(color.copy(alpha = (1f - q) * .34f), (36f + q * 52f) * d, c) }
+            }
+            Box(Modifier.offset { IntOffset(0, y.roundToInt()) }.size(72.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) { Icon(icon, Color.White, 32.dp, Modifier.rotate(rotate)) }
+        }
+        Text(hint, color = Color.White.copy(alpha = .75f), style = T.small, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -142,7 +245,6 @@ private fun VideoView(track: VideoTrack?, mirror: Boolean, overlay: Boolean, mod
         onDispose { if (track != null && v != null) try { track.removeSink(v) } catch (_: Exception) {} }
     }
 }
-
 
 /** Asks for mic (+camera) permission, then rings [peer]. Returns a function(video: Boolean). */
 @Composable

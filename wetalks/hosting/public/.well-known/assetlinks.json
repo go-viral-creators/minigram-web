@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.kafisir.wetalks",
+    "sha256_cert_fingerprints": ["A3:1B:1C:E7:0C:A8:70:81:AF:50:DD:66:3B:B6:FC:CD:85:71:8B:93:CB:A6:98:DD:F1:FF:AC:44:83:35:8B:F9"]
+  }
+}]

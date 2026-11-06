@@ -95,7 +95,7 @@ fun ChannelSettingsScreen(id: String) {
     val owner = ch.owner == Repo.uid
     fun on(k: String, def: Boolean = true) = ch.perms[k] ?: def
     fun toggle(k: String, v: Boolean) { scope.launch { try { Repo.setPerm(Kind.CHANNEL, id, k, v) } catch (e: Exception) { fail(e) } } }
-    val link = "wetalks://c/" + ch.handle
+    val link = Repo.Links.channel(ch.handle)
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Channel settings", onBack = { Nav.pop() })
         if (!owner) { Empty(Ic.Lock, "Owner only", "Only the channel owner can change these settings."); return@Column }

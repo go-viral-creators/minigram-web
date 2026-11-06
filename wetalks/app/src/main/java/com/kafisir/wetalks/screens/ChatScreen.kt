@@ -110,7 +110,7 @@ fun ChatScreen(ref: ChatRef) {
     var limit by remember { mutableIntStateOf(50) }
     val msgsRaw by produceState<List<Msg>>(emptyList(), ref, limit) { Repo.rawMessages(ref, limit).collect { raws -> value = raws.map { Repo.decrypt(ref, it) } } }
     var hideTick by remember { mutableIntStateOf(0) }
-    val cut = remember(ref) { Repo.cutoff(ref.id) }
+    var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }
     val outs = Repo.outgoing.filter { it.ref.id == ref.id }
     val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h) }
     val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
@@ -141,6 +141,7 @@ fun ChatScreen(ref: ChatRef) {
     var stickers by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var delChat by remember { mutableStateOf(false) }
+    var clearAsk by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var typedPreview by remember { mutableStateOf<LinkPreview?>(null) }
     var dismissedUrl by remember { mutableStateOf<String?>(null) }
@@ -160,19 +161,26 @@ fun ChatScreen(ref: ChatRef) {
     LaunchedEffect(msgs.size, ref) { Repo.markRead(ref) }
     val animOn = UiPrefs.wallpaper.intValue >= AWalls.BASE || Bubbles.animated(UiPrefs.bubbleStyle.intValue)
     LaunchedEffect(animOn) { while (animOn) androidx.compose.runtime.withFrameNanos { Clock.t = (it / 1_000_000_000.0 % 3600.0).toFloat() } }
-    // jump to a message picked from the shared-media lists, then flash it so it is easy to spot
-    val jump = remember(ref) { Nav.jumpTo.also { Nav.jumpTo = null } }
+    // jump to a message (picked from the shared-media lists, or the original of a reply) and flash it so it is easy to spot
+    var jumpReq by remember(ref) { mutableStateOf(Nav.jumpTo.also { Nav.jumpTo = null }) }
     var highlightId by remember { mutableStateOf<String?>(null) }
-    var jumped by remember { mutableStateOf(false) }
-    LaunchedEffect(msgs, jump) {
-        val j = jump ?: return@LaunchedEffect
-        if (jumped) return@LaunchedEffect
+    LaunchedEffect(msgs, jumpReq) {
+        val j = jumpReq ?: return@LaunchedEffect
         val idx = msgs.reversed().indexOfFirst { it.id == j }
         if (idx >= 0) {
-            jumped = true
-            delay(350); listState.animateScrollToItem(idx)
-            highlightId = j; delay(3200); highlightId = null
-        } else if (msgs.size >= limit && limit < 2000) limit += 300 else if (msgs.isNotEmpty()) { jumped = true; toast("That message is no longer available") }
+            jumpReq = null
+            delay(120); listState.animateScrollToItem(idx)
+            highlightId = j
+        } else if (msgs.size >= limit && limit < 2000) limit += 300
+        else if (msgs.isNotEmpty()) { jumpReq = null; toast("That message is no longer available") }
+    }
+    LaunchedEffect(highlightId) { if (highlightId != null) { delay(3200); highlightId = null } }
+    // new message arrives or I send one: show it (unless the reader has scrolled far up through history)
+    val newestId = msgs.lastOrNull()?.id
+    LaunchedEffect(newestId) {
+        val last = msgs.lastOrNull() ?: return@LaunchedEffect
+        if (jumpReq != null) return@LaunchedEffect
+        if (last.from == me || listState.firstVisibleItemIndex <= 6) listState.animateScrollToItem(0)
     }
     LaunchedEffect(input) { if (ref.kind != Kind.CHANNEL && !saved) { if (input.isNotEmpty()) { Repo.setTyping(ref, true); delay(3000) }; Repo.setTyping(ref, false) } }
     DisposableEffect(ref) { onDispose { Repo.setTyping(ref, false) } }
@@ -286,12 +294,23 @@ fun ChatScreen(ref: ChatRef) {
     val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (!ok) toast("Microphone permission is needed for voice messages") }
 
     // ---------------- translate / transcribe (messages only change on this phone)
+    /** Voice message -> text (language detected automatically). Returns the text, or null after showing the error. */
+    suspend fun transcribeNow(m: Msg): String? {
+        txNotes[m.id] = BubbleNote("Transcribing…", "", true)
+        return try {
+            val bytes = m.mediaId?.let { Repo.loadMedia(ref, it) } ?: throw IllegalStateException("Could not load the voice message")
+            val o = com.kafisir.wetalks.voice.Transcriber.transcribe(ctx, bytes, I18n.speechLang.ifEmpty { null })
+            val nm = I18n.languages.firstOrNull { it.code.substringBefore('-') == o.lang.substringBefore('-') }?.english ?: o.lang
+            txNotes[m.id] = BubbleNote("Transcript · $nm", o.text, false); o.text
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { txNotes.remove(m.id); toast(e.message ?: "Could not transcribe"); null }
+    }
     fun doTranslate(m: Msg, to: String) {
-        val src = if (m.type == "voice") txNotes[m.id]?.text ?: "" else m.text
-        if (src.isBlank()) { toast("Nothing to translate yet"); return }
         trNotes[m.id] = BubbleNote("Translating…", "", true)
         Repo.scope.launch {
             try {
+                // a voice message is transcribed first (language detected automatically), then translated into the chosen language
+                val src = if (m.type == "voice") (txNotes[m.id]?.takeIf { !it.loading && it.text.isNotEmpty() }?.text ?: transcribeNow(m)) else m.text
+                if (src.isNullOrBlank()) { trNotes.remove(m.id); return@launch }
                 val r = Translator.translate(src, to)
                 trNotes[m.id] = BubbleNote("Translated from " + I18n.languages.firstOrNull { it.code == r.detected }?.english.orEmpty().ifEmpty { "another language" } + " to " + I18n.byCode(to).english, r.text, false)
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { trNotes.remove(m.id); toast(e.message ?: "Could not translate") }
@@ -299,14 +318,7 @@ fun ChatScreen(ref: ChatRef) {
     }
     fun doTranscribe(m: Msg) {
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) { micPerm.launch(Manifest.permission.RECORD_AUDIO); toast("Allow the microphone, then tap Transcribe again"); return }
-        txNotes[m.id] = BubbleNote("Transcribing…", "", true)
-        Repo.scope.launch {
-            try {
-                val bytes = m.mediaId?.let { Repo.loadMedia(ref, it) } ?: throw IllegalStateException("Could not load the voice message")
-                val text = com.kafisir.wetalks.voice.Transcriber.transcribe(ctx, bytes, I18n.speechLang.ifEmpty { null })
-                txNotes[m.id] = BubbleNote("Transcript", text, false)
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { txNotes.remove(m.id); toast(e.message ?: "Could not transcribe") }
-        }
+        Repo.scope.launch { transcribeNow(m) }
     }
 
     val wall = UiPrefs.wallpaper.intValue
@@ -382,7 +394,7 @@ fun ChatScreen(ref: ChatRef) {
                                     onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else if (m.unreadable) unreadableInfo = true },
                                     onLong = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (!m.deleted) { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else menuMsg = m } },
                                     onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e) },
-                                    notes = listOfNotNull(txNotes[m.id], trNotes[m.id]))
+                                    notes = listOfNotNull(txNotes[m.id], trNotes[m.id]), onQuote = { jumpReq = it })
                             }
                         }
                         val tight = UiPrefs.compact.value
@@ -484,8 +496,8 @@ fun ChatScreen(ref: ChatRef) {
             onForward = { forwarding = listOf(m); menuMsg = null },
             onEdit = { editing = m; reply = null; setInput(m.text); menuMsg = null },
             onSelect = { selected.add(m.id); menuMsg = null },
-            onTranslate = if ((m.type == "voice" && txNotes[m.id]?.loading == false) || (m.type != "voice" && m.text.isNotBlank() && m.type in listOf("text", "link", "image"))) ({ menuMsg = null; doTranslate(m, I18n.translateTo) }) else null,
-            onTranslateTo = if ((m.type == "voice" && txNotes[m.id]?.loading == false) || (m.type != "voice" && m.text.isNotBlank() && m.type in listOf("text", "link", "image"))) ({ menuMsg = null; pickLang = m }) else null,
+            onTranslate = if (m.type == "voice" || (m.text.isNotBlank() && m.type in listOf("text", "link", "image"))) ({ menuMsg = null; doTranslate(m, I18n.translateTo) }) else null,
+            onTranslateTo = if (m.type == "voice" || (m.text.isNotBlank() && m.type in listOf("text", "link", "image"))) ({ menuMsg = null; pickLang = m }) else null,
             onTranscribe = if (m.type == "voice") ({ menuMsg = null; doTranscribe(m) }) else null,
             onHideNotes = if (trNotes.containsKey(m.id) || txNotes.containsKey(m.id)) ({ menuMsg = null; trNotes.remove(m.id); txNotes.remove(m.id) }) else null,
             onSave = { menuMsg = null; Repo.scope.launch { val b = try { m.mediaId?.let { Repo.loadMedia(ref, it) } } catch (e: Exception) { null }; toast(if (b != null && Gallery.save(ctx, b, m.mime.ifEmpty { "image/jpeg" })) "Saved to gallery" else "Could not save") } },
@@ -541,15 +553,22 @@ fun ChatScreen(ref: ChatRef) {
             Repo.scope.launch { try { for (t in targets) list.sortedBy { it.ts }.forEach { Repo.forward(ref, it, t) }; toast(if (targets.size == 1) "Forwarded" else "Forwarded to ${targets.size} chats") } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { toast(e.message ?: "Could not forward") } }
         }
     }
+    if (clearAsk) Sheet({ clearAsk = false }) {
+        val both = ref.kind == Kind.DM
+        Text("Clear chat history?", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
+        Text(if (both) (if (saved) "All your saved notes will be deleted." else "Every message, photo and voice note is deleted for you and for $title. This can't be undone.") else "Messages are hidden on this phone only.", color = We.text2, style = T.body, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+        SheetItem(Ic.Trash, if (both) "Clear for everyone" else "Clear for me", danger = true) { clearAsk = false; Repo.scope.launch { try { Repo.clearHistory(ref); cut = System.currentTimeMillis(); toast("Chat history cleared") } catch (e: Exception) { toast("Could not clear: " + (e.message ?: "")) } } }
+    }
     if (delChat) DeleteChatDialog(ref, title, { delChat = false }) { Nav.pop() }
     if (menu) Sheet({ menu = false }) {
         when (ref.kind) {
             Kind.DM -> if (!saved) {
                 SheetItem(Ic.User, "View profile") { menu = false; Nav.push(RProfile(ref.peer!!)) }
                 SheetItem(Ic.Block, if (ref.peer in blocked) "Unblock" else "Block", danger = ref.peer !in blocked) { Repo.block(ref.peer!!, ref.peer !in blocked); menu = false }
+                SheetItem(Ic.Trash2, "Clear chat history") { menu = false; clearAsk = true }
                 SheetItem(Ic.Trash, "Delete chat", danger = true) { menu = false; delChat = true }
-            } else SheetItem(Ic.Info, "Only you can see this chat") { menu = false }
-            Kind.GROUP -> SheetItem(Ic.Group, "Group info") { menu = false; Nav.push(RGroupInfo(ref.id)) }
+            } else { SheetItem(Ic.Trash2, "Clear all notes") { menu = false; clearAsk = true }; SheetItem(Ic.Info, "Only you can see this chat") { menu = false } }
+            Kind.GROUP -> { SheetItem(Ic.Group, "Group info") { menu = false; Nav.push(RGroupInfo(ref.id)) }; SheetItem(Ic.Trash2, "Clear history (only for me)") { menu = false; clearAsk = true } }
             Kind.CHANNEL -> {
                 SheetItem(Ic.Info, "Channel info") { menu = false; Nav.push(RChannelInfo(ref.id)) }
                 if (isMember && channel?.owner != me) SheetItem(Ic.Logout, "Leave channel", danger = true) { menu = false; scope.launch { Repo.unsubscribe(ref.id); Nav.pop() } }
@@ -566,7 +585,7 @@ fun DayChip(t: String) {
 }
 
 @Composable
-fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit, notes: List<BubbleNote> = emptyList()) {
+fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit, notes: List<BubbleNote> = emptyList(), onQuote: (String) -> Unit = {}) {
     val r = UiPrefs.bubble.intValue.dp
     val shape = RoundedCornerShape(r, r, if (mine && lastInRun) 4.dp else r, if (!mine && lastInRun) 4.dp else r)
     val bStyle = UiPrefs.bubbleStyle.intValue
@@ -582,12 +601,13 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     Icon(Ic.Forward, We.primary, 13.dp); Spacer(Modifier.width(5.dp))
                     Text("Forwarded from " + nameOf(m.fwd, "someone"), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic), maxLines = 1)
                 }
-                if (quoted != null && !m.deleted) {
-                    Row(Modifier.padding(bottom = 6.dp).then(if (m.type == "image") Modifier.padding(8.dp) else Modifier).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)) {
+                if ((quoted != null || m.rid != null) && !m.deleted) {
+                    Row(Modifier.padding(bottom = 6.dp).then(if (m.type == "image") Modifier.padding(8.dp) else Modifier).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
+                        .combinedClickable(onClick = { m.rid?.let(onQuote) }, onLongClick = onLong)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
                         Column(Modifier.padding(8.dp, 5.dp)) {
-                            Text(if (quoted.from == Repo.uid) "You" else nameOf(quoted.from, ""), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
-                            Text(if (quoted.deleted) "Deleted message" else previewText(quoted.type, quoted.text), color = fg.copy(alpha = .75f), style = T.small, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(if (quoted == null) "Reply" else if (quoted.from == Repo.uid) "You" else nameOf(quoted.from, ""), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
+                            Text(if (quoted == null) "Tap to find the original message" else if (quoted.deleted) "Deleted message" else previewText(quoted.type, quoted.text), color = fg.copy(alpha = .75f), style = T.small, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

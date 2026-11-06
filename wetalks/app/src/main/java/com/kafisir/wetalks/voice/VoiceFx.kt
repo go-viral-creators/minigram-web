@@ -21,7 +21,13 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** User switches for the voice-note pipeline, plus the shared DeepFilterNet3 engine. */
+/** Paid ("WeTalks Plus") features stay switched off until this is true. */
+object Premium { const val unlocked = false }
+
 object VoiceFx {
+    /** AI background-noise removal and auto-cut silence are Plus features; "Voice enhance" (EQ + volume normalisation) is free. */
+    fun aiOn() = Premium.unlocked && ai.value
+    fun cutOn() = Premium.unlocked && cut.value
     val ai = mutableStateOf(true)          // neural noise + echo removal
     val polish = mutableStateOf(true)      // speech EQ, compression, loudness normalisation
     val cut = mutableStateOf(true)         // shorten pauses longer than 300 ms
@@ -63,7 +69,7 @@ object VoiceFx {
     fun guardStart() { appCtx?.let { sp(it).edit().putBoolean("ort_busy", true).commit() } }
     fun guardEnd() { appCtx?.let { sp(it).edit().putBoolean("ort_busy", false).apply() } }
     /** Loads the models in the background so the first voice note starts instantly. */
-    fun warmUp(c: Context) { if (ai.value && !crashedBefore) Thread({ engine(c.applicationContext) }, "dfn-warmup").start() }
+    fun warmUp(c: Context) { if (aiOn() && !crashedBefore) Thread({ engine(c.applicationContext) }, "dfn-warmup").start() }
 }
 
 /**
@@ -103,7 +109,7 @@ class Recorder(private val ctx: Context) {
         try { if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(r.audioSessionId)?.enabled = false } catch (_: Throwable) {}
         try { if (AutomaticGainControl.isAvailable()) AutomaticGainControl.create(r.audioSessionId)?.enabled = false } catch (_: Throwable) {}
 
-        if (VoiceFx.ai.value) VoiceFx.engine(ctx)?.let { e ->
+        if (VoiceFx.aiOn()) VoiceFx.engine(ctx)?.let { e ->
             stream = DfnStream(e); dfnOk = true
             worker = Thread({
                 try {
@@ -160,13 +166,13 @@ class Recorder(private val ctx: Context) {
             var x: FloatArray? = null
             if (dfnOk) try { x = stream!!.finish() } catch (_: Throwable) { x = null }
             if (x == null) x = readRaw(n.toInt())
-            if (VoiceFx.cut.value) x = SilenceCut.cut(x, SR)
+            if (VoiceFx.cutOn()) x = SilenceCut.cut(x, SR)
             if (VoiceFx.polish.value) {
                 Dsp.speechEq(x, SR); Dsp.compress(x, SR, -26.0, 2.5, 8.0, 160.0); Dsp.normalize(x, SR, -16.0)
             } else Dsp.limit(x, SR)
             Dsp.fade(x, SR)
             val bytes = VoiceEncoder.encodeAac(x, File(ctx.cacheDir, "voice_${System.nanoTime()}.m4a"))
-            Result(bytes, if (VoiceFx.cut.value) maxOf(1, Math.round(x.size / SR.toFloat())) else seconds, SilenceCut.wave(x))
+            Result(bytes, if (VoiceFx.cutOn()) maxOf(1, Math.round(x.size / SR.toFloat())) else seconds, SilenceCut.wave(x))
         } catch (e: Throwable) { null } finally { raw.delete() }
     }
 

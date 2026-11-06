@@ -87,6 +87,8 @@ fun App() {
                 try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
+            // the first resume often happens before the profile check has finished, so also go online as soon as it has
+            LaunchedEffect(me) { if (me == true) { Repo.watchConnection(); if (com.kafisir.wetalks.data.Calls.foreground) Repo.setOnline(true) } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) { Repo.setOnline(true); try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {} } }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (me == true) Repo.setOnline(false) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true }

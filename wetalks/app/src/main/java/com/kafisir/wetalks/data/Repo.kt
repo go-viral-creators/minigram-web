@@ -179,6 +179,17 @@ object Repo {
     suspend fun userOnce(id: String): User? = parseUser(id, db.getReference("users/$id").get().await())
 
     // ------------------------------------------------------------------------------------------ profile
+    private var connWatching = false
+    /** After a reconnect the server forgets "online" (it was reset by onDisconnect): assert it again while the app is on screen. */
+    fun watchConnection() {
+        if (connWatching) return
+        connWatching = true
+        db.getReference(".info/connected").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(s: DataSnapshot) { if (s.getValue(Boolean::class.java) == true && Calls.foreground && uid.isNotEmpty()) setOnline(true) }
+            override fun onCancelled(e: DatabaseError) {}
+        })
+    }
+
     /** Presence lives in its own node so the owner's privacy choices can be enforced by the database rules. */
     fun setOnline(on: Boolean) {
         if (uid.isEmpty()) return
@@ -310,8 +321,15 @@ object Repo {
     }
 
     /** Turns a scanned/pasted wetalks:// link into a screen: wetalks://u/<username> or wetalks://c/<handle>. */
+    /** Shareable web links: they open in any browser, and open the app directly on phones that have it. */
+    object Links {
+        const val HOST = "wetalks-78e5a.web.app"
+        fun channel(handle: String) = "https://$HOST/c/$handle"
+        fun user(username: String) = "https://$HOST/u/$username"
+    }
+
     suspend fun resolveLink(text: String): com.kafisir.wetalks.ui.Route? {
-        val m = Regex("""wetalks://([uc])/([A-Za-z0-9_]{3,32})""").find(text.trim()) ?: return null
+        val m = Regex("""(?:wetalks://|https?://wetalks-78e5a\.(?:web\.app|firebaseapp\.com)/)([uc])/([A-Za-z0-9_]{3,32})""").find(text.trim()) ?: return null
         val key = m.groupValues[2].lowercase()
         return if (m.groupValues[1] == "u") db.getReference("usernames/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RProfile(it) }
         else db.getReference("channel_handles/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RChannelInfo(it) }
@@ -579,6 +597,26 @@ object Repo {
             } else { up["$b/lastBody"] = ""; up["$b/lastType"] = ""; up["$b/lastFrom"] = "" }
         }
         try { db.reference.updateChildren(up).await() } catch (_: Exception) {}
+    }
+
+    /** Wipes every message of a DM for both people (the chat itself stays in both lists, empty). Groups/channels are cleared only on this phone. */
+    suspend fun clearHistory(ref: ChatRef) {
+        if (ref.kind != Kind.DM) { cutPrefs.edit().putLong(ref.id, System.currentTimeMillis()).apply(); return }
+        try {
+            val snap = db.getReference("messages/${ref.id}").get().await()
+            for (c in snap.children) if (c.str("from") == uid) {
+                val id = try { decrypt(ref, rawOf(c)).mediaId } catch (_: Exception) { null }
+                if (!id.isNullOrEmpty()) try { db.getReference("media/$id").removeValue().await() } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+        val up = HashMap<String, Any?>()
+        up["messages/${ref.id}"] = null; up["pins/${ref.id}"] = null
+        for (u in listOfNotNull(uid, ref.peer).distinct()) {
+            val b = "user_chats/$u/${ref.id}"
+            up["$b/type"] = "dm"; up["$b/peer"] = if (u == uid) ref.peer else uid
+            up["$b/lastBody"] = ""; up["$b/lastType"] = ""; up["$b/lastFrom"] = ""; up["$b/unread"] = 0
+        }
+        db.reference.updateChildren(up).await()
     }
 
     private val cutPrefs get() = app.getSharedPreferences("wt_cut", Context.MODE_PRIVATE)

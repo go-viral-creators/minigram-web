@@ -152,7 +152,7 @@ object Calls {
             resetFlags(); phase = CallPhase.INCOMING; note = ""
             key = Repo.chatKey(ChatRef(Repo.dmId(from), Kind.DM, from))
             Repo.db.getReference("calls/$id/ringing").setValue(true)
-            watchState(); startRinging(); notifyIncoming()
+            watchState(); watchNeg(); startRinging(); notifyIncoming()
             timeout = scope.launch { delay(55_000); if (phase == CallPhase.INCOMING) finish("missed", notifyPeer = true, remote = false) }
         } catch (_: Exception) {}
     }
@@ -173,7 +173,7 @@ object Calls {
             val early = synchronized(pendingIce) { pendingIce.toList().also { pendingIce.clear() } }
             early.forEach { Repo.db.getReference("calls/$callId/ice_caller").push().setValue(it) }
             Repo.db.getReference("incoming_calls/$to/$callId").setValue(hashMapOf("from" to Repo.uid, "video" to withVideo, "ts" to ServerValue.TIMESTAMP)).await()
-            watchState()
+            watchState(); watchNeg()
             watchIce("ice_callee")
             startRingback()
             timeout = scope.launch {
@@ -211,7 +211,18 @@ object Calls {
     fun toggleMute() { muted = !muted; audioTrack?.setEnabled(!muted) }
     fun toggleCamera() { camOn = !camOn; videoTrack?.setEnabled(camOn) }
     fun toggleSpeaker() { applySpeaker(!speaker) }
-    fun flipCamera() { capturer?.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler { override fun onCameraSwitchDone(front: Boolean) { frontCam = front }; override fun onCameraSwitchError(e: String?) {} }) }
+    @Volatile private var flipping = false
+    /** Front / back camera. Taps while a switch is still running are ignored (that is what made it need several taps before). */
+    fun flipCamera() {
+        val c = capturer ?: return
+        if (flipping) return
+        flipping = true
+        scope.launch { delay(2500); flipping = false }
+        c.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler {
+            override fun onCameraSwitchDone(front: Boolean) { scope.launch(Dispatchers.Main) { frontCam = front; flipping = false } }
+            override fun onCameraSwitchError(e: String?) { scope.launch(Dispatchers.Main) { flipping = false } }
+        })
+    }
     private fun applySpeaker(on: Boolean) {
         speaker = on
         (app.getSystemService(Context.AUDIO_SERVICE) as AudioManager).isSpeakerphoneOn = on
@@ -273,16 +284,65 @@ object Calls {
 
         audioSource = f.createAudioSource(MediaConstraints())
         audioTrack = f.createAudioTrack("a0", audioSource).also { pc!!.addTrack(it, listOf("s0")) }
-        if (withVideo) {
-            val en = Camera2Enumerator(app)
-            val name = en.deviceNames.firstOrNull { en.isFrontFacing(it) } ?: en.deviceNames.firstOrNull() ?: throw IllegalStateException("No camera found")
-            val cap = en.createCapturer(name, null) ?: throw IllegalStateException("Camera not available")
-            capturer = cap
-            surfaceHelper = SurfaceTextureHelper.create("wt-capture", egl.eglBaseContext)
-            videoSource = f.createVideoSource(false).also { cap.initialize(surfaceHelper, app, it.capturerObserver) }
-            cap.startCapture(960, 540, 24)
-            videoTrack = f.createVideoTrack("v0", videoSource).also { pc!!.addTrack(it, listOf("s0")); localVideo = it }
+        if (withVideo) startVideoTrack()
+    }
+
+    /** Opens the front camera and adds it to the call. */
+    private fun startVideoTrack() {
+        val f = factory!!
+        val en = Camera2Enumerator(app)
+        val name = en.deviceNames.firstOrNull { en.isFrontFacing(it) } ?: en.deviceNames.firstOrNull() ?: throw IllegalStateException("No camera found")
+        val cap = en.createCapturer(name, null) ?: throw IllegalStateException("Camera not available")
+        capturer = cap; frontCam = en.isFrontFacing(name); flipping = false
+        surfaceHelper = SurfaceTextureHelper.create("wt-capture", egl.eglBaseContext)
+        videoSource = f.createVideoSource(false).also { cap.initialize(surfaceHelper, app, it.capturerObserver) }
+        cap.startCapture(960, 540, 24)
+        videoTrack = f.createVideoTrack("v0", videoSource).also { pc!!.addTrack(it, listOf("s0")); localVideo = it }
+        camOn = true
+    }
+
+    // ------------------------------------------------------------------------------------------ switching a voice call to video (and back) while talking
+    private var negSeq = 0
+    private var awaitingNeg = -1
+
+    /** Turns my camera on. In a voice call this adds video to the running call; the other side's camera stays off until they choose. */
+    suspend fun enableVideo() {
+        if (phase != CallPhase.ACTIVE && phase != CallPhase.CONNECTING) return
+        val p = pc ?: return
+        if (videoTrack != null) { camOn = true; videoTrack?.setEnabled(true); video = true; return }
+        startVideoTrack(); video = true; applySpeaker(true)
+        val offer = p.createOfferSuspend(); p.setLocalSuspend(offer)
+        negSeq++; awaitingNeg = negSeq
+        val k = key ?: return
+        Repo.db.getReference("calls/$callId/neg").setValue(hashMapOf("by" to Repo.uid, "kind" to "offer", "n" to negSeq, "sdp" to Crypto.sealText(k, JSONObject().put("type", offer.type.canonicalForm()).put("sdp", offer.description).toString()))).await()
+    }
+
+    private fun watchNeg() {
+        val q = Repo.db.getReference("calls/$callId/neg")
+        val l = object : ValueEventListener {
+            override fun onDataChange(s: DataSnapshot) {
+                if (!s.exists() || s.child("by").getValue(String::class.java) == Repo.uid) return
+                val k = key ?: return
+                val kind = s.child("kind").getValue(String::class.java) ?: return
+                val n = s.child("n").getValue(Long::class.java)?.toInt() ?: return
+                val j = try { JSONObject(Crypto.openText(k, s.child("sdp").getValue(String::class.java) ?: return)) } catch (_: Exception) { return }
+                val desc = SessionDescription(SessionDescription.Type.fromCanonicalForm(j.getString("type")), j.getString("sdp"))
+                scope.launch {
+                    try {
+                        val p = pc ?: return@launch
+                        if (kind == "offer") {
+                            val sec = desc.description.substringAfter("m=video", "")
+                            if (sec.contains("a=sendrecv") || sec.contains("a=sendonly")) { video = true; applySpeaker(true) }
+                            p.setRemoteSuspend(desc)
+                            val ans = p.createAnswerSuspend(); p.setLocalSuspend(ans)
+                            Repo.db.getReference("calls/$callId/neg").setValue(hashMapOf("by" to Repo.uid, "kind" to "answer", "n" to n, "sdp" to Crypto.sealText(k, JSONObject().put("type", ans.type.canonicalForm()).put("sdp", ans.description).toString())))
+                        } else if (kind == "answer" && n == awaitingNeg) { awaitingNeg = -1; p.setRemoteSuspend(desc) }
+                    } catch (_: Exception) {}
+                }
+            }
+            override fun onCancelled(e: DatabaseError) {}
         }
+        q.addValueEventListener(l); listeners += q to l
     }
 
     private fun flushIce() { queuedIce.forEach { pc?.addIceCandidate(it) }; queuedIce.clear() }
@@ -368,7 +428,7 @@ object Calls {
         val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         am.isSpeakerphoneOn = false; am.mode = prevAudioMode
         try { app.stopService(Intent(app, CallService::class.java)) } catch (_: Exception) {}
-        key = null; pendingOffer = null; connectedAt = 0L; speaker = false
+        key = null; pendingOffer = null; connectedAt = 0L; speaker = false; flipping = false; negSeq = 0; awaitingNeg = -1
         phase = CallPhase.IDLE; note = ""
     }
 

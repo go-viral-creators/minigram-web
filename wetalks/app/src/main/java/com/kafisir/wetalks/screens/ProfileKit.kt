@@ -267,7 +267,7 @@ fun ProfileScreen(uid: String) {
     var more by remember { mutableStateOf(false) }
     val startCall = rememberCallStarter(uid)
     val me = uid == Repo.uid
-    val link = "wetalks://u/" + (u?.username ?: "")
+    val link = Repo.Links.user(u?.username ?: "")
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar(u?.name ?: "Profile", onBack = { Nav.pop() }, actions = { if ((u?.username ?: "").isNotEmpty()) IconBtn(Ic.Qr, We.onAppBar, { Nav.push(RQr(u!!.name, "@" + u!!.username, u!!.photo, uid, link)) }) })
         Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -333,7 +333,7 @@ fun ChannelInfoScreen(id: String) {
     val ch = c ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Channel", onBack = { Nav.pop() }) }; return }
     val owner = ch.owner == Repo.uid
     if (editing) { EditNameScreen("Edit channel", ch.name, ch.about, ch.photo, ch.id, { n, a, p -> Repo.updateChannel(id, n, a, p) }) { editing = false }; return }
-    val link = "wetalks://c/" + ch.handle
+    val link = Repo.Links.channel(ch.handle)
     val qr = RQr(ch.name, "@" + ch.handle, ch.photo, ch.id, link)
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Channel", onBack = { Nav.pop() }, actions = {
