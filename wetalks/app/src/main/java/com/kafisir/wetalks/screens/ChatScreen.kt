@@ -94,6 +94,16 @@ private fun dayLabel(ts: Long): String {
         else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(Date(ts))
     }
 }
+private val HINGLISH = setOf("hai", "hain", "nahi", "nahin", "kya", "main", "mein", "tum", "aap", "ke", "ki", "ko", "se", "ye", "yeh", "wo", "woh", "bhai", "karo", "kar", "karna", "hoga", "tha", "thi", "aur", "lekin", "par", "per", "ab", "abhi", "bahut", "accha", "acha", "theek", "dekho", "dekhna", "kuch", "mujhe", "tumhe", "apne", "iske", "uske", "dunga", "denge", "raha", "rahi", "rahe", "wala", "wali", "isliye", "kyunki", "matlab", "sab", "kaise", "kyu", "hoon", "hu", "padega", "padega", "logon", "andar", "idhar", "udhar", "bhi", "toh", "to", "mat", "ho", "gaya", "gayi")
+/** The recogniser reports "English" for romanised Hindi; name what was really spoken. Null = keep the recogniser's language. */
+fun speechLabel(lang: String, text: String): String? {
+    if (text.any { it in '\u0900'..'\u097F' }) return "Hindi"
+    if (lang.substringBefore('-') != "en") return null
+    val w = text.lowercase().split(Regex("[^a-z]+")).filter { it.isNotEmpty() }
+    if (w.size < 3) return null
+    val hits = w.count { it in HINGLISH && it !in setOf("to", "main", "ho", "hu", "per", "par", "ab", "se") }.let { it + w.count { x -> x in setOf("main", "per", "par", "ab", "se", "to", "ho", "hu") } / 2 }
+    return if (hits * 100 / w.size >= 18) "Hinglish (Hindi)" else null
+}
 /** Some recognisers return Every Word Capitalised; turn that into normal sentence case. */
 fun tidyTranscript(t: String): String {
     val words = t.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
@@ -310,7 +320,7 @@ fun ChatScreen(ref: ChatRef) {
         return try {
             val bytes = m.mediaId?.let { Repo.loadMedia(ref, it) } ?: throw IllegalStateException("Could not load the voice message")
             val o = com.kafisir.wetalks.voice.Transcriber.transcribe(ctx, bytes, I18n.speechLang.ifEmpty { null })
-            val nm = I18n.languages.firstOrNull { it.code.substringBefore('-') == o.lang.substringBefore('-') }?.english ?: o.lang
+            val nm = speechLabel(o.lang, o.text) ?: (I18n.languages.firstOrNull { it.code.substringBefore('-') == o.lang.substringBefore('-') }?.english ?: o.lang)
             val clean = tidyTranscript(o.text)
             if (show) txNotes[m.id] = BubbleNote("Transcript · $nm", clean, false)
             clean
@@ -614,7 +624,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     Text("Forwarded from " + nameOf(m.fwd, "someone"), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic), maxLines = 1)
                 }
                 if ((quoted != null || m.rid != null) && !m.deleted) {
-                    Row(Modifier.then(if (m.type == "image") Modifier.fillMaxWidth().padding(8.dp) else Modifier.padding(bottom = 6.dp)).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
+                    Row(Modifier.then(if (m.type == "image") Modifier.width(254.dp).padding(8.dp) else Modifier.padding(bottom = 6.dp)).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
                         .combinedClickable(onClick = { m.rid?.let(onQuote) }, onLongClick = onLong)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
                         Column(Modifier.padding(8.dp, 5.dp)) {
