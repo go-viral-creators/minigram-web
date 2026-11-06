@@ -96,7 +96,7 @@ def features(c):
       ('lock', 'End-to-end encryption', 'X25519 key agreement and AES-256-GCM. Group chats use a shared group key that changes when someone is removed.'),
       ('check', 'Replies, reactions, pins', 'Swipe a message to reply, react with animated emoji, pin important messages, forward, edit and delete for everyone.'),
       ('globe', 'Translate &amp; transcribe', 'Translate any message into your language and read a transcript of voice notes. Hindi, Hinglish and English work out of the box.'),
-      ('mic', 'Read aloud, naturally', 'Tap Listen on a message, caption or transcript and it is read in the right language. Use your phone\'s voice, or download our optional human-like voices (English, Hindi, Hinglish, Spanish, French) that run entirely on your phone.'),
+      ('mic', 'Read aloud, naturally', 'Tap Listen on a message, caption or transcript and it is read in the right language. Use your phone\'s voice, or download our optional human-like voices (31 languages including English, Hindi and Hinglish, male and female) that run entirely on your phone.'),
       ('bell', 'Notifications you control', 'Reply, mark as read or mute right from the notification. Calls ring even when the app is in the background.'),
       ('eye-off', 'Privacy controls', 'Choose who sees your last seen, online status and phone number. Turn read receipts off. Block anyone.')]) + \
     blk('Calls', [

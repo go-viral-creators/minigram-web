@@ -33,11 +33,13 @@ fun NaturalVoicesScreen() {
             when (st) {
                 NeuralTts.Status.Ready -> {
                     Row2(Ic.Check, "Installed", "About " + (NeuralTts.packBytes * 133 / 100 / 1048576) + " MB on your phone", trailing = { SmallBtn("Delete") { NeuralTts.remove(ctx) } })
-                    Row2(Ic.Speaker, "Use natural voices", "Listen uses this voice for English, Hindi, Hinglish, Spanish and French", trailing = { Toggle(NeuralTts.enabled) { NeuralTts.setEnabled(ctx, it) } })
+                    Row2(Ic.Speaker, "Use natural voices", "Listen uses this voice for English, Hindi, Hinglish and 28 more languages", trailing = { Toggle(NeuralTts.enabled) { NeuralTts.setEnabled(ctx, it) } })
                     SectionLabel("Voice")
-                    Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Pick("Female", NeuralTts.female) { NeuralTts.setFemale(ctx, true) }
-                        Pick("Male", !NeuralTts.female) { NeuralTts.setFemale(ctx, false) }
+                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (row in 0..1) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            for (k in 0..4) { val v = row * 5 + k; Pick(NeuralTts.voiceNames[v].replace("Female ", "F").replace("Male ", "M"), NeuralTts.voice == v) { NeuralTts.setVoice(ctx, v) } }
+                        }
+                        Text("F1–F5 are female voices, M1–M5 are male voices. Tap Try it to hear the one you picked.", color = We.text2, style = T.tiny)
                     }
                     Column(Modifier.padding(16.dp)) {
                         Text("Try it", color = We.text, style = T.name)
@@ -58,12 +60,12 @@ fun NaturalVoicesScreen() {
                 NeuralTts.Status.Broken -> Row2(Ic.Alert, "Switched off", "The app closed unexpectedly the last time a natural voice was used, so it was turned off for safety. Tap to try again.", onClick = { NeuralTts.resetBroken(ctx) })
                 else -> Column(Modifier.padding(16.dp)) {
                     Text("Download once (about " + (NeuralTts.packBytes / 1048576) + " MB)", color = We.text, style = T.name)
-                    Text("Use Wi-Fi. The voice stays on your phone and you can delete it any time. It covers English, Hindi (also Hinglish), Spanish and French. Other languages use your phone's voice.", color = We.text2, style = T.small, modifier = Modifier.padding(top = 4.dp))
+                    Text("Use Wi-Fi. The voice stays on your phone and you can delete it any time. It reads 31 languages including English, Hindi and Hinglish. Other languages use your phone's voice.", color = We.text2, style = T.small, modifier = Modifier.padding(top = 4.dp))
                     if (NeuralTts.error.isNotEmpty()) Text(NeuralTts.error, color = We.danger, style = T.small, modifier = Modifier.padding(top = 8.dp))
                     SmallBtn("Download natural voices", Modifier.padding(top = 12.dp), primary = true) { NeuralTts.download(ctx) }
                 }
             }
-            Text("Voices: Kokoro-82M (Apache 2.0 licence) running with sherpa-onnx.", color = We.text2, style = T.tiny, modifier = Modifier.padding(16.dp))
+            Text("Voices: Supertonic 3 by Supertone (MIT code, OpenRAIL-M model licence) running with sherpa-onnx.", color = We.text2, style = T.tiny, modifier = Modifier.padding(16.dp))
         }
     }
 }

@@ -11,7 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
+import com.k2fsa.sherpa.onnx.GenerationConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsSupertonicModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import com.kafisir.wetalks.data.Repo
 import kotlinx.coroutines.Dispatchers
@@ -30,31 +31,31 @@ import java.util.Locale
 import java.util.zip.ZipInputStream
 
 /**
- * Natural, human-like voices that run on the phone (Kokoro model through sherpa-onnx).
+ * Natural, human-like voices that run on the phone (Supertonic 3, 31 languages, through sherpa-onnx).
  * The voice pack is NOT inside the app: it is downloaded once from our server when the person asks for it, checked with a SHA-256 hash and unpacked safely.
  * Off by default: the normal Android voice stays the default.
  */
 object NeuralTts {
     const val BASE = "https://wetalks.fireclashpro.com"
-    const val PACK_ID = "kokoro-int8-v1"
+    const val PACK_ID = "supertonic3-int8-v1"
     const val MAX_PACK_BYTES = 300L * 1024 * 1024
-    private val REQUIRED = listOf("model.int8.onnx", "voices.bin", "tokens.txt", "lexicon-us-en.txt")
+    private val REQUIRED = listOf("duration_predictor.int8.onnx", "text_encoder.int8.onnx", "vector_estimator.int8.onnx", "vocoder.int8.onnx", "tts.json", "unicode_indexer.bin", "voice.bin")
 
     enum class Status { Unknown, Missing, Downloading, Ready, TooWeak, Broken }
     var status by mutableStateOf(Status.Unknown); private set
     var progress by mutableFloatStateOf(0f); private set
     var error by mutableStateOf(""); private set
     var enabled by mutableStateOf(false); private set
-    var female by mutableStateOf(true); private set
-    var packBytes by mutableStateOf(125_575_277L); private set
+    var voice by mutableStateOf(0); private set          // 0-4 = Female 1-5, 5-9 = Male 1-5
+    var packBytes by mutableStateOf(124_032_822L); private set
 
     private fun prefs(c: Context) = c.getSharedPreferences("wt_ntts", Context.MODE_PRIVATE)
-    fun dir(c: Context) = File(c.filesDir, "tts/kokoro")
+    fun dir(c: Context) = File(c.filesDir, "tts/supertonic3")
 
     /** Reads settings and decides what state the voice pack is in. Safe to call at start-up. */
     fun load(c: Context) {
         val p = prefs(c)
-        enabled = p.getBoolean("on", false); female = p.getBoolean("female", true)
+        enabled = p.getBoolean("on", false); voice = p.getInt("voice", 0).coerceIn(0, 9)
         val mem = ActivityManager.MemoryInfo().also { (c.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it) }
         status = when {
             // the app closed while the native engine was loading or speaking last time: do not try again on its own
@@ -67,7 +68,8 @@ object NeuralTts {
     fun installed(c: Context) = File(dir(c), "ready.json").exists() && REQUIRED.all { File(dir(c), it).let { f -> f.exists() && f.length() > 0 } }
     fun usable() = enabled && status == Status.Ready
     fun setEnabled(c: Context, v: Boolean) { enabled = v && status == Status.Ready; prefs(c).edit().putBoolean("on", enabled).apply() }
-    fun setFemale(c: Context, v: Boolean) { female = v; prefs(c).edit().putBoolean("female", v).apply() }
+    fun setVoice(c: Context, v: Int) { voice = v.coerceIn(0, 9); prefs(c).edit().putInt("voice", voice).apply() }
+    val voiceNames = listOf("Female 1", "Female 2", "Female 3", "Female 4", "Female 5", "Male 1", "Male 2", "Male 3", "Male 4", "Male 5")
     fun resetBroken(c: Context) { prefs(c).edit().remove("loading").remove("busy").apply(); load(c) }
 
     // ------------------------------------------------------------------------------------------ download
@@ -90,7 +92,7 @@ object NeuralTts {
                 if (!isActive) return@launch
                 if (sha256(part) != pack.sha256) { part.delete(); throw IllegalStateException("The download was damaged. Please try again.") }
                 progress = 0.92f
-                val tmp = File(root, "kokoro.tmp"); tmp.deleteRecursively()
+                val tmp = File(root, "tts.tmp"); tmp.deleteRecursively()
                 extractZip(part, tmp, pack.unpackedBytes + 20L * 1024 * 1024, 2000)
                 if (!REQUIRED.all { File(tmp, it).let { f -> f.exists() && f.length() > 0 } }) { tmp.deleteRecursively(); throw IllegalStateException("The voice pack is incomplete") }
                 File(tmp, "ready.json").writeText(JSONObject().put("id", pack.id).put("sha256", pack.sha256).toString())
@@ -187,9 +189,10 @@ object NeuralTts {
     }
 
     // ------------------------------------------------------------------------------------------ speaking
-    /** Kokoro speaker ids: (female, male) per language. Languages not listed use the phone's own voice. */
-    private val VOICES = mapOf("en" to (3 to 11), "hi" to (31 to 33), "es" to (28 to 29), "fr" to (30 to 30))
-    fun supports(lang: String) = lang in VOICES
+    /** The 31 languages Supertonic 3 can read. Anything else uses the phone's own voice. */
+    private val LANGS = setOf("ar", "bg", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hi", "hr", "hu", "id", "it", "ja", "ko", "lt", "lv", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi")
+    fun norm(lang: String) = when (lang) { "in" -> "id"; "iw" -> "he"; else -> lang }
+    fun supports(lang: String) = norm(lang) in LANGS
 
     private var tts: OfflineTts? = null
     @Volatile private var cancel = false
@@ -201,9 +204,11 @@ object NeuralTts {
         tts?.let { return it }
         val p = prefs(c); p.edit().putBoolean("loading", true).commit()
         val d = dir(c).absolutePath + "/"
-        val threads = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 4)
-        val cfg = OfflineTtsConfig(model = OfflineTtsModelConfig(kokoro = OfflineTtsKokoroModelConfig(model = d + "model.int8.onnx", voices = d + "voices.bin", tokens = d + "tokens.txt",
-            dataDir = d + "espeak-ng-data", lexicon = d + "lexicon-us-en.txt"), numThreads = threads, debug = false, provider = "cpu"), maxNumSentences = 1)
+        val threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
+        val cfg = OfflineTtsConfig(model = OfflineTtsModelConfig(supertonic = OfflineTtsSupertonicModelConfig(
+            durationPredictor = d + "duration_predictor.int8.onnx", textEncoder = d + "text_encoder.int8.onnx", vectorEstimator = d + "vector_estimator.int8.onnx",
+            vocoder = d + "vocoder.int8.onnx", ttsJson = d + "tts.json", unicodeIndexer = d + "unicode_indexer.bin", voiceStyle = d + "voice.bin"),
+            numThreads = threads, debug = false, provider = "cpu"), maxNumSentences = 1)
         val t = OfflineTts(config = cfg)
         p.edit().remove("loading").commit()
         tts = t
@@ -216,8 +221,11 @@ object NeuralTts {
     /** Reads [text] aloud. Starts playing after the first sentence is ready. [done] is called when it ends or is stopped (also on error). */
     fun speak(c: Context, text: String, lang: String, hinglish: Boolean, say: (String) -> Unit, done: () -> Unit) {
         val ctx = c.applicationContext
-        val pair = VOICES[if (hinglish) "hi" else lang] ?: run { done(); return }
-        val sid = if (female) pair.first else pair.second
+        var code = norm(lang)
+        var body = prepare(text)
+        if (hinglish) { Hinglish.load(ctx); body = Hinglish.toDevanagari(body); code = "hi" }   // romanised Hindi is read in Devanagari
+        if (code !in LANGS) { done(); return }
+        val sid = voice
         stop(); idle?.cancel(); cancel = false
         job = Repo.scope.launch(Dispatchers.Default) {
             val p = prefs(ctx)
@@ -232,9 +240,10 @@ object NeuralTts {
                     .setBufferSizeInBytes(maxOf(min, sr * 4)).setTransferMode(AudioTrack.MODE_STREAM).build()
                 track = at; at.play()
                 var frames = 0L
-                for (chunk in chunks(prepare(text))) {
+                val cfg = GenerationConfig(sid = sid, speed = 1.0f, extra = mapOf("lang" to code))
+                for (chunk in chunks(body)) {
                     if (cancel) break
-                    t.generateWithCallback(chunk, sid, 1.0f) { s ->
+                    t.generateWithConfigAndCallback(chunk, cfg) { s ->
                         if (cancel) 0 else { at.write(s, 0, s.size, AudioTrack.WRITE_BLOCKING); frames += s.size; 1 }
                     }
                 }

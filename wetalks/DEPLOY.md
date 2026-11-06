@@ -53,5 +53,6 @@ firebase deploy --only hosting --project wetalks-78e5a                          
 * Support email on the site: `WT_SUPPORT_EMAIL=you@example.com python3 tools/site/build.py ...`
 
 ## Natural voices (TTS) pack
-* Pack: Kokoro-82M int8 (Apache 2.0) + espeak-ng data, zipped and hosted at `/models/tts/kokoro-int8-v1.zip` with `/models/tts/manifest.json` (url, sha256, sizes). The app downloads it on request, verifies the hash and unpacks safely.
-* Engine: sherpa-onnx 1.12.40 Android libs in `app/src/main/jniLibs` (its ONNX Runtime is renamed `libonnxruntime_tts.so` with patchelf so it never clashes with our minimal `libonnxruntime.so`). Kotlin API: `com.k2fsa.sherpa.onnx` (Tts.kt, Apache 2.0).
+* Pack: Supertonic 3 INT8 (MIT code, OpenRAIL-M model; converted for sherpa-onnx by k2-fsa), zipped at `/models/tts/supertonic3-int8-v1.zip` with `/models/tts/manifest.json` (url, sha256, sizes). The app downloads it on request, verifies the hash and unpacks safely. For big uploads use `python3` chunked TUS (single 120 MB PATCH times out).
+* Engine: sherpa-onnx 2.0.1 Android libs in `app/src/main/jniLibs` (its ONNX Runtime is renamed `libonnxruntime_tts.so` with patchelf so it never clashes with our minimal `libonnxruntime.so`). Kotlin API: `com.k2fsa.sherpa.onnx` (Tts.kt, Apache 2.0).
+* Hinglish: `voice/Hinglish.kt` converts Roman Hindi to Devanagari using `app/src/main/assets/hinglish/*` (built by `tools/tts/build_lex.py`, prototype + evaluation in `tools/tts/`). Kotlin and Python versions are kept identical by `HinglishTest`.

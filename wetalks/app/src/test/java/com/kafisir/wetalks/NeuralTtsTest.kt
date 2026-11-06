@@ -39,11 +39,11 @@ class NeuralTtsTest {
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", NeuralTts.sha256(f))
     }
 
-    private fun man(url: String = "/models/tts/kokoro-int8-v1.zip", sha: String = "a".repeat(64), bytes: Long = 125_000_000, un: Long = 166_000_000, id: String = "kokoro-int8-v1") =
+    private fun man(url: String = "/models/tts/supertonic3-int8-v1.zip", sha: String = "a".repeat(64), bytes: Long = 125_000_000, un: Long = 166_000_000, id: String = "supertonic3-int8-v1") =
         JSONObject("""{"packs":[{"id":"$id","url":"$url","sha256":"$sha","bytes":$bytes,"unpacked_bytes":$un}]}""")
 
     @Test fun manifestIsValidated() {
-        assertEquals("https://wetalks.fireclashpro.com/models/tts/kokoro-int8-v1.zip", NeuralTts.validatePack(man()).url)
+        assertEquals("https://wetalks.fireclashpro.com/models/tts/supertonic3-int8-v1.zip", NeuralTts.validatePack(man()).url)
         for (bad in listOf(man(url = "https://evil.example/x.zip"), man(url = "/models/tts/../../x.zip"), man(url = "/other/x.zip"), man(url = "/models/tts/x.exe"), man(sha = "zz"), man(bytes = 5), man(bytes = 900_000_000, un = 900_000_001), man(id = "other")))
             assertThrows(Exception::class.java) { NeuralTts.validatePack(bad) }
     }

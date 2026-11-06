@@ -47,10 +47,14 @@ object Speaker {
         if (clean.isEmpty()) return
         val locEarly = detect(clean, appLang)
         // natural (downloaded) voice when the person turned it on and it covers this language; otherwise the phone's own voice
-        if (NeuralTts.usable() && (NeuralTts.supports(locEarly.language) || locEarly.variant == "hinglish")) {
-            speakingId = id; onState?.invoke()
-            NeuralTts.speak(ctx, clean, locEarly.language, locEarly.variant == "hinglish", say) { if (speakingId == id) { speakingId = null; onState?.invoke() } }
-            return
+        if (NeuralTts.usable()) {
+            Hinglish.load(ctx)
+            val hing = Hinglish.looksHinglish(clean)
+            if (hing || NeuralTts.supports(locEarly.language)) {
+                speakingId = id; onState?.invoke()
+                NeuralTts.speak(ctx, clean, locEarly.language, hing, say) { if (speakingId == id) { speakingId = null; onState?.invoke() } }
+                return
+            }
         }
         engine(ctx) {
             val t = tts ?: return@engine
