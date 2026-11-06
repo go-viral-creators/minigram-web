@@ -489,3 +489,26 @@ test('H2: private previews live in channel_priv, written by admins (or followers
   await assertFails(set(ref(db(A), 'channel_priv/c1/lastPreview'), 'x'.repeat(201)));
   await assertFails(set(ref(db(A), 'channel_priv/c1/other'), 1));
 });
+
+// ---- remediation H1: my phone-number hash is private (it used to sit in users/<uid>, readable by every account) ----
+test('H1: phone_keys is owner-only and validated', async () => {
+  const h = 'ab'.repeat(16);
+  await assertSucceeds(set(ref(db(A), 'phone_keys/alice'), h));
+  await assertSucceeds(get(ref(db(A), 'phone_keys/alice')));
+  await assertFails(get(ref(db(B), 'phone_keys/alice')));
+  await assertFails(get(ref(db(B), 'phone_keys')));
+  await assertFails(get(ref(anon(), 'phone_keys/alice')));
+  await assertFails(set(ref(db(B), 'phone_keys/alice'), h));
+  await assertFails(set(ref(db(A), 'phone_keys/alice'), 'not-a-hash'));
+  await assertSucceeds(remove(ref(db(A), 'phone_keys/alice')));
+});
+
+test('H1: legacy users/<uid>/phoneKey still works for old APKs until the owner closes it with config/phoneKeyLegacyOff', async () => {
+  const h = 'cd'.repeat(16);
+  await assertSucceeds(set(ref(db(A), 'users/alice/phoneKey'), h));                        // old APK before the cutover
+  await assertSucceeds(remove(ref(db(A), 'users/alice/phoneKey')));                        // the new app moves it away
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'config/phoneKeyLegacyOff'), true); });
+  await assertFails(set(ref(db(A), 'users/alice/phoneKey'), h));                           // closed: no new copies in the public profile
+  await assertSucceeds(update(ref(db(A), 'users/alice'), { about: 'still editable' }));
+  await assertFails(set(ref(db(A), 'config/phoneKeyLegacyOff'), false));                   // a client can't re-open it
+});

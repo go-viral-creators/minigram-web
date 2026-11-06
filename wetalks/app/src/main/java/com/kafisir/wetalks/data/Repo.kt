@@ -184,7 +184,7 @@ object Repo {
     suspend fun setPrivacyChoice(key: String, v: String) {
         db.getReference("privacy/$uid/$key").setValue(v).await()
         if (key == "find") {   // "who can find me by my number" also controls the lookup entry
-            val h = db.getReference("users/$uid/phoneKey").get().await().getValue(String::class.java)
+            val h = myPhoneKey()
             if (h != null) { if (v == "nobody") db.getReference("phones/$h").removeValue() else try { db.getReference("phones/$h").setValue(uid).await() } catch (_: Exception) {} }
         }
     }
@@ -985,15 +985,31 @@ object Repo {
     /** Lets friends who have your number find you. Only a hash of the last 10 digits is stored. */
     suspend fun registerPhone(raw: String) {
         val key = phoneKey(raw) ?: return
-        val old = db.getReference("users/$uid/phoneKey").get().await().getValue(String::class.java)
+        val old = myPhoneKey()
         if (old != null && old != key) db.getReference("phones/$old").removeValue()
         try { db.getReference("contact_info/$uid/phone").setValue(raw.filter { it.isDigit() || it == '+' }.take(20)).await() } catch (_: Exception) {}
-        db.getReference("users/$uid/phoneKey").setValue(key).await()
+        storeMyPhoneKey(key)
         if (privacyOf("find", "all") == "nobody") { db.getReference("phones/$key").removeValue(); return }
         try { db.getReference("phones/$key").setValue(uid).await() } catch (_: Exception) { return }
     }
 
-    suspend fun myPhoneRegistered(): Boolean = db.getReference("users/$uid/phoneKey").get().await().exists()
+    /**
+     * The hash of my own number. It lives in phone_keys/<uid>, which only I can read (users/* is readable by every account, so the hash must not stay there).
+     * Falls back to the legacy users/<uid>/phoneKey so this build also works before the new database rules are live, and moves it across when it can.
+     */
+    private suspend fun myPhoneKey(): String? {
+        try { db.getReference("phone_keys/$uid").get().await().getValue(String::class.java)?.let { return it } } catch (_: Exception) {}
+        val legacy = db.getReference("users/$uid/phoneKey").get().await().getValue(String::class.java) ?: return null
+        storeMyPhoneKey(legacy)
+        return legacy
+    }
+
+    private suspend fun storeMyPhoneKey(key: String) {
+        val moved = try { db.getReference("phone_keys/$uid").setValue(key).await(); true } catch (_: Exception) { false }
+        try { if (moved) db.getReference("users/$uid/phoneKey").removeValue().await() else db.getReference("users/$uid/phoneKey").setValue(key).await() } catch (_: Exception) {}
+    }
+
+    suspend fun myPhoneRegistered(): Boolean = myPhoneKey() != null
 
     /** key -> uid for every key that belongs to a WeTalks account. */
     suspend fun lookupPhones(keys: List<String>): Map<String, String> {

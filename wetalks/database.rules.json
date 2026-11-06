@@ -14,6 +14,7 @@
         "about": { ".validate": "newData.isString() && newData.val().length <= 140" },
         "photo": { ".validate": "newData.isString() && newData.val().length <= 60000" },
         "pk": { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "phoneKey": { ".validate": "!newData.exists() || (root.child('config').child('phoneKeyLegacyOff').val() !== true && newData.isString())" },
         "$other": { ".validate": "true" }
       }
     },
@@ -274,6 +275,14 @@
 
     "slow": {
       "$cid": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } }
+    },
+
+    "phone_keys": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "!newData.exists() || (newData.isString() && newData.val().matches(/^[a-f0-9]{32}$/))"
+      }
     },
 
     "phones": {
