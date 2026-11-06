@@ -381,6 +381,7 @@ object Repo {
                     ChatItem(ChatRef(id, kind, c.str("peer").ifEmpty { null }), c.lng("lastTs"), c.str("lastBody"), c.str("lastType"),
                         c.str("lastFrom"), c.lng("unread"), c.bool("pinned"), c.bool("muted"))
                 }
+                warmGroupKeys(list)
                 trySend(list.sortedWith(compareByDescending<ChatItem> { it.pinned }.thenByDescending { it.lastTs }))
             }
             override fun onCancelled(e: DatabaseError) {}
@@ -513,6 +514,20 @@ object Repo {
 
     private fun rawOf(c: DataSnapshot) = Raw(c.key!!, c.str("from"), c.lng("ts"), c.str("type"), c.str("body"), c.lng("kv").toInt(), c.str("rid").ifEmpty { null },
         c.bool("deleted"), c.bool("edited"), c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") }, c.str("fwd").ifEmpty { null })
+
+    // the last decoded messages of the chats opened in this session: re-opening a chat shows them at once instead of an empty screen
+    private val msgCache = object : LinkedHashMap<String, List<Msg>>(16, .75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<String, List<Msg>>?) = size > 12 }
+    @Synchronized fun cachedMessages(chatId: String): List<Msg>? = msgCache[chatId]
+    @Synchronized fun putMessages(chatId: String, l: List<Msg>) { msgCache[chatId] = l }
+
+    private val warmed = HashSet<String>()
+    /** Group keys take several round trips the first time: fetch them as soon as the chat list is known, not when the chat is opened. */
+    private fun warmGroupKeys(list: List<ChatItem>) {
+        for (c in list.asSequence().filter { it.ref.kind == Kind.GROUP }.take(12)) {
+            if (!warmed.add(c.ref.id)) continue
+            scope.launch { try { groupKey(c.ref.id, groupVersion(c.ref.id)) } catch (_: Exception) { warmed.remove(c.ref.id) } }
+        }
+    }
 
     fun rawMessages(ref: ChatRef, limit: Int): Flow<List<Raw>> = callbackFlow {
         val q = db.getReference("messages/${ref.id}").orderByKey().limitToLast(limit)

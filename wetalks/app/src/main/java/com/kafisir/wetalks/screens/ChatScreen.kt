@@ -155,7 +155,11 @@ fun ChatScreen(ref: ChatRef) {
     val title = if (saved) "Saved Messages" else name0
     val blocked by Repo.blockedUsers.collectAsState()
     var limit by remember { mutableIntStateOf(50) }
-    val msgsRaw by produceState<List<Msg>>(emptyList(), ref, limit) { Repo.rawMessages(ref, limit).collect { raws -> value = raws.map { Repo.decrypt(ref, it) } } }
+    var loaded by remember(ref) { mutableStateOf(Repo.cachedMessages(ref.id) != null) }
+    val msgsRaw by produceState<List<Msg>>(Repo.cachedMessages(ref.id) ?: emptyList(), ref, limit) {
+        launch { try { Repo.chatKey(ref) } catch (_: Exception) {} }          // the encryption key loads while the messages load, not after them
+        Repo.rawMessages(ref, limit).collect { raws -> val l = raws.map { Repo.decrypt(ref, it) }; value = l; Repo.putMessages(ref.id, l); loaded = true }
+    }
     var hideTick by remember { mutableIntStateOf(0) }
     var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }
     val outs = Repo.outgoing.filter { it.ref.id == ref.id }
@@ -484,7 +488,7 @@ fun ChatScreen(ref: ChatRef) {
         }
 
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (msgs.isEmpty()) Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (msgs.isEmpty() && loaded) Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.size(64.dp).clip(CircleShape).background(We.primary.copy(alpha = .1f)), contentAlignment = Alignment.Center) { Icon(if (saved) Ic.Bookmark else Ic.Lock, We.primary, 28.dp) }
                 Spacer(Modifier.height(12.dp))
                 Text(if (saved) "Your personal space" else if (ref.kind == Kind.CHANNEL) "No posts yet" else "No messages yet", color = We.text, style = T.name)

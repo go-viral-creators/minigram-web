@@ -22,6 +22,22 @@ import com.k2fsa.sherpa.onnx.OfflineTtsSupertonicModelConfig
  * Runs the natural voice engine in its OWN process (":tts"). The engine is native code: if it ever crashes, only this process dies and
  * the app keeps running (it then falls back to the phone's own voice). Speaks the sentences it is given and plays them itself.
  */
+/**
+ * The native engine calls this by NAME and signature (invoke([F)Ljava/lang/Integer;). It must be a real class that the release shrinker (R8) keeps:
+ * as a lambda R8 removed that method and the engine aborted with "NoSuchMethodError ... invoke([F)Ljava/lang/Integer;".
+ * An exception thrown in here would also cross into native code, so it is caught and reported afterwards.
+ */
+class PcmSink(private val at: AudioTrack, private val cancelled: () -> Boolean) : (FloatArray) -> Int {
+    @Volatile var error: Throwable? = null
+    @Volatile var frames = 0L
+    override fun invoke(samples: FloatArray): Int = try {
+        if (cancelled()) 0 else {
+            val w = at.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+            if (w < 0) { error = IllegalStateException("AudioTrack.write returned $w"); 0 } else { frames += w; 1 }
+        }
+    } catch (e: Throwable) { error = e; 0 }
+}
+
 class TtsService : Service() {
     companion object {
         const val MSG_SPEAK = 1; const val MSG_STOP = 2; const val MSG_PAUSE = 3; const val MSG_RESUME = 4; const val MSG_FREE = 5
@@ -87,16 +103,10 @@ class TtsService : Service() {
                     if (cancel) break
                     Log.i("WeTts", "generate sid=$sid lang=$lang chars=" + chunk.length + " text=" + chunk.take(60))
                     // an exception thrown inside this callback would cross into native code and abort the process: catch it, stop, and report it afterwards
-                    var cbError: Throwable? = null
-                    t.generateWithConfigAndCallback(chunk, cfg) { s ->
-                        try {
-                            if (cancel) 0 else {
-                                val w = at.write(s, 0, s.size, AudioTrack.WRITE_BLOCKING)
-                                if (w < 0) { cbError = IllegalStateException("AudioTrack.write returned $w"); 0 } else { frames += w; 1 }
-                            }
-                        } catch (e: Throwable) { cbError = e; 0 }
-                    }
-                    cbError?.let { throw it }
+                    val sink = PcmSink(at, { cancel })
+                    t.generateWithConfigAndCallback(chunk, cfg, sink)
+                    frames += sink.frames
+                    sink.error?.let { throw it }
                 }
                 if (!cancel) {   // let the last sentence finish playing
                     at.stop()
