@@ -325,8 +325,8 @@ object Repo {
 
     /** Encrypts the private key with a passphrase (PBKDF2 + AES-GCM) and stores it where only the owner can read it. */
     suspend fun backupKey(pass: String) {
-        val salt = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }; val iter = 210_000
-        val k = Crypto.passKey(pass, salt, iter)
+        val salt = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }; val iter = 600_000   // restore reads the count stored with the backup, so older 210k backups still open
+        val k = kotlinx.coroutines.withContext(Dispatchers.Default) { Crypto.passKey(pass, salt, iter) }
         val me = Crypto.keys(app)
         db.getReference("key_backups/$uid").setValue(hashMapOf("s" to Crypto.b64(salt), "i" to iter, "c" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub), "ts" to ServerValue.TIMESTAMP)).await()
     }
@@ -336,7 +336,7 @@ object Repo {
         val s = db.getReference("key_backups/$uid").get().await()
         if (!s.exists()) return false
         return try {
-            val k = Crypto.passKey(pass, Crypto.unb64(s.str("s")), s.lng("i").toInt())
+            val k = kotlinx.coroutines.withContext(Dispatchers.Default) { Crypto.passKey(pass, Crypto.unb64(s.str("s")), s.lng("i").toInt()) }
             val priv = Crypto.open(k, s.str("c"))
             Crypto.install(app, priv)
             dmKeys.clear(); groupKeys.clear()
@@ -424,6 +424,10 @@ object Repo {
     // ---- every public key a person has ever used, so chats stay readable when keys change (second phone, two accounts on one phone …)
     private val seenPrefs get() = app.getSharedPreferences("wt_seenpk", Context.MODE_PRIVATE)
     private val gkeyPrefs get() = app.getSharedPreferences("wt_gkeys", Context.MODE_PRIVATE)
+    /** People whose encryption key changed since this phone last saw it (new phone / reinstall, or something worse): the chat shows a warning until dismissed. */
+    val keyChanged = MutableStateFlow<Set<String>>(emptySet())
+    private val ackedKeyChange = HashSet<String>()
+    fun acknowledgeKeyChange(peer: String) { ackedKeyChange.add(peer); keyChanged.value = keyChanged.value - peer }
     private val dmAll = HashMap<String, Pair<Long, List<ByteArray>>>()
     private val dmWinner = HashMap<String, ByteArray>()
 
@@ -433,7 +437,10 @@ object Repo {
         val pubs = LinkedHashSet<String>()
         (user(peer).value?.pk ?: userOnce(peer)?.pk)?.takeIf { it.isNotEmpty() }?.let { pubs += it }
         try { db.getReference("users/$peer/pkh").get().await().children.forEach { c -> c.getValue(String::class.java)?.let { pubs += it } } } catch (_: Exception) {}
-        pubs += seenPrefs.getStringSet(peer, emptySet()).orEmpty()
+        val before = seenPrefs.getStringSet(peer, emptySet()).orEmpty()
+        val current = pubs.firstOrNull()
+        if (before.isNotEmpty() && current != null && current !in before && peer != uid && peer !in ackedKeyChange) keyChanged.value = keyChanged.value + peer   // their key is new to this phone
+        pubs += before
         seenPrefs.edit().putStringSet(peer, pubs.toSet()).apply()
         val me = Crypto.keys(app)
         val list = pubs.mapNotNull { p -> try { Crypto.shared(me.priv, me.pub, Crypto.unb64(p)) } catch (e: Exception) { null } }

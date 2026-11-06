@@ -498,6 +498,18 @@ fun ChatScreen(ref: ChatRef) {
                 IconBtn(Ic.Dots, We.onAppBar, { menu = true })
             })
 
+        // encryption key of the other person changed (new phone, reinstall, or a possible interception)
+        if (ref.kind == Kind.DM && ref.peer != null && !saved && ref.peer in Repo.keyChanged.collectAsState().value) {
+            Row(Modifier.fillMaxWidth().background(We.surface).padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(3.dp).height(34.dp).clip(CircleShape).background(We.danger)); Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f).clickable { Nav.push(RProfile(ref.peer!!)) }) {
+                    Text("Security code changed", color = We.danger, style = T.small.copy(fontWeight = FontWeight.SemiBold))
+                    Text("Their encryption key is new. Tap to compare the safety number.", color = We.text2, style = T.small, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                IconBtn(Ic.Close, We.text2, { Repo.acknowledgeKeyChange(ref.peer!!) }, 18.dp, Modifier.size(40.dp))
+            }
+            Divider()
+        }
         // pinned message banner
         val livePins = pinIds.filter { id -> msgs.any { it.id == id } || msgs.isEmpty() }
         if (livePins.isNotEmpty() && !selecting) {
