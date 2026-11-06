@@ -512,3 +512,56 @@ test('H1: legacy users/<uid>/phoneKey still works for old APKs until the owner c
   await assertSucceeds(update(ref(db(A), 'users/alice'), { about: 'still editable' }));
   await assertFails(set(ref(db(A), 'config/phoneKeyLegacyOff'), false));                   // a client can't re-open it
 });
+
+// ---- remediation L1 / L2 / M6a / M2 / M7 ----
+test('L1: editing a message cannot change its type, time, sender or key version', async () => {
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/e1`), { ...msg(A), kv: 1 }));
+  await assertSucceeds(update(ref(db(A), `messages/${AB}/e1`), { body: 'new', edited: true }));          // what the app does
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { type: 'image' }));
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { ts: 1 }));
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { kv: 9 }));
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { from: B }));
+  await assertFails(update(ref(db(B), `messages/${AB}/e1`), { body: 'hax' }));                           // the other person cannot edit
+});
+
+test('L2: slow-mode stamp only moves forward and cannot be erased', async () => {
+  await assertSucceeds(set(ref(db(B), 'slow/g1/bob'), 1000));
+  await assertFails(set(ref(db(B), 'slow/g1/bob'), 10));
+  await assertFails(remove(ref(db(B), 'slow/g1/bob')));
+  await assertSucceeds(set(ref(db(B), 'slow/g1/bob'), 2000));
+  await assertFails(set(ref(db(B), 'slow/g1/bob'), 'x'));
+});
+
+test('M6a: a profile can only show a username its owner has claimed', async () => {
+  await assertFails(update(ref(db(A), 'users/alice'), { username: 'Newname', usernameLower: 'newname' }));      // not claimed
+  await assertSucceeds(set(ref(db(A), 'usernames/newname'), A));
+  await assertSucceeds(update(ref(db(A), 'users/alice'), { username: 'Newname', usernameLower: 'newname' }));
+  await assertSucceeds(update(ref(db(A), 'users/alice'), { username: 'Newname', about: 'same name again' }));     // unchanged value is fine
+  await assertFails(update(ref(db(A), 'users/alice'), { username: 'bob' }));                                      // someone else's
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'usernames/bob'), B); });
+  await assertFails(update(ref(db(A), 'users/alice'), { username: 'bob', usernameLower: 'bob' }));
+  await assertFails(update(ref(db(A), 'users/alice'), { usernameLower: 'zzz' }));                                 // must match username
+});
+
+test('M2: "who can add me to groups" is enforced', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'privacy/carol/groups'), 'nobody'); await set(ref(ctx.database(), 'privacy/dave/groups'), 'contacts'); });
+  await assertFails(set(ref(db(A), 'groups/g1/members/carol'), 'member'));
+  await assertFails(set(ref(db(A), 'groups/g1/members/dave'), 'member'));
+  await assertSucceeds(set(ref(db('dave'), 'contacts/dave/alice'), true));
+  await assertSucceeds(set(ref(db(A), 'groups/g1/members/dave'), 'member'));
+  await assertSucceeds(set(ref(db(A), 'groups/g1/members/erin'), 'member'));                                      // default = everybody
+  await assertSucceeds(set(ref(db(A), 'groups/g1/members/bob'), 'admin'));                                        // existing members can be promoted
+  await assertFails(set(ref(db(A), 'groups/g1/members/erin'), 'boss'));
+  await assertSucceeds(set(ref(db('carol'), 'groups/g9'), { name: 'Mine', owner: 'carol', kv: 1, members: { carol: 'admin' } }));  // creator is always allowed
+});
+
+test('M7: follower count only moves with the caller\'s own follow state', async () => {
+  await assertFails(set(ref(db(C), 'channels/c1/subCount'), 2));                  // carol does not follow: no +1
+  await assertSucceeds(set(ref(db(C), 'channel_subs/c1/carol'), true));
+  await assertSucceeds(set(ref(db(C), 'channels/c1/subCount'), 2));
+  await assertFails(set(ref(db(C), 'channels/c1/subCount'), 1));                  // still following: no -1
+  await assertSucceeds(remove(ref(db(C), 'channel_subs/c1/carol')));
+  await assertSucceeds(set(ref(db(C), 'channels/c1/subCount'), 1));
+  await assertFails(set(ref(db(C), 'channels/c1/subCount'), 50));                 // no jumps
+  // known limit: a non-follower can still step the count down by one at a time, so subCount stays advisory (recount tool/cron planned)
+});

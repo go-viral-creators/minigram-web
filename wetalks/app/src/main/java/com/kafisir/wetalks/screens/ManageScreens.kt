@@ -98,7 +98,7 @@ fun NewGroupScreen() {
             PrimaryButton("Create group", loading = busy, enabled = name.isNotBlank(), onClick = {
                 scope.launch {
                     busy = true
-                    try { val id = Repo.createGroup(name, about, photo ?: "", picked.keys.toList()); Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.GROUP))) }
+                    try { val id = Repo.createGroup(name, about, photo ?: "", picked.keys.toList()); Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.GROUP))); Repo.groupAddSkipped.value.takeIf { it > 0 }?.let { Nav.say("$it person(s) can't be added to groups (their privacy setting)") } }
                     catch (e: Exception) { Nav.say(e.message ?: "Could not create group") }
                     busy = false
                 }
@@ -190,7 +190,7 @@ fun AddMembersScreen(gid: String) {
         }
         Box(Modifier.padding(16.dp).navigationBarsPadding()) {
             PrimaryButton("Add ${picked.size}", loading = busy, enabled = picked.isNotEmpty(), onClick = {
-                scope.launch { busy = true; try { Repo.addMembers(gid, picked.keys.toList()); Nav.pop() } catch (e: Exception) { Nav.say(e.message ?: "Could not add") }; busy = false }
+                scope.launch { busy = true; try { Repo.addMembers(gid, picked.keys.toList()); Nav.pop(); Repo.groupAddSkipped.value.takeIf { it > 0 }?.let { Nav.say("$it person(s) can't be added to groups (their privacy setting)") } } catch (e: Exception) { Nav.say(e.message ?: "Could not add") }; busy = false }
             })
         }
     }

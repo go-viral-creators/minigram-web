@@ -1031,15 +1031,26 @@ object Repo {
         db.getReference("groups/$gid").setValue(hashMapOf("name" to name.trim(), "about" to about.trim(), "photo" to photo, "owner" to uid,
             "kv" to 1, "createdAt" to ServerValue.TIMESTAMP, "members" to mapOf(uid to "admin"))).await()
         val gk = Crypto.randomKey()
+        val added = addAllowed(gid, all.filter { it != uid })           // people who set "who can add me to groups" to Nobody are skipped, not fatal
         val up = HashMap<String, Any?>()
-        wrapFor(up, gid, 1, gk, all)
-        for (m in all.filter { it != uid }) up["groups/$gid/members/$m"] = "member"
+        wrapFor(up, gid, 1, gk, added + uid)
         db.reference.updateChildren(up).await()
         val up2 = HashMap<String, Any?>()
-        for (m in all) { val b = "user_chats/$m/$gid"; up2["$b/type"] = "group"; up2["$b/lastTs"] = ServerValue.TIMESTAMP; up2["$b/unread"] = 0 }
+        for (m in added + uid) { val b = "user_chats/$m/$gid"; up2["$b/type"] = "group"; up2["$b/lastTs"] = ServerValue.TIMESTAMP; up2["$b/unread"] = 0 }
         db.reference.updateChildren(up2).await()
+        groupAddSkipped.value = all.size - added.size - 1
         groupKeys["$gid:1"] = gk
         return gid
+    }
+
+    /** How many people the last create/add skipped because their privacy setting says nobody may add them to groups. */
+    val groupAddSkipped = MutableStateFlow(0)
+
+    /** Adds members one by one; a refusal (privacy) only skips that person. Returns who was added. */
+    private suspend fun addAllowed(gid: String, who: List<String>): List<String> {
+        val ok = ArrayList<String>()
+        for (m in who) try { db.getReference("groups/$gid/members/$m").setValue("member").await(); ok.add(m) } catch (_: Exception) {}
+        return ok
     }
 
     private suspend fun wrapFor(up: HashMap<String, Any?>, gid: String, kv: Int, gk: ByteArray, members: List<String>) {
@@ -1052,12 +1063,12 @@ object Repo {
     }
 
     suspend fun addMembers(gid: String, add: List<String>) {
+        val add0 = add.size
         val g = group(gid).value ?: return
         val kv = g.kv
         val gk = groupKey(gid, kv) ?: throw IllegalStateException("Group key missing")
-        val up = HashMap<String, Any?>()
-        for (m in add) up["groups/$gid/members/$m"] = "member"
-        db.reference.updateChildren(up).await()
+        val add = addAllowed(gid, add)
+        groupAddSkipped.value = add0 - add.size
         val up2 = HashMap<String, Any?>()
         wrapFor(up2, gid, kv, gk, add)
         for (m in add) { val b = "user_chats/$m/$gid"; up2["$b/type"] = "group"; up2["$b/lastTs"] = ServerValue.TIMESTAMP; up2["$b/unread"] = 0 }

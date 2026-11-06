@@ -39,6 +39,7 @@ fun PrivacyScreen() {
             Row2(Ic.Phone, "Phone number", label(pv["phone"] ?: "nobody"), onClick = { choose = Triple("phone", "Who can see my phone number", "nobody") })
             Row2(Ic.Clock, "Last seen", label(pv["lastSeen"] ?: "all"), onClick = { choose = Triple("lastSeen", "Who can see my last seen", "all") })
             Row2(Ic.Eye, "Online status", label(pv["online"] ?: "all"), onClick = { choose = Triple("online", "Who can see when I'm online", "all") })
+            Row2(Ic.Group, "Add me to groups", label(pv["groups"] ?: "all"), onClick = { choose = Triple("groups", "Who can add me to groups", "all") })
             Row2(Ic.Search, "Find me by phone number", if ((pv["find"] ?: "all") == "nobody") "Nobody" else "Everybody", onClick = { choose = Triple("find", "Who can find me by my phone number", "all") })
             Row2(Ic.User, "Show profile on web links", "Name, photo and bio appear on your wetalks link page", trailing = { Toggle(me?.webProfile ?: true) { scope.launch { try { Repo.setWebProfile(it) } catch (_: Exception) { Nav.say("Could not save") } } } })
             Row2(Ic.Bell, "Messages from apps & services", "Codes and alerts sent through the WeTalks developer API", trailing = { Toggle((pv["services"] ?: "all") != "nobody") { v -> scope.launch { try { Repo.setPrivacyChoice("services", if (v) "all" else "nobody") } catch (_: Exception) { Nav.say("Could not save") } } } })
