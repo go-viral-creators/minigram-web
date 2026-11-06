@@ -224,6 +224,11 @@ fun MeScreen() {
             Row2(Ic.Mega, "New channel", "Broadcast to followers", onClick = { Nav.push(RNewChannel) })
             SectionLabel("Settings")
             Row2(Ic.Shield, "Privacy & security", "Last seen, read receipts, blocked users", onClick = { Nav.push(RPrivacy) })
+            var stay by remember { mutableStateOf(com.kafisir.wetalks.data.ConnectService.enabled(ctx)) }
+            Row2(Ic.Phone, "Stay connected for calls", "Keeps a small notification so calls can ring even when the app is closed", trailing = { Toggle(stay) { stay = it; com.kafisir.wetalks.data.ConnectService.setEnabled(ctx, it) } })
+            Row2(Ic.Bell, "Allow background activity", "Open the battery settings: choose 'No restrictions' (and allow Autostart on Xiaomi / Oppo / Vivo phones)", onClick = {
+                try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))) } catch (_: Exception) {}
+            })
             Row2(Ic.Fingerprint, "App lock", if (AppLock.enabled) "On · fingerprint or screen lock" else "Off", onClick = { Nav.push(RAppLock) })
             Row2(Ic.Type, "Chat settings", "Text size, bubble shape, wallpaper", onClick = { Nav.push(RChatSettings) })
             Row2(Ic.Globe, "Language", I18n.byCode(I18n.lang).native + " · translate to " + I18n.byCode(I18n.translateTo).english, onClick = { Nav.push(RLanguage) })

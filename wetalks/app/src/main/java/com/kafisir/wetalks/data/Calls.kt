@@ -87,6 +87,8 @@ object Calls {
     private var prevAudioMode = AudioManager.MODE_NORMAL
     private var serverOffset = 0L
     private var incomingListening = false
+    @Volatile private var callWritten = false
+    private val pendingIce = ArrayList<String>()
 
     private val servers = listOf(
         PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
@@ -111,8 +113,11 @@ object Calls {
         if (phase != CallPhase.IDLE) try { teardown() } catch (_: Exception) {}
     }
 
+    /** True while the incoming-call listener is attached. */
+    fun isListening() = incomingListening && incomingL != null
+
     fun listen() {
-        if (incomingListening || Repo.uid.isEmpty()) return
+        if ((incomingListening && incomingL != null) || Repo.uid.isEmpty()) return
         incomingListening = true
         val offRef = Repo.db.getReference(".info/serverTimeOffset")
         val offL = object : ValueEventListener {
@@ -146,6 +151,7 @@ object Calls {
             pendingOffer = s.child("offer").getValue(String::class.java)
             resetFlags(); phase = CallPhase.INCOMING; note = ""
             key = Repo.chatKey(ChatRef(Repo.dmId(from), Kind.DM, from))
+            Repo.db.getReference("calls/$id/ringing").setValue(true)
             watchState(); startRinging(); notifyIncoming()
             timeout = scope.launch { delay(55_000); if (phase == CallPhase.INCOMING) finish("missed", notifyPeer = true, remote = false) }
         } catch (_: Exception) {}
@@ -155,7 +161,7 @@ object Calls {
     suspend fun start(to: String, withVideo: Boolean) {
         if (phase != CallPhase.IDLE) return
         val k = Repo.chatKey(ChatRef(Repo.dmId(to), Kind.DM, to)) ?: throw IllegalStateException("They need to open WeTalks once before you can call them.")
-        key = k; peer = to; video = withVideo; caller = true; resetFlags(); note = "Calling…"; phase = CallPhase.OUTGOING
+        key = k; peer = to; video = withVideo; caller = true; resetFlags(); callWritten = false; synchronized(pendingIce) { pendingIce.clear() }; note = "Calling…"; phase = CallPhase.OUTGOING
         callId = Repo.db.getReference("calls").push().key!!
         try {
             ensureFactory(); prepareAudio(); startForegroundService()
@@ -163,12 +169,22 @@ object Calls {
             val offer = pc!!.createOfferSuspend(); pc!!.setLocalSuspend(offer)
             Repo.db.getReference("calls/$callId").setValue(hashMapOf("from" to Repo.uid, "to" to to, "video" to withVideo, "ts" to ServerValue.TIMESTAMP, "state" to "ringing",
                 "offer" to Crypto.sealText(k, JSONObject().put("type", offer.type.canonicalForm()).put("sdp", offer.description).toString()))).await()
+            callWritten = true
+            val early = synchronized(pendingIce) { pendingIce.toList().also { pendingIce.clear() } }
+            early.forEach { Repo.db.getReference("calls/$callId/ice_caller").push().setValue(it) }
             Repo.db.getReference("incoming_calls/$to/$callId").setValue(hashMapOf("from" to Repo.uid, "video" to withVideo, "ts" to ServerValue.TIMESTAMP)).await()
             watchState()
             watchIce("ice_callee")
             startRingback()
-            timeout = scope.launch { delay(50_000); if (phase == CallPhase.OUTGOING) finish("missed", notifyPeer = true, remote = false) }
-        } catch (e: Exception) { teardown(); throw e }
+            timeout = scope.launch {
+                delay(12_000); if (phase == CallPhase.OUTGOING && note == "Calling…") note = "Waiting for them to open WeTalks…"
+                delay(38_000); if (phase == CallPhase.OUTGOING) finish("missed", notifyPeer = true, remote = false)
+            }
+        } catch (e: Throwable) {
+            // never leave a half-created call behind
+            try { Repo.db.getReference("calls/$callId").removeValue(); Repo.db.getReference("incoming_calls/$to/$callId").removeValue() } catch (_: Exception) {}
+            teardown(); throw (if (e is Exception) e else IllegalStateException(e.javaClass.simpleName + ": " + (e.message ?: "")))
+        }
     }
 
     suspend fun accept() {
@@ -239,7 +255,9 @@ object Calls {
             override fun onIceCandidate(c: IceCandidate) {
                 val k = key ?: return
                 val j = JSONObject().put("m", c.sdpMid).put("i", c.sdpMLineIndex).put("c", c.sdp).toString()
-                Repo.db.getReference("calls/$callId/${if (caller) "ice_caller" else "ice_callee"}").push().setValue(Crypto.sealText(k, j))
+                val sealed = Crypto.sealText(k, j)
+                if (caller && !callWritten) synchronized(pendingIce) { pendingIce.add(sealed) }     // the rules only accept candidates once the call exists
+                else Repo.db.getReference("calls/$callId/${if (caller) "ice_caller" else "ice_callee"}").push().setValue(sealed)
             }
             override fun onIceCandidatesRemoved(c: Array<out IceCandidate>?) {}
             override fun onAddStream(s: MediaStream?) {}
@@ -294,6 +312,7 @@ object Calls {
         val l = object : ValueEventListener {
             override fun onDataChange(s: DataSnapshot) {
                 if (id != callId) return
+                if (caller && phase == CallPhase.OUTGOING && s.child("ringing").getValue(Boolean::class.java) == true && note != "Ringing…") note = "Ringing…"
                 val st = s.child("state").getValue(String::class.java) ?: if (s.exists()) return else "ended"
                 if (caller && st == "accepted" && !remoteSet && phase == CallPhase.OUTGOING) {
                     val k = key ?: return
@@ -430,7 +449,11 @@ class CallService : Service() {
         val video = intent?.getBooleanExtra("video", false) ?: false
         var type = 0
         if (Build.VERSION.SDK_INT >= 30) { type = ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE; if (video) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA }
-        try { ServiceCompat.startForeground(this, 78, Calls.notificationForService(), type) } catch (_: Exception) { stopSelf() }
+        try { ServiceCompat.startForeground(this, 78, Calls.notificationForService(), type) }
+        catch (_: Exception) {
+            // a foreground service that never calls startForeground() crashes the app, so fall back to the plain form before giving up
+            try { startForeground(78, Calls.notificationForService()) } catch (_: Exception) { stopSelf() }
+        }
         return START_NOT_STICKY
     }
 }

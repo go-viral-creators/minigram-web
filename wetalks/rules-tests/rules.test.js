@@ -290,3 +290,14 @@ test('privacy: last seen, online status and phone number follow the owner\'s cho
   await assertFails(set(ref(db(A), 'privacy/alice/phone'), 'everyone'));              // only the three allowed values
   await assertFails(get(ref(db(B), 'privacy/alice')));
 });
+
+test('call flow: candidates only after the call exists, callee marks ringing, stale entries can be cleaned', async () => {
+  await assertFails(set(ref(db(A), 'calls/k1/ice_caller/x'), 'sealed'));              // too early: why the app now queues candidates
+  await assertSucceeds(set(ref(db(A), 'calls/k1'), { from: A, to: B, video: false, ts: 1, state: 'ringing', offer: 's' }));
+  await assertSucceeds(set(ref(db(A), 'calls/k1/ice_caller/x'), 'sealed'));
+  await assertSucceeds(set(ref(db(A), 'incoming_calls/bob/k1'), { from: A, video: false, ts: 1 }));
+  await assertSucceeds(set(ref(db(B), 'calls/k1/ringing'), true));
+  await assertSucceeds(update(ref(db(B), 'calls/k1'), { answer: 'a', state: 'accepted' }));
+  await assertSucceeds(set(ref(db(B), 'calls/k1/ice_callee/y'), 'sealed'));
+  await assertSucceeds(remove(ref(db(B), 'incoming_calls/bob/k1')));
+});

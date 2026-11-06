@@ -81,6 +81,7 @@ object Repo {
         setOnline(false)
         detachAll()
         auth.signOut()
+        ConnectService.sync(app)
     }
 
     suspend fun deleteAccount() {

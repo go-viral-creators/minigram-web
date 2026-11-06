@@ -64,6 +64,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
 fun App() {
     val uid by remember { Repo.authState() }.collectAsState(initial = Repo.uid.ifEmpty { null })
     var phone by remember { mutableStateOf(false) }
+    val ctxApp = androidx.compose.ui.platform.LocalContext.current.applicationContext
     // status-bar icons: white on our blue/slate app bars, dark only on the plain sign-in page in light mode
     val view = androidx.compose.ui.platform.LocalView.current
     val darkNow = We.dark
@@ -79,10 +80,14 @@ fun App() {
         } else {
             val ver by Nav.profileVersion
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
-            LaunchedEffect(uid, me) { if (me == true) { try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
+            LaunchedEffect(uid, me) { if (me == true) {
+                // incoming calls first: nothing else may stop the phone from ringing
+                try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
+                com.kafisir.wetalks.data.ConnectService.sync(ctxApp)
+                try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
-            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) Repo.setOnline(true) }
+            LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) { Repo.setOnline(true); try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {} } }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (me == true) Repo.setOnline(false) }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true }
             when (me) {
