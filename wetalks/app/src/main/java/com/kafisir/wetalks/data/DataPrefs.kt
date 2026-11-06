@@ -1,0 +1,68 @@
+package com.kafisir.wetalks.data
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import java.io.File
+
+/** Data & storage settings: disk cache for downloaded media, auto-download rules, upload quality and data-use counters. */
+object DataPrefs {
+    var cacheLimitMb by mutableIntStateOf(250); private set            // 0 = unlimited
+    var cleanDays by mutableIntStateOf(0); private set                 // 0 = never
+    var autoPhotos by mutableStateOf("always"); private set            // always | wifi | never
+    var saver by mutableStateOf(false); private set                    // send smaller photos
+    var down by mutableLongStateOf(0L); private set
+    var up by mutableLongStateOf(0L); private set
+    private lateinit var app: Context
+    private fun sp() = app.getSharedPreferences("wt_data", Context.MODE_PRIVATE)
+    private val dir get() = File(app.cacheDir, "media").apply { mkdirs() }
+
+    fun load(c: Context) {
+        app = c.applicationContext
+        val s = sp()
+        cacheLimitMb = s.getInt("limit", 250); cleanDays = s.getInt("clean", 0); autoPhotos = s.getString("auto", "always") ?: "always"; saver = s.getBoolean("saver", false)
+        down = s.getLong("down", 0); up = s.getLong("up", 0)
+        Thread { autoClean() }.start()
+    }
+    fun setLimit(v: Int) { cacheLimitMb = v; sp().edit().putInt("limit", v).apply(); Thread { trim() }.start() }
+    fun setClean(v: Int) { cleanDays = v; sp().edit().putInt("clean", v).apply(); Thread { autoClean() }.start() }
+    fun setAuto(v: String) { autoPhotos = v; sp().edit().putString("auto", v).apply() }
+    fun updateSaver(v: Boolean) { saver = v; sp().edit().putBoolean("saver", v).apply() }
+    fun resetUsage() { down = 0; up = 0; sp().edit().putLong("down", 0).putLong("up", 0).apply() }
+    fun addDown(n: Long) { down += n; sp().edit().putLong("down", down).apply() }
+    fun addUp(n: Long) { up += n; sp().edit().putLong("up", up).apply() }
+
+    // ---- disk cache (the server's still-encrypted text, so nothing readable is ever stored)
+    private fun f(id: String) = File(dir, "m_" + id.filter { it.isLetterOrDigit() || it == '-' || it == '_' })
+    fun getDisk(id: String): String? = try { f(id).takeIf { it.exists() }?.also { it.setLastModified(System.currentTimeMillis()) }?.readText() } catch (e: Exception) { null }
+    fun hasDisk(id: String) = f(id).exists()
+    fun putDisk(id: String, s: String) { try { f(id).writeText(s); trim() } catch (_: Exception) {} }
+    fun diskSize(): Long = dir.listFiles()?.sumOf { it.length() } ?: 0L
+    fun clearDisk() { dir.listFiles()?.forEach { it.delete() } }
+    fun otherSize(): Long = app.cacheDir.walkTopDown().filter { it.isFile && it.parentFile?.name != "media" }.sumOf { it.length() }
+    fun clearOther() { app.cacheDir.listFiles()?.forEach { if (it.name != "media") it.deleteRecursively() } }
+
+    private fun trim() {
+        if (cacheLimitMb <= 0) return
+        val files = dir.listFiles()?.sortedBy { it.lastModified() } ?: return
+        var total = files.sumOf { it.length() }; val max = cacheLimitMb * 1048576L
+        for (x in files) { if (total <= max) break; total -= x.length(); x.delete() }
+    }
+    private fun autoClean() {
+        if (cleanDays <= 0) return
+        val cut = System.currentTimeMillis() - cleanDays * 86_400_000L
+        dir.listFiles()?.forEach { if (it.lastModified() < cut) it.delete() }
+    }
+
+    /** May photos / GIFs download by themselves right now? */
+    fun mayAutoDownload(): Boolean = when (autoPhotos) {
+        "never" -> false
+        "wifi" -> { val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager; cm.getNetworkCapabilities(cm.activeNetwork)?.let { it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) } == true }
+        else -> true
+    }
+}

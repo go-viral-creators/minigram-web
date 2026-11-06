@@ -57,7 +57,7 @@ fun VoiceBody(m: Msg, ref: ChatRef, fg: Color) {
     val who by Repo.user(m.from).collectAsState()
     val active = VoicePlayer.currentId == m.id
     val playing = active && VoicePlayer.playing
-    val loading = VoicePlayer.loadingId == m.id
+    val loading = VoicePlayer.loadingId == m.id || m.pending
     val pos = if (active) VoicePlayer.pos else 0
     val total = if (active && VoicePlayer.total > 0) VoicePlayer.total else m.dur * 1000
     val speed = VoicePlayer.speed
@@ -65,7 +65,7 @@ fun VoiceBody(m: Msg, ref: ChatRef, fg: Color) {
     val heard = listened.getBoolean(m.id, false) || m.from == Repo.uid || active
 
     Row(Modifier.width(236.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { VoicePlayer.toggle(ctx, ref, m, if (m.from == Repo.uid) "You" else who?.name ?: "Voice message") }), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { if (!m.pending) VoicePlayer.toggle(ctx, ref, m, if (m.from == Repo.uid) "You" else who?.name ?: "Voice message") }), contentAlignment = Alignment.Center) {
             if (loading) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.onPrimary, strokeWidth = 2.dp)
             else Icon(if (playing) Ic.Pause2 else Ic.Play, We.onPrimary, 22.dp)
         }

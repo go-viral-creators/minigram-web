@@ -82,5 +82,7 @@ object Ic {
     val Audio: ImageVector by lazy { icon("Audio", "M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2") }
     val Download: ImageVector by lazy { icon("Download", "M12 4v11M7 11l5 5l5-5M5 20h14") }
     val Shapes: ImageVector by lazy { icon("Shapes", "M5 5h8v8H5ZM17 11a4 4 0 1 0 0 8a4 4 0 0 0 0-8ZM7 20l3-5l3 5Z") }
+    val Clock: ImageVector by lazy { icon("Clock", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM12 7v5l3 2") }
+    val Alert: ImageVector by lazy { icon("Alert", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM12 7.5v5.5M12 16.5h.01") }
     val Pause2: ImageVector by lazy { icon("Pause2", "M9 5v14M15 5v14") }
 }

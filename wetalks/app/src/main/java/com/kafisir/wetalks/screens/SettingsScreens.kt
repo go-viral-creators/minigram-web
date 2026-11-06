@@ -27,13 +27,19 @@ fun PrivacyScreen() {
     val scope = rememberCoroutineScope()
     var confirm by remember { mutableStateOf(false) }
     var showBackup by remember { mutableStateOf(false) }
+    var choose by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     var backupTick by remember { mutableIntStateOf(0) }
     val fp = remember { Crypto.b64(java.security.MessageDigest.getInstance("SHA-256").digest(Crypto.keys(Repo.app).pub)).take(16) }
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Privacy & security", onBack = { Nav.pop() })
         Column(Modifier.verticalScroll(rememberScrollState())) {
             SectionLabel("Who can see")
-            Row2(Ic.Eye, "Last seen & online", "Others can see when you were last active", trailing = { Toggle(me?.showLastSeen ?: true) { Repo.setPrivacy("showLastSeen", it) } })
+            val pv by Repo.privacy.collectAsState()
+            fun label(v: String) = when (v) { "all" -> "Everybody"; "contacts" -> "My contacts"; else -> "Nobody" }
+            Row2(Ic.Phone, "Phone number", label(pv["phone"] ?: "nobody"), onClick = { choose = Triple("phone", "Who can see my phone number", "nobody") })
+            Row2(Ic.Clock, "Last seen", label(pv["lastSeen"] ?: "all"), onClick = { choose = Triple("lastSeen", "Who can see my last seen", "all") })
+            Row2(Ic.Eye, "Online status", label(pv["online"] ?: "all"), onClick = { choose = Triple("online", "Who can see when I'm online", "all") })
+            Row2(Ic.Search, "Find me by phone number", if ((pv["find"] ?: "all") == "nobody") "Nobody" else "Everybody", onClick = { choose = Triple("find", "Who can find me by my phone number", "all") })
             Row2(Ic.Check2, "Read receipts", "Show blue ticks when you read messages", trailing = { Toggle(me?.readReceipts ?: true) { Repo.setPrivacy("readReceipts", it) } })
             SectionLabel("Key backup")
             val backedUp by produceState<Boolean?>(null, backupTick) { value = Repo.hasKeyBackup() }
@@ -46,6 +52,19 @@ fun PrivacyScreen() {
             SectionLabel("Danger zone")
             Row2(Ic.Trash, "Delete my account", "Removes your profile and chat list", tint = We.danger, onClick = { confirm = true })
             Spacer(Modifier.height(30.dp))
+        }
+    }
+    choose?.let { (key, title, def) ->
+        val cur = Repo.privacyOf(key, def)
+        Sheet({ choose = null }) {
+            Text(title, color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
+            val opts = if (key == "find") listOf("all" to "Everybody", "nobody" to "Nobody") else listOf("all" to "Everybody", "contacts" to "My contacts", "nobody" to "Nobody")
+            opts.forEach { (v, n) ->
+                Row(Modifier.fillMaxWidth().clickable { choose = null; scope.launch { try { Repo.setPrivacyChoice(key, v) } catch (e: Exception) { Nav.say("Could not save") } } }.padding(horizontal = 24.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(n, color = We.text, style = T.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), modifier = Modifier.weight(1f)); if (cur == v) Icon(Ic.Check, We.primary, 22.dp)
+                }
+            }
+            Text(if (key == "find") "When set to Nobody, friends can no longer discover you through their contacts." else "“My contacts” means people you have chatted with. You always see your own.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         }
     }
     if (showBackup) KeyBackupSheet({ showBackup = false }) { backupTick++ }
@@ -106,7 +125,7 @@ fun AboutScreen() {
         TopBar("About", onBack = { Nav.pop() })
         Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Logo(96.dp); Spacer(Modifier.height(14.dp))
-            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.5.1", color = We.text2, style = T.body)
+            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.6.0", color = We.text2, style = T.body)
             Spacer(Modifier.height(20.dp))
             Text("Private messaging with groups and channels. Direct chats and groups are end-to-end encrypted with X25519 + AES-256-GCM; your keys stay on your phone.", color = We.text2, style = T.body, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }

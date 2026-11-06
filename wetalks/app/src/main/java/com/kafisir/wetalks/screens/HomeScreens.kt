@@ -50,7 +50,7 @@ fun HomeScreen() {
     val tab by Nav.tab
     val chats by remember { Repo.chats() }.collectAsState(initial = emptyList())
     val blocked by Repo.blockedUsers.collectAsState()
-    val visible = chats.filter { !(it.ref.kind == Kind.DM && it.ref.peer in blocked) }
+    val visible = chats.filter { !(it.ref.kind == Kind.DM && it.ref.peer in blocked) }.sortedWith(compareByDescending<ChatItem> { it.pinned }.thenByDescending { c -> Repo.outgoing.lastOrNull { it.ref.id == c.ref.id }?.ts ?: c.lastTs })
     val titles = listOf("WeTalks", "Groups", "Channels", "Me")
     val ctx = androidx.compose.ui.platform.LocalContext.current
     Column(Modifier.fillMaxSize().background(We.bg)) {
@@ -166,7 +166,8 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     val (name, photo, seed) = titleOf(c.ref)
     val chan = if (c.ref.kind == Kind.CHANNEL) Repo.channel(c.ref.id).collectAsState().value else null
     val saved = c.ref.kind == Kind.DM && c.ref.peer == Repo.uid
-    val shownTs = if (chan != null && chan.lastTs > c.lastTs) chan.lastTs else c.lastTs
+    val ob = Repo.outgoing.lastOrNull { it.ref.id == c.ref.id }
+    val shownTs = if (ob != null) ob.ts else if (chan != null && chan.lastTs > c.lastTs) chan.lastTs else c.lastTs
     val preview by produceState("", c.lastBody, c.lastType, chan?.lastPreview) {
         if (chan != null && c.lastBody.isEmpty()) { value = chan.lastPreview; return@produceState }
         value = if (c.lastBody.isEmpty()) "" else {
@@ -189,7 +190,8 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
             Spacer(Modifier.height(3.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val mine = c.lastFrom == Repo.uid
-                Text((if (mine && preview.isNotEmpty()) "You: " else "") + preview, color = We.text2, style = T.body.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (ob != null) { Icon(if (ob.failed) Ic.Alert else Ic.Clock, if (ob.failed) We.danger else We.text2, 14.dp); Spacer(Modifier.width(4.dp)) }
+                Text(if (ob != null) "You: " + when (ob.type) { "voice" -> "Voice message"; "image" -> "Photo"; "gif" -> "GIF"; else -> ob.text.ifEmpty { "Sending…" } } else (if (mine && preview.isNotEmpty()) "You: " else "") + preview, color = We.text2, style = T.body.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (c.muted) { Icon(Ic.BellOff, We.text2, 15.dp); Spacer(Modifier.width(6.dp)) }
                 Badge(c.unread, c.muted)
             }

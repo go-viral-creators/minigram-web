@@ -275,7 +275,7 @@ fun ProfileScreen(uid: String) {
                 AvatarRing(112.dp) { Avatar(u?.name ?: "", u?.photo ?: "", 104.dp, uid) }
                 Spacer(Modifier.height(12.dp))
                 Text(u?.name ?: "", color = We.text, style = T.title.copy(fontSize = 23.sp), textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
-                val status = when { me -> "This is you"; u?.online == true && u?.showLastSeen == true -> "online"; u?.showLastSeen == true && (u?.lastSeen ?: 0) > 0 -> "last seen " + timeShort(u!!.lastSeen); else -> "last seen recently" }
+                val status = when { me -> "This is you"; u?.online == true -> "online"; u?.showLastSeen == true && (u?.lastSeen ?: 0) > 0 -> "last seen " + timeShort(u!!.lastSeen); else -> "last seen recently" }
                 Text(status, color = if (status == "online") We.primary else We.text2, style = T.small, modifier = Modifier.padding(top = 2.dp))
             }
             if (!me) {
@@ -294,6 +294,8 @@ fun ProfileScreen(uid: String) {
                     CardDivider()
                     InfoRow("Link", link, We.text, trailing = { IconBtn(Ic.Share, We.text2, { shareText(ctx, link) }, 20.dp) })
                 }
+                val phone by produceState<String?>(null, uid) { value = if (me) null else Repo.phoneOf(uid) }
+                if (phone != null) { CardDivider(); InfoRow("Phone", phone!!, trailing = { IconBtn(Ic.Phone, We.primary, { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:" + phone))) }, 20.dp) }) }
                 if (!u?.about.isNullOrEmpty()) { CardDivider(); InfoRow("About", u!!.about, copy = false) }
                 CardDivider()
                 InfoRow("Encryption", "End-to-end encrypted · tap to verify", We.text, copy = false, trailing = { IconBtn(Ic.Shield, We.ok, { showSafety = true }) })

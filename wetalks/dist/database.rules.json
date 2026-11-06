@@ -135,6 +135,29 @@
       }
     },
 
+    "privacy": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$k": { ".validate": "newData.isString() && (newData.val() === 'all' || newData.val() === 'contacts' || newData.val() === 'nobody')" }
+      }
+    },
+
+    "presence": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        "online": { ".read": "auth != null && (auth.uid === $uid || root.child('privacy').child($uid).child('online').val() === 'all' || (root.child('privacy').child($uid).child('online').val() === 'contacts' && (root.child('user_chats').child($uid).child($uid + '_' + auth.uid).exists() || root.child('user_chats').child($uid).child(auth.uid + '_' + $uid).exists())) || !root.child('privacy').child($uid).child('online').exists())" },
+        "lastSeen": { ".read": "auth != null && (auth.uid === $uid || root.child('privacy').child($uid).child('lastSeen').val() === 'all' || (root.child('privacy').child($uid).child('lastSeen').val() === 'contacts' && (root.child('user_chats').child($uid).child($uid + '_' + auth.uid).exists() || root.child('user_chats').child($uid).child(auth.uid + '_' + $uid).exists())) || !root.child('privacy').child($uid).child('lastSeen').exists())" }
+      }
+    },
+
+    "contact_info": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        "phone": { ".read": "auth != null && (auth.uid === $uid || root.child('privacy').child($uid).child('phone').val() === 'all' || (root.child('privacy').child($uid).child('phone').val() === 'contacts' && (root.child('user_chats').child($uid).child($uid + '_' + auth.uid).exists() || root.child('user_chats').child($uid).child(auth.uid + '_' + $uid).exists())))", ".validate": "newData.isString() && newData.val().length <= 20" }
+      }
+    },
+
     "key_backups": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

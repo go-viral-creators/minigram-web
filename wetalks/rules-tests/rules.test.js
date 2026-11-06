@@ -269,3 +269,24 @@ test('encryption key backups are private to their owner', async () => {
   await assertFails(set(ref(db(B), 'key_backups/alice'), bk));
   await assertFails(set(ref(db(A), 'key_backups/alice'), { ...bk, c: 'x'.repeat(500) }));
 });
+
+test('privacy: last seen, online status and phone number follow the owner\'s choices', async () => {
+  await assertSucceeds(set(ref(db(A), 'presence/alice'), { online: true, lastSeen: 5 }));
+  await assertSucceeds(get(ref(db(B), 'presence/alice/lastSeen')));                    // default = everybody
+  await assertSucceeds(set(ref(db(A), 'privacy/alice/lastSeen'), 'nobody'));
+  await assertFails(get(ref(db(B), 'presence/alice/lastSeen')));
+  await assertSucceeds(get(ref(db(B), 'presence/alice/online')));                      // a separate setting
+  await assertSucceeds(get(ref(db(A), 'presence/alice/lastSeen')));                    // owners always see their own
+  await assertSucceeds(set(ref(db(A), 'privacy/alice/online'), 'contacts'));
+  await assertFails(get(ref(db(B), 'presence/alice/online')));                         // no chat yet
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), `user_chats/alice/${AB}`), { type: 'dm', peer: 'bob' }); });
+  await assertSucceeds(get(ref(db(B), 'presence/alice/online')));                      // now a contact
+  await assertFails(get(ref(db(C), 'presence/alice/online')));
+  await assertFails(set(ref(db(B), 'presence/alice/online'), false));
+  await assertSucceeds(set(ref(db(A), 'contact_info/alice/phone'), '+919876543210'));
+  await assertFails(get(ref(db(B), 'contact_info/alice/phone')));                      // default = nobody
+  await assertSucceeds(set(ref(db(A), 'privacy/alice/phone'), 'all'));
+  await assertSucceeds(get(ref(db(B), 'contact_info/alice/phone')));
+  await assertFails(set(ref(db(A), 'privacy/alice/phone'), 'everyone'));              // only the three allowed values
+  await assertFails(get(ref(db(B), 'privacy/alice')));
+});

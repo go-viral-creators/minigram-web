@@ -183,7 +183,7 @@ private fun export(item: EditItem): Pair<ByteArray, IntSize> {
     val l = (item.cl * rb.width).toInt().coerceIn(0, rb.width - 2); val t = (item.ct * rb.height).toInt().coerceIn(0, rb.height - 2)
     val w = ((item.cr - item.cl) * rb.width).toInt().coerceIn(2, rb.width - l); val h = ((item.cb - item.ct) * rb.height).toInt().coerceIn(2, rb.height - t)
     var v = Bitmap.createBitmap(rb, l, t, w, h)
-    val s = 1280f / max(v.width, v.height)
+    val s = (if (com.kafisir.wetalks.data.DataPrefs.saver) 900f else 1280f) / max(v.width, v.height)
     if (s < 1f) v = Bitmap.createScaledBitmap(v, (v.width * s).toInt(), (v.height * s).toInt(), true)
     val out = Bitmap.createBitmap(v.width, v.height, Bitmap.Config.ARGB_8888)
     val c = Canvas(out)
@@ -192,7 +192,7 @@ private fun export(item: EditItem): Pair<ByteArray, IntSize> {
     val rw = item.cr - item.cl; val rh = item.cb - item.ct
     val map = { o: Offset -> Offset((o.x - item.cl) / rw * out.width, (o.y - item.ct) / rh * out.height) }
     item.marks.forEach { m -> drawMark(c, m, map, m.width * out.width / rw) }
-    val bo = ByteArrayOutputStream(); out.compress(Bitmap.CompressFormat.JPEG, 80, bo)
+    val bo = ByteArrayOutputStream(); out.compress(Bitmap.CompressFormat.JPEG, if (com.kafisir.wetalks.data.DataPrefs.saver) 65 else 80, bo)
     return bo.toByteArray() to IntSize(out.width, out.height)
 }
 
@@ -298,19 +298,20 @@ fun PhotoEditorScreen() {
             }
             Spacer(Modifier.width(8.dp))
             Box(Modifier.size(48.dp).clip(CircleShape).background(We.primary).clickable(enabled = !busy && items.isNotEmpty()) {
-                Repo.scope.launch {
-                    busy = true
-                    try {
-                        items.toList().forEachIndexed { i, it ->
-                            val (bytes, size) = withContext(Dispatchers.Default) { export(it) }
-                            val id = Repo.uploadMedia(ref, bytes, "image/jpeg")
-                            Repo.send(ref, "image", JSONObject().put("m", id).put("w", size.width).put("h", size.height).put("c", if (i == 0) caption.trim() else "").toString(), if (i == 0) replyId else null, if (caption.isNotBlank() && i == 0) caption.trim() else "Photo")
-                        }
-                        Nav.pendingReply = null
-                        Nav.pop()
-                    } catch (e: Exception) { Nav.say(e.message ?: "Could not send photo") }
-                    busy = false
+                // like Telegram: the editor closes at once and the photos appear in the chat as "sending" bubbles
+                val cap = caption.trim()
+                items.toList().forEachIndexed { i, it ->
+                    val sc = 420f / max(it.base.width, it.base.height)
+                    val thumb = Bitmap.createScaledBitmap(it.base, (it.base.width * sc).toInt().coerceAtLeast(1), (it.base.height * sc).toInt().coerceAtLeast(1), true).asImageBitmap()
+                    val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, "image", text = if (i == 0) cap else "", thumb = thumb)
+                    Repo.runOutgoing(o) {
+                        val (bytes, size) = withContext(Dispatchers.Default) { export(it) }
+                        val id = Repo.uploadMedia(ref, bytes, "image/jpeg")
+                        Repo.send(ref, "image", JSONObject().put("m", id).put("w", size.width).put("h", size.height).put("c", if (i == 0) cap else "").toString(), if (i == 0) replyId else null, if (i == 0 && cap.isNotBlank()) cap else "Photo")
+                    }
                 }
+                Nav.pendingReply = null
+                Nav.pop()
             }, contentAlignment = Alignment.Center) {
                 if (busy) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp) else Icon(Ic.Send, We.onPrimary, 22.dp)
             }

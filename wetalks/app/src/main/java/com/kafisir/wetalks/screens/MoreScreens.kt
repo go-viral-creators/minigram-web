@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.rotate
+import com.kafisir.wetalks.data.DataPrefs
 import com.kafisir.wetalks.voice.VoiceFx
 import androidx.compose.ui.graphics.Color
 import androidx.activity.result.PickVisualMediaRequest
@@ -124,39 +126,36 @@ fun ChatSettingsScreen() {
             Row2(Ic.Type, "Compact messages", "Less space between bubbles", trailing = { Toggle(compact) { UiPrefs.setCompact(ctx, it) } })
 
             SectionLabel("Bubble style")
-            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Bubbles.all.forEachIndexed { i, b ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable { if (b.locked) locked("${b.name} bubbles") else UiPrefs.setBubbleStyle(ctx, i) }) {
-                        Box(Modifier.size(96.dp, 66.dp).clip(RoundedCornerShape(14.dp)).background(We.field).border(2.dp, if (style == i) We.primary else Color.Transparent, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                            Box(Modifier.bubbleLook(true, RoundedCornerShape(12.dp), i).size(66.dp, 32.dp), contentAlignment = Alignment.Center) { Text("Hi", color = Bubbles.fgFor(i, true) ?: We.onSent, style = T.small) }
-                            if (b.locked) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(We.text.copy(alpha = .7f)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, We.surface, 11.dp) }
-                        }
-                        Text(b.name, color = if (style == i) We.primary else We.text2, style = T.tiny, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
+            @Composable fun bubbleTile(i: Int, mod: Modifier) {
+                val b = Bubbles.all[i]
+                Column(mod.clip(RoundedCornerShape(14.dp)).clickable { if (b.locked) locked("${b.name} bubbles") else UiPrefs.setBubbleStyle(ctx, i) }, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.fillMaxWidth().height(66.dp).clip(RoundedCornerShape(14.dp)).background(We.field).border(2.dp, if (style == i) We.primary else Color.Transparent, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                        Box(Modifier.bubbleLook(true, RoundedCornerShape(12.dp), i).size(66.dp, 32.dp), contentAlignment = Alignment.Center) { Text("Hi", color = Bubbles.fgFor(i, true) ?: We.onSent, style = T.small) }
+                        if (b.locked) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(We.text.copy(alpha = .7f)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, We.surface, 11.dp) }
                     }
+                    Text(b.name + (if (Bubbles.animated(i)) " ▶" else ""), color = if (style == i) We.primary else We.text2, style = T.tiny, maxLines = 1, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
                 }
             }
+            ExpandableGrid("Classic bubbles", (0 until 12).toList(), 6, 3) { i, m -> bubbleTile(i, m) }
+            ExpandableGrid("Animated bubbles", (12 until Bubbles.all.size).toList(), 6, 3) { i, m -> bubbleTile(i, m) }
 
             SectionLabel("Chat background")
-            val tiles = buildList<Int> { add(-1); if (hasCustom) add(Walls.CUSTOM); addAll(Walls.all.indices); addAll(AWalls.all.indices.map { AWalls.BASE + it }) }
-            tiles.chunked(4).forEach { row ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { id ->
-                        val locked0 = id >= 0 && Walls.isLocked(id)
-                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(Modifier.fillMaxWidth().aspectRatio(.74f).clip(RoundedCornerShape(14.dp)).then(if (id >= 0) Modifier.wallpaperFor(id, 0f, 0, ver) else Modifier.background(We.field))
-                                .border(2.dp, if (wall == id) We.primary else We.line, RoundedCornerShape(14.dp))
-                                .clickable { when { id == -1 -> pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)); locked0 -> locked("${Walls.nameOf(id)} background"); else -> UiPrefs.setWallpaper(ctx, id) } },
-                                contentAlignment = Alignment.Center) {
-                                if (id == -1) Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Image, We.primary, 26.dp); Text("My photo", color = We.primary, style = T.tiny) }
-                                if (locked0) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(Color(0xB0000000)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, Color.White, 11.dp) }
-                                if (wall == id) Box(Modifier.align(Alignment.BottomEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(We.primary), contentAlignment = Alignment.Center) { Icon(Ic.Check, We.onPrimary, 13.dp) }
-                            }
-                            Text(when (id) { -1 -> "Gallery"; Walls.CUSTOM -> "Mine"; else -> Walls.nameOf(id) + (if (id >= AWalls.BASE) " ▶" else "") }, color = if (wall == id) We.primary else We.text2, style = T.tiny, maxLines = 1, modifier = Modifier.padding(top = 3.dp))
-                        }
+            @Composable fun wallTile(id: Int, mod: Modifier) {
+                val locked0 = id >= 0 && Walls.isLocked(id)
+                Column(mod, horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.fillMaxWidth().aspectRatio(.74f).clip(RoundedCornerShape(14.dp)).then(if (id >= 0) Modifier.wallpaperFor(id, 0f, 0, ver) else Modifier.background(We.field))
+                        .border(2.dp, if (wall == id) We.primary else We.line, RoundedCornerShape(14.dp))
+                        .clickable { when { id == -1 -> pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)); locked0 -> locked("${Walls.nameOf(id)} background"); else -> UiPrefs.setWallpaper(ctx, id) } },
+                        contentAlignment = Alignment.Center) {
+                        if (id == -1) Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Image, We.primary, 26.dp); Text("My photo", color = We.primary, style = T.tiny) }
+                        if (locked0) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(Color(0xB0000000)), contentAlignment = Alignment.Center) { Icon(Ic.Lock, Color.White, 11.dp) }
+                        if (wall == id) Box(Modifier.align(Alignment.BottomEnd).padding(5.dp).size(20.dp).clip(CircleShape).background(We.primary), contentAlignment = Alignment.Center) { Icon(Ic.Check, We.onPrimary, 13.dp) }
                     }
-                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    Text(when (id) { -1 -> "Gallery"; Walls.CUSTOM -> "Mine"; else -> Walls.nameOf(id) + (if (id >= AWalls.BASE) " ▶" else "") }, color = if (wall == id) We.primary else We.text2, style = T.tiny, maxLines = 1, modifier = Modifier.padding(top = 3.dp))
                 }
             }
+            ExpandableGrid("Classic backgrounds", buildList { add(-1); if (hasCustom) add(Walls.CUSTOM); addAll(Walls.all.indices) }, 7, 4) { id, m -> wallTile(id, m) }
+            ExpandableGrid("Animated backgrounds", AWalls.all.indices.map { AWalls.BASE + it }, 8, 4) { id, m -> wallTile(id, m) }
             SectionLabel("Dim background")
             Slider(dim, { UiPrefs.setDim(ctx, it) }, valueRange = 0f..0.6f, modifier = Modifier.padding(horizontal = 20.dp), colors = SliderDefaults.colors(thumbColor = We.primary, activeTrackColor = We.primary))
             if (wall == Walls.CUSTOM) {
@@ -186,17 +185,54 @@ fun ChatSettingsScreen() {
 @Composable
 fun StorageScreen() {
     val ctx = LocalContext.current
-    var size by remember { mutableLongStateOf(-1L) }
     var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(tick) { size = withContext(Dispatchers.IO) { ctx.cacheDir.walkTopDown().filter { it.isFile }.sumOf { it.length() } } }
+    val media by produceState(0L, tick) { value = withContext(Dispatchers.IO) { DataPrefs.diskSize() } }
+    val other by produceState(0L, tick) { value = withContext(Dispatchers.IO) { DataPrefs.otherSize() } }
+    fun mb(b: Long) = if (b < 1048576) "%.0f KB".format(b / 1024.0) else "%.1f MB".format(b / 1048576.0)
+    @Composable fun chips(options: List<Pair<String, Boolean>>, pick: (Int) -> Unit) {
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEachIndexed { i, (n, on) -> Text(n, color = if (on) We.onPrimary else We.text, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1,
+                modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) We.primary else We.field).clickable { pick(i) }.padding(horizontal = 16.dp, vertical = 9.dp)) }
+        }
+    }
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Data & storage", onBack = { Nav.pop() })
-        Row2(Ic.Database, "Cache", if (size < 0) "Calculating…" else "%.1f MB used by temporary voice and photo files".format(size / 1048576.0))
-        Box(Modifier.padding(20.dp)) { OutlineButton("Clear cache", { scopeClear(ctx); tick++; Nav.say("Cache cleared") }) }
-        com.kafisir.wetalks.data.CrashLog.last(ctx)?.let { rep ->
-            Row2(Ic.Info, "Last crash report", "Tap to share it so the problem can be fixed", onClick = { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, rep), "Share crash report")) })
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            SectionLabel("Storage on this phone")
+            // usage bar
+            val total = (media + other).coerceAtLeast(1L)
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(We.field)) {
+                Box(Modifier.weight(media.coerceAtLeast(1L).toFloat()).fillMaxHeight().background(We.primary)); Box(Modifier.weight(other.coerceAtLeast(1L).toFloat()).fillMaxHeight().background(We.primary.copy(alpha = .35f)))
+            }
+            Row2(Ic.Image, "Downloaded media", mb(media) + " · photos, GIFs and voice notes you opened", trailing = { Text("Clear", color = We.danger, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.clickable { DataPrefs.clearDisk(); tick++; Nav.say("Media cache cleared") }.padding(8.dp)) })
+            Row2(Ic.Database, "Temporary files", mb(other) + " · recordings, previews, edits", trailing = { Text("Clear", color = We.danger, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.clickable { DataPrefs.clearOther(); tick++; Nav.say("Temporary files cleared") }.padding(8.dp)) })
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) { OutlineButton("Clear everything (" + mb(media + other) + ")", { DataPrefs.clearDisk(); DataPrefs.clearOther(); tick++; Nav.say("Storage cleared") }) }
+
+            SectionLabel("Keep media for")
+            val limits = listOf(100 to "100 MB", 250 to "250 MB", 500 to "500 MB", 1024 to "1 GB", 0 to "No limit")
+            chips(limits.map { it.second to (DataPrefs.cacheLimitMb == it.first) }) { DataPrefs.setLimit(limits[it].first) }
+            Text("When the limit is reached the oldest downloads are removed first. They download again when you open them.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+            SectionLabel("Auto-delete downloads after")
+            val days = listOf(0 to "Never", 7 to "7 days", 30 to "30 days", 90 to "90 days")
+            chips(days.map { it.second to (DataPrefs.cleanDays == it.first) }) { DataPrefs.setClean(days[it].first) }
+
+            SectionLabel("Auto-download photos & GIFs")
+            val modes = listOf("always" to "Always", "wifi" to "Wi-Fi only", "never" to "Never")
+            chips(modes.map { it.second to (DataPrefs.autoPhotos == it.first) }) { DataPrefs.setAuto(modes[it].first) }
+            Text("Photos that don't download automatically show a tap-to-download tile.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+            Row2(Ic.Camera, "Data saver for sending", "Send photos smaller (about 900 px) so they upload faster on slow networks", trailing = { Toggle(DataPrefs.saver) { DataPrefs.updateSaver(it) } })
+
+            SectionLabel("Data used by media")
+            Row2(Ic.Download, "Downloaded", mb(DataPrefs.down))
+            Row2(Ic.Share, "Uploaded", mb(DataPrefs.up))
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) { OutlineButton("Reset counters", { DataPrefs.resetUsage() }) }
+
+            com.kafisir.wetalks.data.CrashLog.last(ctx)?.let { rep ->
+                SectionLabel("Support")
+                Row2(Ic.Info, "Last crash report", "Tap to share it so the problem can be fixed", onClick = { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, rep), "Share crash report")) })
+            }
+            Text("Messages and media live in your encrypted chats on the server. Clearing storage only removes copies kept on this phone.", color = We.text2, style = T.small, modifier = Modifier.padding(20.dp))
         }
-        Text("Messages and media live in your encrypted chats on the server. Clearing the cache only removes temporary files from this phone.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 20.dp))
     }
 }
 
@@ -287,5 +323,24 @@ fun NewChatScreen() {
                 }
             }
         }
+    }
+}
+
+
+/** A titled grid that shows the first [initial] items and expands with "Show more" (and back with "Show less"). */
+@Composable
+private fun ExpandableGrid(title: String, ids: List<Int>, initial: Int, columns: Int, item: @Composable (Int, Modifier) -> Unit) {
+    var open by remember(title) { mutableStateOf(false) }
+    val shown = if (open) ids else ids.take(initial)
+    Text(title, color = We.text2, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 4.dp))
+    shown.chunked(columns).forEach { row ->
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            row.forEach { id -> item(id, Modifier.weight(1f)) }
+            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+        }
+    }
+    if (ids.size > initial) Row(Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Text(if (open) "Show less" else "Show more (${ids.size - initial})", color = We.primary, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+        Spacer(Modifier.width(4.dp)); Icon(Ic.Chevron, We.primary, 16.dp, Modifier.rotate(if (open) -90f else 90f))
     }
 }

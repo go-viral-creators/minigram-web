@@ -43,7 +43,7 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
+    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -79,7 +79,7 @@ fun App() {
         } else {
             val ver by Nav.profileVersion
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
-            LaunchedEffect(uid, me) { if (me == true) { try { Repo.watchBlocks(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
+            LaunchedEffect(uid, me) { if (me == true) { try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) Repo.setOnline(true) }

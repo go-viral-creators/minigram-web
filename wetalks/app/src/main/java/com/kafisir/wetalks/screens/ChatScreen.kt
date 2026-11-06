@@ -111,7 +111,9 @@ fun ChatScreen(ref: ChatRef) {
     val msgsRaw by produceState<List<Msg>>(emptyList(), ref, limit) { Repo.rawMessages(ref, limit).collect { raws -> value = raws.map { Repo.decrypt(ref, it) } } }
     var hideTick by remember { mutableIntStateOf(0) }
     val cut = remember(ref) { Repo.cutoff(ref.id) }
-    val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) }
+    val outs = Repo.outgoing.filter { it.ref.id == ref.id }
+    val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h) }
+    val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
     val pinIds by remember(ref) { Repo.pins(ref) }.collectAsState(emptyList())
     val peerUser = if (ref.kind == Kind.DM && !saved) Repo.user(ref.peer!!).collectAsState().value else null
@@ -140,11 +142,14 @@ fun ChatScreen(ref: ChatRef) {
     var menu by remember { mutableStateOf(false) }
     var delChat by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
+    var typedPreview by remember { mutableStateOf<LinkPreview?>(null) }
+    var dismissedUrl by remember { mutableStateOf<String?>(null) }
     var deleting by remember { mutableStateOf<List<Msg>?>(null) }
     val trNotes = remember { mutableStateMapOf<String, BubbleNote>() }
     val txNotes = remember { mutableStateMapOf<String, BubbleNote>() }
     var pickLang by remember { mutableStateOf<Msg?>(null) }
     var unreadableInfo by remember { mutableStateOf(false) }
+    var outActions by remember { mutableStateOf<Repo.Outgoing?>(null) }
     var forwarding by remember { mutableStateOf<List<Msg>?>(null) }
     val selected = remember { mutableStateListOf<String>() }
     val selecting = selected.isNotEmpty()
@@ -171,6 +176,13 @@ fun ChatScreen(ref: ChatRef) {
     }
     LaunchedEffect(input) { if (ref.kind != Kind.CHANNEL && !saved) { if (input.isNotEmpty()) { Repo.setTyping(ref, true); delay(3000) }; Repo.setTyping(ref, false) } }
     DisposableEffect(ref) { onDispose { Repo.setTyping(ref, false) } }
+    // the link preview is built while the person is still typing, so it is ready the moment they press send
+    val typedUrl = remember(input, editing) { if (UiPrefs.linkPreview.value && editing == null) LinkPreviews.firstUrl(input) else null }
+    LaunchedEffect(typedUrl) {
+        typedPreview = null
+        val u = typedUrl
+        if (u != null && u != dismissedUrl) { delay(600); typedPreview = try { LinkPreviews.fetch(u) } catch (e: Exception) { null } }
+    }
     androidx.activity.compose.BackHandler(enabled = selecting) { selected.clear() }
 
     val subtitle: String? = when {
@@ -179,7 +191,7 @@ fun ChatScreen(ref: ChatRef) {
         typing.isNotEmpty() -> if (ref.kind == Kind.DM) "typing…" else "someone is typing…"
         ref.kind == Kind.DM -> when {
             peerUser == null -> null
-            peerUser.online && peerUser.showLastSeen -> "online"
+            peerUser.online -> "online"
             peerUser.showLastSeen && peerUser.lastSeen > 0 -> "last seen " + timeShort(peerUser.lastSeen)
             else -> "encrypted chat"
         }
@@ -196,9 +208,14 @@ fun ChatScreen(ref: ChatRef) {
                 if (e != null) Repo.editMessage(ref, e.id, t)
                 else {
                     val url = if (UiPrefs.linkPreview.value) LinkPreviews.firstUrl(t) else null
-                    val prev = if (url != null) { sending = true; try { LinkPreviews.fetch(url) } finally { sending = false } } else null
-                    if (prev != null) Repo.send(ref, "link", JSONObject().put("t", t).put("u", prev.url).put("ti", prev.title).put("d", prev.desc).put("i", prev.thumb).toString(), r?.id, t.take(90))
-                    else Repo.send(ref, "text", t, r?.id, t.take(90))
+                    val ready = typedPreview?.takeIf { it.url == url }
+                    typedPreview = null
+                    if (ready != null) Repo.send(ref, "link", JSONObject().put("t", t).put("u", ready.url).put("ti", ready.title).put("d", ready.desc).put("i", ready.thumb).toString(), r?.id, t.take(90))
+                    else {
+                        // the text goes out immediately; if a preview can be built it is attached to the same message a moment later
+                        val mid = Repo.send(ref, "text", t, r?.id, t.take(90))
+                        if (url != null && url != dismissedUrl) Repo.scope.launch { try { LinkPreviews.fetch(url)?.let { Repo.attachLinkPreview(ref, mid, t, it) } } catch (_: Exception) {} }
+                    }
                 }
             } catch (ex: Exception) { toast(ex.message ?: "Could not send"); setInput(t) }
         }
@@ -213,13 +230,10 @@ fun ChatScreen(ref: ChatRef) {
         val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
         val replyId = reply?.id; reply = null
-        Repo.scope.launch {
-            sending = true
-            try {
-                val id = Repo.uploadMedia(ref, bytes, mime)
-                Repo.send(ref, "gif", JSONObject().put("m", id).put("mime", mime).put("w", maxOf(opts.outWidth, 0)).put("h", maxOf(opts.outHeight, 0)).toString(), replyId, if (mime.contains("gif")) "GIF" else "Sticker")
-            } catch (ex: Exception) { toast(ex.message ?: "Could not send") }
-            sending = false
+        val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, "gif", w = maxOf(opts.outWidth, 0), h = maxOf(opts.outHeight, 0), thumb = Pics.decodeSampled(bytes, 400))
+        Repo.runOutgoing(o) {
+            val id = Repo.uploadMedia(ref, bytes, mime)
+            Repo.send(ref, "gif", JSONObject().put("m", id).put("mime", mime).put("w", o.w).put("h", o.h).toString(), replyId, if (mime.contains("gif")) "GIF" else "Sticker")
         }
     }
     val keyboardReceiver = object : ReceiveContentListener {
@@ -253,18 +267,15 @@ fun ChatScreen(ref: ChatRef) {
         val r = rec ?: return; rec = null; locked = false; paused = false; willCancel = false; dragX = 0f; dragY = 0f; levels.clear()
         if (!send) { r.cancel(); return }
         val replyId = reply?.id; reply = null
-        Repo.scope.launch {
-            sending = true
-            try {
-                val res = r.finish()
-                if (res == null) toast("Could not process the recording")
-                else if (res.seconds < 1) toast("Hold the mic and release to send")
-                else {
-                    val id = Repo.uploadMedia(ref, res.bytes, "audio/mp4")
-                    Repo.send(ref, "voice", JSONObject().put("m", id).put("d", res.seconds).put("w", JSONArray(res.wave)).toString(), replyId, "Voice message")
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { toast(e.message ?: "Voice failed") }
-            sending = false
+        val quick = r.elapsedSec
+        if (quick < 1) { r.cancel(); toast("Hold the mic and release to send"); return }
+        val bars = levels.toList().takeLast(40).let { l -> if (l.isEmpty()) List(40) { 4 } else List(40) { i -> (2 + l[(i * l.size / 40).coerceAtMost(l.size - 1)] * 29).toInt().coerceIn(2, 31) } }
+        val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, "voice", dur = quick, wave = bars)
+        Repo.runOutgoing(o) {
+            val res = r.finish() ?: throw IllegalStateException("Could not process the recording")
+            if (res.seconds < 1) throw IllegalStateException("The recording was too short")
+            val id = Repo.uploadMedia(ref, res.bytes, "audio/mp4")
+            Repo.send(ref, "voice", JSONObject().put("m", id).put("d", res.seconds).put("w", JSONArray(res.wave)).toString(), replyId, "Voice message")
         }
     }
     LaunchedEffect(rec) { while (rec != null) { val r = rec!!; level = r.level(); secs = r.elapsedSec; levels.add(level); if (levels.size > 60) levels.removeAt(0); if (secs >= Recorder.MAX_SECONDS) endRec(true); delay(90) } }
@@ -324,7 +335,6 @@ fun ChatScreen(ref: ChatRef) {
                 }
                 IconBtn(Ic.Dots, We.onAppBar, { menu = true })
             })
-        if (sending) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = We.primary, trackColor = Color.Transparent)
 
         // pinned message banner
         val livePins = pinIds.filter { id -> msgs.any { it.id == id } || msgs.isEmpty() }
@@ -369,8 +379,8 @@ fun ChatScreen(ref: ChatRef) {
                             Box(Modifier.weight(1f)) {
                                 Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
                                     read = ref.kind == Kind.DM && !saved && peerRead >= m.ts && m.ts > 0, lastInRun = newer == null || newer.from != m.from, pinned = m.id in pinIds,
-                                    onClick = { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else if (m.unreadable) unreadableInfo = true },
-                                    onLong = { if (!m.deleted) { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else menuMsg = m } },
+                                    onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else if (m.unreadable) unreadableInfo = true },
+                                    onLong = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (!m.deleted) { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else menuMsg = m } },
                                     onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e) },
                                     notes = listOfNotNull(txNotes[m.id], trNotes[m.id]))
                             }
@@ -401,6 +411,18 @@ fun ChatScreen(ref: ChatRef) {
                         Text(previewText(q.type, q.text), color = We.text2, style = T.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     IconBtn(Ic.Close, We.text2, { reply = null; if (editing != null) { editing = null; setInput("") } }, 20.dp)
+                }
+            }
+            typedPreview?.let { p ->
+                val th = remember(p.thumb) { Pics.decodeB64(p.thumb) }
+                Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.width(3.dp).height(46.dp).clip(CircleShape).background(We.primary)); Spacer(Modifier.width(10.dp))
+                    if (th != null) { Image(th, null, Modifier.size(46.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop); Spacer(Modifier.width(10.dp)) }
+                    Column(Modifier.weight(1f)) {
+                        Text(p.title.ifEmpty { p.url }, color = We.text, style = T.small.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(p.desc.ifEmpty { p.url }, color = We.text2, style = T.tiny, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    IconBtn(Ic.Close, We.text2, { dismissedUrl = p.url; typedPreview = null }, 20.dp)
                 }
             }
             Box {
@@ -479,6 +501,14 @@ fun ChatScreen(ref: ChatRef) {
                 val ids = list.map { it.id }; selected.clear(); deleting = null
                 scope.launch { try { Repo.deleteMessages(ref, ids) } catch (ex: Exception) { toast("Could not delete: " + (ex.message ?: "")) } }
             }
+        }
+    }
+    outActions?.let { o ->
+        Sheet({ outActions = null }) {
+            Text(if (o.failed) "Couldn't send" else "Sending…", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 4.dp))
+            if (o.failed) Text(o.error, color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+            if (o.failed) SheetItem(Ic.Rotate, "Try again") { outActions = null; Repo.retryOutgoing(o) }
+            SheetItem(Ic.Trash, if (o.failed) "Delete" else "Cancel sending", danger = true) { outActions = null; Repo.dropOutgoing(o) }
         }
     }
     if (unreadableInfo) Sheet({ unreadableInfo = false }) {
@@ -609,22 +639,27 @@ private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color,
         if (pinned) Icon(Ic.Pin, fg.copy(alpha = .55f), 11.dp)
         if (m.edited) Text("edited", color = fg.copy(alpha = .55f), style = T.tiny)
         Text(if (m.ts > 0) clock(m.ts) else "", color = fg.copy(alpha = .6f), style = T.tiny.copy(fontSize = 10.5.sp))
-        if (mine && !m.deleted) Icon(if (read) Ic.Check2 else Ic.Check, if (read) We.primary else fg.copy(alpha = .55f), 15.dp)
+        if (m.pending) { val f = Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true; Icon(if (f) Ic.Alert else Ic.Clock, if (f) We.danger else fg.copy(alpha = .55f), 14.dp) }
+        else if (mine && !m.deleted) Icon(if (read) Ic.Check2 else Ic.Check, if (read) We.primary else fg.copy(alpha = .55f), 15.dp)
     }
 }
 
 @Composable
 private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLong: () -> Unit) {
-    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, m.mediaId) { m.mediaId?.let { id -> Repo.loadMedia(ref, id)?.let { value = Pics.decode(it) } } }
+    var manual by remember(m.id) { mutableStateOf(false) }
+    val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) } == true) || remember { DataPrefs.mayAutoDownload() }
+    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, m.mediaId, allowed) { if (allowed) m.mediaId?.let { id -> Repo.loadMedia(ref, id)?.let { value = Pics.decode(it) } } }
     val hasCap = m.text.isNotEmpty()
     Column(Modifier.width(254.dp)) {
         Box(Modifier.padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong)) {
-            val b = bmp
-            if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
+            val b = bmp ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
+            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field).combinedClickable(onClick = { manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
+            else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
             else Image(b, null, Modifier.fillMaxWidth().aspectRatio((b.width.toFloat() / b.height).coerceIn(.6f, 1.8f)), contentScale = ContentScale.Crop)
+            if (m.pending) SendingBadge(Modifier.align(Alignment.Center), Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true)
             if (!hasCap) Row(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(clock(m.ts), color = Color.White, style = T.tiny.copy(fontSize = 10.5.sp))
-                if (mine) { Spacer(Modifier.width(3.dp)); Icon(if (read) Ic.Check2 else Ic.Check, if (read) Color(0xFF7DD3FC) else Color.White, 14.dp) }
+                if (mine) { Spacer(Modifier.width(3.dp)); if (m.pending) Icon(Ic.Clock, Color.White, 13.dp) else Icon(if (read) Ic.Check2 else Ic.Check, if (read) Color(0xFF7DD3FC) else Color.White, 14.dp) }
             }
         }
         if (hasCap) {
@@ -650,6 +685,13 @@ private fun CallBody(m: Msg, mine: Boolean, fg: Color) {
 }
 
 @Composable
+private fun SendingBadge(modifier: Modifier, failed: Boolean) {
+    Box(modifier.size(46.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+        if (failed) Icon(Ic.Alert, Color.White, 24.dp) else androidx.compose.material3.CircularProgressIndicator(Modifier.size(28.dp), color = Color.White, strokeWidth = 2.5.dp)
+    }
+}
+
+@Composable
 private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
     val ctx = LocalContext.current
     val bytes by produceState<ByteArray?>(null, m.mediaId) { m.mediaId?.let { value = Repo.loadMedia(ref, it) } }
@@ -662,8 +704,10 @@ private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
             } catch (e: Exception) { null }
         }
     }
+    val pendThumb = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null
     Box(Modifier.width(if (ratio > 1f) 220.dp else 170.dp).aspectRatio(ratio).clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-        if (drawable == null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = We.primary, strokeWidth = 2.dp)
+        if (drawable == null && pendThumb != null) { Image(pendThumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit); SendingBadge(Modifier, Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true) }
+        else if (drawable == null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = We.primary, strokeWidth = 2.dp)
         else androidx.compose.ui.viewinterop.AndroidView(factory = { c -> android.widget.ImageView(c).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER } },
             update = { iv ->
                 iv.setImageDrawable(drawable)

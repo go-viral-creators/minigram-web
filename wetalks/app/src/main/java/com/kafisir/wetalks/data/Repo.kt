@@ -15,6 +15,10 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ServerValue
 import com.google.firebase.database.ValueEventListener
+import org.json.JSONObject
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
@@ -111,9 +115,49 @@ object Repo {
         s.child("admins").children.mapNotNull { it.key }.toSet(), s.lng("subCount"), s.lng("lastTs"), s.str("lastPreview"),
         s.child("perms").children.associate { it.key!! to (it.getValue(Boolean::class.java) ?: true) }, s.lng("slow").toInt(), s.bool("priv"))
 
+    private val presOnline = HashMap<String, Boolean?>()
+    private val presLast = HashMap<String, Long?>()
+    private fun withPresence(u: User) = u.copy(online = presOnline[u.uid] == true, lastSeen = presLast[u.uid] ?: 0L, showLastSeen = presLast[u.uid] != null)
+
     fun user(id: String): StateFlow<User?> = userFlows.getOrPut(id) {
-        MutableStateFlow<User?>(null).also { f -> watch("users/$id") { f.value = parseUser(id, it) } }
+        presOnline.remove(id); presLast.remove(id)
+        MutableStateFlow<User?>(null).also { f ->
+            watch("users/$id") { f.value = parseUser(id, it)?.let(::withPresence) }
+            // each presence field is readable only if its owner allows it; a denied read simply means "hidden"
+            watchRaw("presence/$id/online", { presOnline[id] = it.getValue(Boolean::class.java) ?: false; f.value = f.value?.let(::withPresence) }, { presOnline[id] = null; f.value = f.value?.let(::withPresence) })
+            watchRaw("presence/$id/lastSeen", { presLast[id] = it.getValue(Long::class.java) ?: 0L; f.value = f.value?.let(::withPresence) }, { presLast[id] = null; f.value = f.value?.let(::withPresence) })
+        }
     }
+
+    private fun watchRaw(path: String, cb: (DataSnapshot) -> Unit, denied: () -> Unit) {
+        val ref = db.getReference(path)
+        val l = object : ValueEventListener {
+            override fun onDataChange(s: DataSnapshot) = cb(s)
+            override fun onCancelled(e: DatabaseError) = denied()
+        }
+        ref.addValueEventListener(l); listeners.add(ref to l)
+    }
+
+    // ---- privacy choices: "all" | "contacts" | "nobody"
+    val privacy = MutableStateFlow<Map<String, String>>(emptyMap())
+    private var privacyWatching = ""
+    fun watchPrivacy() {
+        if (uid.isEmpty() || privacyWatching == uid) return
+        privacyWatching = uid
+        watch("privacy/$uid") { s -> privacy.value = s.children.associate { it.key!! to (it.getValue(String::class.java) ?: "") } }
+    }
+    fun privacyOf(key: String, def: String) = privacy.value[key] ?: def
+
+    suspend fun setPrivacyChoice(key: String, v: String) {
+        db.getReference("privacy/$uid/$key").setValue(v).await()
+        if (key == "find") {   // "who can find me by my number" also controls the lookup entry
+            val h = db.getReference("users/$uid/phoneKey").get().await().getValue(String::class.java)
+            if (h != null) { if (v == "nobody") db.getReference("phones/$h").removeValue() else try { db.getReference("phones/$h").setValue(uid).await() } catch (_: Exception) {} }
+        }
+    }
+
+    /** A person's phone number, only if they let this account see it. */
+    suspend fun phoneOf(id: String): String? = try { db.getReference("contact_info/$id/phone").get().await().getValue(String::class.java)?.takeIf { it.isNotEmpty() } } catch (e: Exception) { null }
     fun group(id: String): StateFlow<Group?> = groupFlows.getOrPut(id) {
         MutableStateFlow<Group?>(null).also { f -> watch("groups/$id") { f.value = parseGroup(id, it) } }
     }
@@ -134,9 +178,10 @@ object Repo {
     suspend fun userOnce(id: String): User? = parseUser(id, db.getReference("users/$id").get().await())
 
     // ------------------------------------------------------------------------------------------ profile
+    /** Presence lives in its own node so the owner's privacy choices can be enforced by the database rules. */
     fun setOnline(on: Boolean) {
         if (uid.isEmpty()) return
-        val r = db.getReference("users/$uid")
+        val r = db.getReference("presence/$uid")
         if (on) {
             r.child("online").setValue(true)
             r.child("online").onDisconnect().setValue(false)
@@ -145,6 +190,8 @@ object Repo {
             r.child("online").setValue(false)
             r.child("lastSeen").setValue(ServerValue.TIMESTAMP)
         }
+        // the old public fields are no longer used: remove them so nobody can read them around the privacy settings
+        db.getReference("users/$uid").updateChildren(mapOf("online" to null, "lastSeen" to null, "showLastSeen" to null))
     }
 
     suspend fun usernameFree(lower: String): Boolean {
@@ -432,7 +479,40 @@ object Repo {
     }
 
     /** Encrypts (DM/group) and sends. [payload] is the plain text, or a small JSON for image/voice, or a sticker id. */
-    suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String, fwd: String? = null) {
+    // ------------------------------------------------------------------------------------------ outbox (shows "sending" bubbles at once)
+    class Outgoing(val id: String, val ref: ChatRef, val type: String, val text: String = "", val wave: List<Int> = emptyList(), val dur: Int = 0,
+                   val w: Int = 0, val h: Int = 0, val thumb: androidx.compose.ui.graphics.ImageBitmap? = null) {
+        val ts = System.currentTimeMillis()
+        var failed by androidx.compose.runtime.mutableStateOf(false)
+        var error by androidx.compose.runtime.mutableStateOf("")
+        var work: (suspend () -> Unit)? = null
+    }
+    val outgoing = androidx.compose.runtime.mutableStateListOf<Outgoing>()
+
+    /** Adds the bubble immediately, then does the slow work (processing, upload, send). The bubble disappears when the real message arrives. */
+    fun runOutgoing(o: Outgoing, work: suspend () -> Unit) {
+        o.work = work
+        if (o !in outgoing) outgoing.add(o)
+        o.failed = false
+        scope.launch {
+            try { work(); outgoing.remove(o) }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { o.failed = true; o.error = e.message ?: "Could not send"; com.kafisir.wetalks.ui.Nav.say(o.error) }
+        }
+    }
+    fun retryOutgoing(o: Outgoing) { o.work?.let { runOutgoing(o, it) } }
+    fun dropOutgoing(o: Outgoing) { outgoing.remove(o) }
+
+    /** Turns an already-sent text message into a link card once its preview is ready. */
+    suspend fun attachLinkPreview(ref: ChatRef, mid: String, text: String, p: LinkPreview) {
+        val kv = if (ref.kind == Kind.GROUP) (group(ref.id).value?.kv ?: 1) else 0
+        val key = chatKey(ref, kv)
+        val payload = JSONObject().put("t", text).put("u", p.url).put("ti", p.title).put("d", p.desc).put("i", p.thumb).toString()
+        val body = if (key == null) payload else Crypto.sealText(key, payload)
+        db.getReference("messages/${ref.id}/$mid").updateChildren(mapOf("type" to "link", "body" to body)).await()
+    }
+
+    suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String, fwd: String? = null): String {
         val slowSecs = checkAllowed(ref, type)
         val kv = if (ref.kind == Kind.GROUP) (group(ref.id).value?.kv ?: groupVersion(ref.id)) else 0
         val key = chatKey(ref, kv)
@@ -449,6 +529,7 @@ object Repo {
         if (slowSecs > 0) up["slow/${ref.id}/$uid"] = ServerValue.TIMESTAMP
         db.reference.updateChildren(up).await()
         if (slowSecs > 0) slowPrefs.edit().putLong(ref.id, System.currentTimeMillis()).apply()
+        return mid
     }
 
     suspend fun editMessage(ref: ChatRef, id: String, newText: String) {
@@ -579,6 +660,7 @@ object Repo {
         val data = if (key == null) Crypto.b64(bytes) else Crypto.seal(key, bytes)
         val id = db.getReference("media").push().key!!
         db.getReference("media/$id").setValue(hashMapOf("from" to uid, "mime" to mime, "data" to data)).await()
+        DataPrefs.addUp(data.length.toLong())
         return id
     }
 
@@ -586,7 +668,11 @@ object Repo {
 
     suspend fun loadMedia(ref: ChatRef, id: String, kv: Int = 0): ByteArray? {
         mediaCache.get(id)?.let { return it }
-        val s = db.getReference("media/$id/data").get().await().getValue(String::class.java) ?: return null
+        var s = DataPrefs.getDisk(id)
+        if (s == null) {
+            s = db.getReference("media/$id/data").get().await().getValue(String::class.java) ?: return null
+            DataPrefs.addDown(s.length.toLong()); DataPrefs.putDisk(id, s)
+        }
         val bytes = try {
             if (ref.kind == Kind.DM) {
                 var out: ByteArray? = null
@@ -650,8 +736,10 @@ object Repo {
         val key = phoneKey(raw) ?: return
         val old = db.getReference("users/$uid/phoneKey").get().await().getValue(String::class.java)
         if (old != null && old != key) db.getReference("phones/$old").removeValue()
-        try { db.getReference("phones/$key").setValue(uid).await() } catch (_: Exception) { return }
+        try { db.getReference("contact_info/$uid/phone").setValue(raw.filter { it.isDigit() || it == '+' }.take(20)).await() } catch (_: Exception) {}
         db.getReference("users/$uid/phoneKey").setValue(key).await()
+        if (privacyOf("find", "all") == "nobody") { db.getReference("phones/$key").removeValue(); return }
+        try { db.getReference("phones/$key").setValue(uid).await() } catch (_: Exception) { return }
     }
 
     suspend fun myPhoneRegistered(): Boolean = db.getReference("users/$uid/phoneKey").get().await().exists()
