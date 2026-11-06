@@ -236,23 +236,51 @@ private fun SmallBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, on: 
     }
 }
 
+/** A video surface that can really be rounded: SurfaceView ignores clipping, a TextureView does not. Used for the mini window. */
+private class RoundVideoView(c: android.content.Context) : android.view.TextureView(c), org.webrtc.VideoSink, android.view.TextureView.SurfaceTextureListener {
+    private val renderer = org.webrtc.EglRenderer("wt-mini")
+    private var ready = false
+    fun setup(ctx: org.webrtc.EglBase.Context, cornerDp: Float) {
+        renderer.init(ctx, org.webrtc.EglBase.CONFIG_PLAIN, org.webrtc.GlRectDrawer())
+        surfaceTextureListener = this
+        val r = cornerDp * resources.displayMetrics.density
+        outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, r) } }
+        clipToOutline = true
+        ready = true
+    }
+    fun mirror(on: Boolean) = renderer.setMirror(on)
+    override fun onFrame(f: org.webrtc.VideoFrame) { if (ready) renderer.onFrame(f) }
+    fun dispose() { if (ready) { ready = false; renderer.release() } }
+    override fun onSurfaceTextureAvailable(st: android.graphics.SurfaceTexture, w: Int, h: Int) { renderer.createEglSurface(st); if (h > 0) renderer.setLayoutAspectRatio(w.toFloat() / h) }
+    override fun onSurfaceTextureSizeChanged(st: android.graphics.SurfaceTexture, w: Int, h: Int) { if (h > 0) renderer.setLayoutAspectRatio(w.toFloat() / h) }
+    override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
+        val l = java.util.concurrent.CountDownLatch(1); renderer.releaseEglSurface { l.countDown() }
+        try { l.await(500, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: InterruptedException) {}
+        return true
+    }
+    override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
+}
+
 @Composable
 private fun VideoView(track: VideoTrack?, mirror: Boolean, overlay: Boolean, modifier: Modifier, cornerDp: Float = 0f) {
+    if (cornerDp > 0f) {
+        var view by remember { mutableStateOf<RoundVideoView?>(null) }
+        AndroidView(factory = { c -> RoundVideoView(c).apply { setup(Calls.egl.eglBaseContext, cornerDp) }.also { view = it } },
+            update = { it.mirror(mirror) }, onRelease = { it.dispose() }, modifier = modifier)
+        DisposableEffect(track, view) {
+            val v = view
+            if (track != null && v != null) track.addSink(v)
+            onDispose { if (track != null && v != null) try { track.removeSink(v) } catch (_: Exception) {} }
+        }
+        return
+    }
     var view by remember { mutableStateOf<SurfaceViewRenderer?>(null) }
     AndroidView(factory = { c ->
         SurfaceViewRenderer(c).apply {
             init(Calls.egl.eglBaseContext, null); setEnableHardwareScaler(true)
             setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL); setZOrderMediaOverlay(overlay)
         }.also { view = it }
-    }, update = {
-        it.setMirror(mirror)
-        // a video surface is not clipped by the Compose shape, so round it at the view level (this is what fixes the square corners)
-        if (cornerDp > 0f) {
-            val r = cornerDp * it.resources.displayMetrics.density
-            it.outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, r) } }
-            it.clipToOutline = true
-        }
-    }, onRelease = { it.release() }, modifier = modifier)
+    }, update = { it.setMirror(mirror) }, onRelease = { it.release() }, modifier = modifier)
     DisposableEffect(track, view) {
         val v = view
         if (track != null && v != null) track.addSink(v)

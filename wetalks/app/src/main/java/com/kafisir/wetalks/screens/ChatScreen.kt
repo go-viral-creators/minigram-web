@@ -15,6 +15,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -22,6 +24,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -90,6 +93,14 @@ private fun dayLabel(ts: Long): String {
         f.format(Date(ts)) == f.format(Date(now - 86400000L)) -> "Yesterday"
         else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(Date(ts))
     }
+}
+/** Some recognisers return Every Word Capitalised; turn that into normal sentence case. */
+fun tidyTranscript(t: String): String {
+    val words = t.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    if (words.size < 4 || words.count { it.first().isUpperCase() } * 100 / words.size < 60) return t.trim()
+    val sb = StringBuilder(); var cap = true
+    for (ch in t.trim().lowercase()) { sb.append(if (cap && ch.isLetter()) ch.uppercaseChar() else ch); if (ch.isLetter()) cap = false else if (ch == '.' || ch == '?' || ch == '!') cap = true }
+    return sb.toString()
 }
 class BubbleNote(val label: String, val text: String, val loading: Boolean)
 
@@ -300,8 +311,9 @@ fun ChatScreen(ref: ChatRef) {
             val bytes = m.mediaId?.let { Repo.loadMedia(ref, it) } ?: throw IllegalStateException("Could not load the voice message")
             val o = com.kafisir.wetalks.voice.Transcriber.transcribe(ctx, bytes, I18n.speechLang.ifEmpty { null })
             val nm = I18n.languages.firstOrNull { it.code.substringBefore('-') == o.lang.substringBefore('-') }?.english ?: o.lang
-            if (show) txNotes[m.id] = BubbleNote("Transcript · $nm", o.text, false)
-            o.text
+            val clean = tidyTranscript(o.text)
+            if (show) txNotes[m.id] = BubbleNote("Transcript · $nm", clean, false)
+            clean
         } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { if (show) txNotes.remove(m.id); toast(e.message ?: "Could not transcribe"); null }
     }
     fun doTranslate(m: Msg, to: String) {
@@ -388,13 +400,13 @@ fun ChatScreen(ref: ChatRef) {
                         val hl by animateColorAsState(if (m.id == highlightId) We.primary.copy(alpha = .30f) else Color.Transparent, tween(500), label = "hl")
                         Row(Modifier.fillMaxWidth().background(if (sel) We.primary.copy(alpha = .14f) else hl).padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (selecting) Box(Modifier.padding(start = 4.dp, end = 6.dp).size(22.dp).clip(CircleShape).background(if (sel) We.primary else We.line), contentAlignment = Alignment.Center) { if (sel) Icon(Ic.Check, We.onPrimary, 14.dp) }
-                            Box(Modifier.weight(1f)) {
+                            Box(Modifier.weight(1f)) { SwipeReply(enabled = canPost && !m.pending && !m.deleted && !selecting, onReply = { reply = m; editing = null }) {
                                 Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
                                     read = ref.kind == Kind.DM && !saved && peerRead >= m.ts && m.ts > 0, lastInRun = newer == null || newer.from != m.from, pinned = m.id in pinIds,
                                     onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else if (m.unreadable) unreadableInfo = true },
                                     onLong = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (!m.deleted) { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else menuMsg = m } },
                                     onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e) },
-                                    notes = listOfNotNull(txNotes[m.id], trNotes[m.id]), onQuote = { jumpReq = it })
+                                    notes = listOfNotNull(txNotes[m.id], trNotes[m.id]), onQuote = { jumpReq = it }) }
                             }
                         }
                         val tight = UiPrefs.compact.value
@@ -602,7 +614,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     Text("Forwarded from " + nameOf(m.fwd, "someone"), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic), maxLines = 1)
                 }
                 if ((quoted != null || m.rid != null) && !m.deleted) {
-                    Row(Modifier.padding(bottom = 6.dp).then(if (m.type == "image") Modifier.padding(8.dp) else Modifier).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
+                    Row(Modifier.then(if (m.type == "image") Modifier.fillMaxWidth().padding(8.dp) else Modifier.padding(bottom = 6.dp)).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
                         .combinedClickable(onClick = { m.rid?.let(onQuote) }, onLongClick = onLong)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
                         Column(Modifier.padding(8.dp, 5.dp)) {
@@ -650,6 +662,34 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 }
             }
         }
+    }
+}
+
+/** Telegram style: drag a message to the right and let go to reply to it. */
+@Composable
+private fun SwipeReply(enabled: Boolean, onReply: () -> Unit, content: @Composable () -> Unit) {
+    val d = LocalDensity.current.density
+    var dx by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    val x by animateFloatAsState(dx, if (dragging) snap() else tween(180), label = "swipe")
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val trigger = 64 * d
+    Box(Modifier.fillMaxWidth().then(if (!enabled) Modifier else Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onDragStart = { dragging = true },
+            onDragEnd = { dragging = false; if (dx >= trigger) onReply(); dx = 0f },
+            onDragCancel = { dragging = false; dx = 0f },
+        ) { change, amount ->
+            change.consume()
+            val before = dx
+            dx = (dx + amount).coerceIn(0f, 84 * d)
+            if (before < trigger && dx >= trigger) haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+        }
+    })) {
+        val p = (x / trigger).coerceIn(0f, 1f)
+        Box(Modifier.align(Alignment.CenterStart).padding(start = 10.dp).size(32.dp).graphicsLayer { alpha = p; scaleX = .6f + .4f * p; scaleY = .6f + .4f * p }
+            .clip(CircleShape).background(We.primary.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Icon(Ic.Reply, We.primary, 18.dp) }
+        Box(Modifier.graphicsLayer { translationX = x }) { content() }
     }
 }
 
@@ -891,20 +931,25 @@ fun ImageViewer(ref: ChatRef, mediaId: String) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val animScale by animateFloatAsState(scale, tween(160), label = "z")
+    var bars by remember { mutableStateOf(true) }
+    var touched by remember { mutableIntStateOf(0) }
+    LaunchedEffect(bars, touched) { if (bars) { delay(4000); bars = false } }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (bmp == null) androidx.compose.material3.CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
         else Image(bmp, null, Modifier.fillMaxSize().systemBarsPadding()
             .pointerInput(Unit) {
-                detectTapGestures(onDoubleTap = { if (scale > 1.05f) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } else scale = 2.6f })
+                detectTapGestures(onTap = { bars = !bars; touched++ }, onDoubleTap = { if (scale > 1.05f) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } else scale = 2.6f })
             }
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
+                    if (bars && (zoom != 1f)) touched++
                     scale = (scale * zoom).coerceIn(1f, 8f)
                     val maxX = size.width * (scale - 1) / 2; val maxY = size.height * (scale - 1) / 2
                     offset = if (scale <= 1.01f) androidx.compose.ui.geometry.Offset.Zero else androidx.compose.ui.geometry.Offset((offset.x + pan.x * scale).coerceIn(-maxX, maxX), (offset.y + pan.y * scale).coerceIn(-maxY, maxY))
                 }
             }.graphicsLayer { scaleX = animScale; scaleY = animScale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
-        Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp).background(Color(0x66000000), RoundedCornerShape(30.dp)).align(Alignment.TopCenter), verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.animation.AnimatedVisibility(bars, Modifier.align(Alignment.TopCenter), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+        Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp).background(Color(0x66000000), RoundedCornerShape(30.dp)), verticalAlignment = Alignment.CenterVertically) {
             IconBtn(Ic.Close, Color.White, { Nav.pop() })
             Spacer(Modifier.weight(1f))
             if (bytes != null) {
@@ -921,6 +966,7 @@ fun ImageViewer(ref: ChatRef, mediaId: String) {
                     try { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share")) } catch (e: Exception) { Nav.say("Could not share") }
                 })
             }
+        }
         }
     }
 }
