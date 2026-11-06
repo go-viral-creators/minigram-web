@@ -11,6 +11,7 @@ RewriteRule ^developers/?$ /developers/index.html [L]
 <FilesMatch "\.apk$">
   ForceType application/vnd.android.package-archive
   Header set Content-Disposition "attachment"
+  Header set Cache-Control "no-cache, must-revalidate"
   Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 <IfModule mod_headers.c>
@@ -26,3 +27,6 @@ RewriteRule ^developers/?$ /developers/index.html [L]
   ExpiresByType image/png "access plus 7 days"
   ExpiresByType font/woff2 "access plus 30 days"
 </IfModule>
+<FilesMatch "latest\.json$">
+  Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
