@@ -41,6 +41,11 @@ object Pics {
         return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = s })?.asImageBitmap()
     }
 
+    // decoded photos kept in memory: chats re-draw constantly while scrolling, and decoding or downloading again each time makes them blink
+    private val bmpCache = object : android.util.LruCache<String, ImageBitmap>(48 * 1024 * 1024) { override fun sizeOf(k: String, v: ImageBitmap) = v.width * v.height * 4 }
+    fun cachedBmp(id: String): ImageBitmap? = bmpCache.get(id)
+    fun putBmp(id: String, b: ImageBitmap) { bmpCache.put(id, b) }
+
     fun decode(bytes: ByteArray): ImageBitmap? = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
     fun decodeB64(s: String): ImageBitmap? = if (s.isEmpty()) null else try { decode(Base64.decode(s, Base64.NO_WRAP)) } catch (e: Exception) { null }
     fun asset(ctx: Context, name: String): ImageBitmap? = try { ctx.assets.open("stickers/$name.webp").use { BitmapFactory.decodeStream(it)?.asImageBitmap() } } catch (e: Exception) { null }

@@ -30,7 +30,7 @@ object Translator {
             val s = segs.optJSONArray(i) ?: continue
             if (!s.isNull(0)) tr.append(s.optString(0)) else if (s.length() > 2 && !s.isNull(2)) rom.append(s.optString(2))
         }
-        val out = if (hinglish && rom.isNotEmpty()) rom.toString() else tr.toString()
+        val out = if (hinglish) HinglishOut.convert(tr.toString()) else tr.toString()
         Result(out.trim(), root.optString(2))
     }
 }

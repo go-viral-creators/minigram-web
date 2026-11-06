@@ -55,6 +55,8 @@ object Calls {
     var speaker by mutableStateOf(false); private set
     var frontCam by mutableStateOf(true); private set
     var connectedAt by mutableStateOf(0L); private set
+    /** The call keeps running while its screen is hidden: a small floating window shows instead, so the person can keep chatting. */
+    var minimized by mutableStateOf(false)
     var note by mutableStateOf(""); private set
     var localVideo by mutableStateOf<VideoTrack?>(null); private set
     var remoteVideo by mutableStateOf<VideoTrack?>(null); private set
@@ -149,7 +151,7 @@ object Calls {
             if (phase != CallPhase.IDLE) { setState(id, "busy"); return }
             callId = id; caller = false; peer = from; video = s.child("video").getValue(Boolean::class.java) ?: false
             pendingOffer = s.child("offer").getValue(String::class.java)
-            resetFlags(); phase = CallPhase.INCOMING; note = ""
+            resetFlags(); minimized = false; phase = CallPhase.INCOMING; note = ""
             key = Repo.chatKey(ChatRef(Repo.dmId(from), Kind.DM, from))
             Repo.db.getReference("calls/$id/ringing").setValue(true)
             watchState(); watchNeg(); startRinging(); notifyIncoming()
@@ -161,7 +163,7 @@ object Calls {
     suspend fun start(to: String, withVideo: Boolean) {
         if (phase != CallPhase.IDLE) return
         val k = Repo.chatKey(ChatRef(Repo.dmId(to), Kind.DM, to)) ?: throw IllegalStateException("They need to open WeTalks once before you can call them.")
-        key = k; peer = to; video = withVideo; caller = true; resetFlags(); callWritten = false; synchronized(pendingIce) { pendingIce.clear() }; note = "Calling…"; phase = CallPhase.OUTGOING
+        key = k; peer = to; video = withVideo; caller = true; resetFlags(); callWritten = false; synchronized(pendingIce) { pendingIce.clear() }; note = "Calling…"; minimized = false; phase = CallPhase.OUTGOING
         callId = Repo.db.getReference("calls").push().key!!
         try {
             ensureFactory(); prepareAudio(); startForegroundService()
@@ -434,7 +436,7 @@ object Calls {
         am.isSpeakerphoneOn = false; am.mode = prevAudioMode
         try { app.stopService(Intent(app, CallService::class.java)) } catch (_: Exception) {}
         key = null; pendingOffer = null; connectedAt = 0L; speaker = false; flipping = false; negSeq = 0; awaitingNeg = -1
-        phase = CallPhase.IDLE; note = ""
+        minimized = false; phase = CallPhase.IDLE; note = ""
     }
 
     // ------------------------------------------------------------------------------------------ audio / ring / notifications

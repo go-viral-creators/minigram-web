@@ -38,12 +38,14 @@ class PlaybackService : Service() {
     override fun onBind(i: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // started with startForegroundService(): Android kills the app unless startForeground() is called, even if we stop right after
+        try { show() } catch (_: Exception) {}
         when (intent?.action) {
             ACT_TOGGLE -> if (Speaker.reading) Speaker.toggle() else if (VoicePlayer.playing) VoicePlayer.pause() else VoicePlayer.resume()
             ACT_STOP -> { VoicePlayer.stop(); Speaker.stop(); ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY }
         }
         if (VoicePlayer.currentId == null && !Speaker.reading) { ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY }
-        show()
+        try { show() } catch (_: Exception) {}
         return START_NOT_STICKY
     }
 

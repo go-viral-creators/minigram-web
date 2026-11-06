@@ -119,18 +119,21 @@ object Notifier {
         val readPi = PendingIntent.getBroadcast(app, code + 1, extras(Intent(app, NotifReceiver::class.java).setAction(ACT_READ)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val mutePi = PendingIntent.getBroadcast(app, code + 2, extras(Intent(app, NotifReceiver::class.java).setAction(ACT_MUTE)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val open = PendingIntent.getActivity(app, code + 3, extras(Intent(app, MainActivity::class.java)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP).setAction("wt.open." + cid), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val reply = NotificationCompat.Action.Builder(0, "Reply", replyPi).addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build()).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setAllowGeneratedReplies(true).build()
+        val reply = NotificationCompat.Action.Builder(R.drawable.ic_act_reply, "Reply", replyPi).addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build()).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setAllowGeneratedReplies(true).build()
         val n = NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle(cv.title).setContentText(l.last().text).setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE).setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setOnlyAlertOnce(!alert).setWhen(l.last().ts).setShowWhen(true)
             .setContentIntent(open).setGroup(GROUP)
             .addAction(reply)
-            .addAction(NotificationCompat.Action.Builder(0, "Mark as read", readPi).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ).setShowsUserInterface(false).build())
-            .addAction(NotificationCompat.Action.Builder(0, "Mute", mutePi).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE).build())
+            .addAction(NotificationCompat.Action.Builder(R.drawable.ic_act_read, "Mark as read", readPi).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ).setShowsUserInterface(false).build())
+            .addAction(NotificationCompat.Action.Builder(R.drawable.ic_act_mute, "Mute", mutePi).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE).build())
             .build()
         try {
             val nm = NotificationManagerCompat.from(app)
             nm.notify(code, n)
-            nm.notify(SUMMARY, NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle("WeTalks").setContentText("New messages").setGroup(GROUP).setGroupSummary(true).setAutoCancel(true).build())
+            // a summary only when several chats are waiting: with one chat it would hide the Reply / Mark as read / Mute buttons behind a collapsed "New messages" row
+            val active = try { (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).activeNotifications.count { it.id != SUMMARY && it.notification.group == GROUP } } catch (_: Exception) { 1 }
+            if (active >= 2) nm.notify(SUMMARY, NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle("WeTalks").setContentText("New messages").setGroup(GROUP).setGroupSummary(true).setAutoCancel(true).build())
+            else nm.cancel(SUMMARY)
         } catch (_: SecurityException) {}
     }
 

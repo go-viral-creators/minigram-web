@@ -109,10 +109,17 @@ fun CallScreen() {
     val bigTrack = if (bigIsLocal) local else remote
     val bigShows = videoMode && bigTrack != null && (!bigIsLocal || Calls.camOn)
 
+    androidx.activity.compose.BackHandler(enabled = phase != CallPhase.INCOMING) { Calls.minimized = true }      // Back hides the call, it does not end it
     Box(Modifier.fillMaxSize().background(Navy).onSizeChanged { box = it }.pointerInput(Unit) { detectTapGestures { controls = !controls; touch++ } }) {
         if (bigShows) key(bigIsLocal) { VideoView(bigTrack, mirror = bigIsLocal && Calls.frontCam, overlay = false, Modifier.fillMaxSize()) }
         else Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF16305C), Navy))))
 
+        // minimize: keep the call going and use the rest of the app
+        AnimatedVisibility(controls || !videoMode, Modifier.align(Alignment.TopStart), enter = fadeIn(), exit = fadeOut()) {
+            Box(Modifier.statusBarsPadding().padding(start = 12.dp, top = 10.dp).size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = .16f)).combinedClickable(onClick = { Calls.minimized = true }), contentAlignment = Alignment.Center) {
+                Icon(Ic.ChevronDown, Color.White, 26.dp)
+            }
+        }
         // name / timer
         AnimatedVisibility(controls || !videoMode, Modifier.align(Alignment.TopCenter), enter = fadeIn(), exit = fadeOut()) {
             Column(Modifier.statusBarsPadding().padding(top = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -160,6 +167,40 @@ fun CallScreen() {
                 }
                 Spacer(Modifier.height(26.dp))
                 BigBtn(Ic.Phone, Red, "End", rotate = 135f) { Calls.hangUp() }
+            }
+        }
+    }
+}
+
+/** The floating window shown while a call is minimized: drag it anywhere, tap it to go back to the call. */
+private var miniPos by mutableStateOf(Offset.Zero)
+
+@Composable
+fun BoxScope.CallMini() {
+    val phase = Calls.phase
+    if (!Calls.minimized || phase == CallPhase.IDLE || phase == CallPhase.INCOMING) return
+    val d = LocalDensity.current.density
+    var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(phase) { while (true) { tick = System.currentTimeMillis(); delay(1000) } }
+    val sub = if (phase == CallPhase.ACTIVE) { val s = ((maxOf(tick, Calls.connectedAt) - Calls.connectedAt) / 1000).toInt(); "%d:%02d".format(s / 60, s % 60) } else Calls.note.ifEmpty { "Connecting…" }
+    val user by Repo.user(Calls.peer.ifEmpty { Repo.uid }).collectAsState()
+    val remote = Calls.remoteVideo
+    val showVideo = Calls.video && remote != null && phase == CallPhase.ACTIVE
+    val move = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 70.dp, end = 12.dp).offset { IntOffset(miniPos.x.roundToInt(), miniPos.y.roundToInt()) }
+        .pointerInput(Unit) { detectDragGestures { c, dd -> c.consume(); miniPos = Offset((miniPos.x + dd.x).coerceIn(-300f * d, 0f), (miniPos.y + dd.y).coerceIn(-60f * d, 560f * d)) } }
+        .pointerInput(Unit) { detectTapGestures(onTap = { Calls.minimized = false }) }
+    if (showVideo) {
+        Box(move.size(104.dp, 148.dp).shadow(10.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp)).background(Navy)) {
+            key(remote) { VideoView(remote, mirror = false, overlay = true, Modifier.fillMaxSize(), cornerDp = 20f) }
+            Text(sub, color = Color.White, style = T.tiny, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp))
+        }
+    } else {
+        Row(move.shadow(10.dp, RoundedCornerShape(30.dp)).clip(RoundedCornerShape(30.dp)).background(Green).padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(user?.name ?: "", user?.photo ?: "", 38.dp, Calls.peer)
+            Spacer(Modifier.width(9.dp))
+            Column {
+                Text(user?.name ?: "Call", color = Color.White, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, modifier = Modifier.widthIn(max = 120.dp))
+                Text(sub, color = Color.White.copy(alpha = .9f), style = T.tiny)
             }
         }
     }

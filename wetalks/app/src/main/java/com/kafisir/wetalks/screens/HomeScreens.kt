@@ -131,7 +131,6 @@ fun previewText(type: String, text: String) = when (type) {
 /** Telegram-style dialog: optionally tick "Also delete for X" to wipe the chat on both phones. */
 @Composable
 fun DeleteChatDialog(ref: ChatRef, name: String, onDismiss: () -> Unit, onDone: () -> Unit = {}) {
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var both by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     val dm = ref.kind == Kind.DM && ref.peer != Repo.uid
@@ -153,7 +152,7 @@ fun DeleteChatDialog(ref: ChatRef, name: String, onDismiss: () -> Unit, onDone: 
                 Text(if (busy) "Deleting…" else "Delete", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).tap {
                     if (busy) return@tap
                     busy = true
-                    scope.launch { try { Repo.deleteChat(ref, both); onDismiss(); onDone() } catch (e: Exception) { busy = false; Nav.say("Could not delete: " + (e.message ?: "try again")) } }
+                    Repo.scope.launch { try { Repo.deleteChat(ref, both); onDismiss(); onDone() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { busy = false; Nav.say("Could not delete: " + (e.message ?: "try again")) } }
                 }.padding(horizontal = 14.dp, vertical = 10.dp))
             }
         }

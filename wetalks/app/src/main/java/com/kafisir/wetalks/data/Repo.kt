@@ -539,7 +539,7 @@ object Repo {
             plain = opened ?: ""; if (opened == null) bad = true
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
-        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0; var fname = ""; var fsize = 0L; var fkey = ""; var fthumb = ""
+        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0; var fname = ""; var fsize = 0L; var fkey = ""; var fthumb = ""; var album = ""
         if (!bad && r.type in listOf("image", "voice", "gif", "link", "call", "video", "audio", "file")) {
             try {
                 val j = org.json.JSONObject(plain)
@@ -547,14 +547,14 @@ object Repo {
                     "call" -> { dur = j.optInt("d"); mime = j.optString("s"); w = j.optInt("v") }
                     "link" -> { text = j.optString("t"); link = LinkPreview(j.optString("u"), j.optString("ti"), j.optString("d"), j.optString("i")) }
                     else -> {
-                        mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
+                        mediaId = j.optString("m"); album = j.optString("ag"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
                         if (r.type == "video" || r.type == "audio" || r.type == "file") { fname = FileKit.cleanName(j.optString("n")); fsize = j.optLong("s"); fkey = j.optString("k"); fthumb = j.optString("th"); mime = FileKit.mimeOf(FileKit.extOf(fname)) }
                         j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
                     }
                 }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb)
+        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb, album = album)
     }
 
     /** Opens a DM body with whichever candidate key works (AES-GCM tells us which one is right). */
@@ -608,7 +608,7 @@ object Repo {
     // ------------------------------------------------------------------------------------------ outbox (shows "sending" bubbles at once)
     class Outgoing(val id: String, val ref: ChatRef, val type: String, val text: String = "", val wave: List<Int> = emptyList(), val dur: Int = 0,
                    val w: Int = 0, val h: Int = 0, val thumb: androidx.compose.ui.graphics.ImageBitmap? = null,
-                   val name: String = "", val size: Long = 0) {
+                   val name: String = "", val size: Long = 0, val album: String = "") {
         val ts = System.currentTimeMillis()
         var progress by androidx.compose.runtime.mutableFloatStateOf(0f)
         var failed by androidx.compose.runtime.mutableStateOf(false)
@@ -696,8 +696,20 @@ object Repo {
 
     /** After a deletion, point the chat list at whatever message is now the newest one. */
     private suspend fun refreshLast(ref: ChatRef) {
-        if (ref.kind == Kind.CHANNEL) return
         val last = db.getReference("messages/${ref.id}").orderByKey().limitToLast(1).get().await().children.firstOrNull()
+        if (ref.kind == Kind.CHANNEL) {
+            // channel posts are plain: the line under the channel name must follow the newest post that is left
+            val body = last?.str("body") ?: ""
+            val pv = when (last?.str("type")) {
+                null -> ""; "text" -> body.take(90); "image" -> "Photo"; "voice" -> "Voice message"; "gif" -> "GIF"; "sticker" -> "Sticker"; "video" -> "Video"; "audio" -> "Audio"; "file" -> "File"
+                "link" -> try { org.json.JSONObject(body).optString("t").take(90) } catch (_: Exception) { "Link" }
+                else -> ""
+            }
+            val up = HashMap<String, Any?>(); up["channels/${ref.id}/lastPreview"] = pv
+            if (last != null) up["channels/${ref.id}/lastTs"] = last.lng("ts")
+            try { db.reference.updateChildren(up).await() } catch (_: Exception) {}
+            return
+        }
         val targets = when (ref.kind) {
             Kind.DM -> listOfNotNull(uid, ref.peer).distinct()
             else -> group(ref.id).value?.members?.keys?.toList() ?: db.getReference("groups/${ref.id}/members").get().await().children.mapNotNull { it.key }

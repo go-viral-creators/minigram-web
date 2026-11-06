@@ -37,6 +37,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.placeCursorAtEnd
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
@@ -49,11 +51,16 @@ import androidx.compose.foundation.content.hasMediaType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import com.kafisir.wetalks.ui.Text
+import com.kafisir.wetalks.ui.TextTools
+import com.kafisir.wetalks.ui.CodeDetect
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -106,6 +113,18 @@ fun speechLabel(lang: String, text: String): String? {
     return if (hits * 100 / w.size >= 18) "Hinglish (Hindi)" else null
 }
 /** Plain text with tappable links, or Markdown when the message uses it and the setting is on. */
+/** Long messages show the first lines with "Show more", so a pasted file does not take over the chat. */
+@Composable
+fun CollapsibleText(text: String, color: Color, style: androidx.compose.ui.text.TextStyle) {
+    val cut = remember(text) { TextTools.cut(text) }
+    var open by remember(text) { mutableStateOf(false) }
+    Column {
+        FormattedText(if (cut == null || open) text else cut, color, style)
+        if (cut != null) Text(if (open) "Show less" else "Show more…", color = color, style = T.small.copy(fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline),
+            modifier = Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).clickable { open = !open }.padding(vertical = 4.dp, horizontal = 2.dp))
+    }
+}
+
 @Composable
 fun FormattedText(text: String, color: Color, style: androidx.compose.ui.text.TextStyle) {
     if (UiPrefs.markdown.value && Markdown.hasFormatting(text)) MarkdownText(text, color, style) else Text(linkified(text, color), color = color, style = style)
@@ -140,7 +159,7 @@ fun ChatScreen(ref: ChatRef) {
     var hideTick by remember { mutableIntStateOf(0) }
     var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }
     val outs = Repo.outgoing.filter { it.ref.id == ref.id }
-    val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h, name = o.name, size = o.size) }
+    val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h, name = o.name, size = o.size, album = o.album) }
     val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
     val pinIds by remember(ref) { Repo.pins(ref) }.collectAsState(emptyList())
@@ -165,6 +184,18 @@ fun ChatScreen(ref: ChatRef) {
     val input = tfs.text.toString()
     fun setInput(v: String) = tfs.setTextAndPlaceCursorAtEnd(v)
     var fmtBar by remember { mutableStateOf(false) }
+    val fmtToolbar = remember { FormatToolbar { UiPrefs.markdown.value } }
+    // Enter after "1. item" / "- item" starts the next item; Enter on an empty item goes back to plain text
+    val listEnter = remember {
+        InputTransformation {
+            if (UiPrefs.markdown.value && changes.changeCount == 1) {
+                val r = changes.getRange(0); val o = changes.getOriginalRange(0)
+                if (o.length == 0 && r.length == 1 && r.start < length && asCharSequence()[r.start] == '\n') {
+                    TextTools.continueList(asCharSequence(), r.start)?.let { e -> replace(e.start, e.end, e.text); selection = androidx.compose.ui.text.TextRange(e.cursor) }
+                }
+            }
+        }
+    }
     // formatting helpers for the composer: wrap the selection (or put the cursor between the marks)
     fun fmtWrap(open: String, close: String = open) {
         tfs.edit {
@@ -213,7 +244,7 @@ fun ChatScreen(ref: ChatRef) {
     var highlightId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(msgs, jumpReq) {
         val j = jumpReq ?: return@LaunchedEffect
-        val idx = msgs.reversed().indexOfFirst { it.id == j }
+        val idx = groupAlbums(msgs.reversed()).indexOfFirst { g -> g.any { it.id == j } }
         if (idx >= 0) {
             jumpReq = null   // clearing this restarts the effect, so the scroll runs in its own scope or it would be cancelled
             scope.launch { delay(120); listState.animateScrollToItem(idx); highlightId = j }
@@ -261,7 +292,9 @@ fun ChatScreen(ref: ChatRef) {
     }
 
     fun sendText() {
-        val t = tfs.text.toString().trim(); if (t.isEmpty() && editing?.type != "image") return
+        val raw = tfs.text.toString().trim(); if (raw.isEmpty() && editing?.type != "image") return
+        // pasted or typed source code (any language) goes out as a Markdown code block, HTML gets the preview button
+        val t = if (UiPrefs.markdown.value && editing?.type != "image") CodeDetect.wrap(raw) else raw
         val e = editing; val r = reply
         tfs.clearText(); editing = null; reply = null
         Repo.scope.launch {
@@ -436,7 +469,7 @@ fun ChatScreen(ref: ChatRef) {
             val idx = pinCursor.coerceIn(0, livePins.size - 1).let { livePins.size - 1 - it }.coerceIn(0, livePins.size - 1)
             val pm = msgs.firstOrNull { it.id == livePins[idx] }
             Row(Modifier.fillMaxWidth().background(We.surface).combinedClickable(onClick = {
-                pm?.let { target -> val i = msgs.reversed().indexOfFirst { it.id == target.id }; if (i >= 0) scope.launch { listState.animateScrollToItem(i) } }
+                pm?.let { target -> val i = groupAlbums(msgs.reversed()).indexOfFirst { g -> g.any { it.id == target.id } }; if (i >= 0) scope.launch { listState.animateScrollToItem(i) } }
                 pinCursor = (pinCursor + 1) % livePins.size
             }).padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.width(3.dp).height(34.dp).clip(CircleShape).background(We.primary)); Spacer(Modifier.width(10.dp))
@@ -458,12 +491,15 @@ fun ChatScreen(ref: ChatRef) {
                 Text(if (saved) "Save notes, photos and voice messages here. Only you can read them." else if (ref.kind == Kind.CHANNEL) "Posts from admins show up here." else "Messages are end-to-end encrypted. Only the people in this chat can read them.", color = We.text2, style = T.small, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
             }
             val rev = msgs.reversed()
+            val rows = remember(msgs) { groupAlbums(rev) }
             LazyColumn(Modifier.fillMaxSize(), state = listState, reverseLayout = true, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
-                itemsIndexed(rev, key = { _, m -> m.id }) { i, m ->
-                    val older = rev.getOrNull(i + 1); val newer = rev.getOrNull(i - 1)
-                    if (i == rev.size - 1 && msgs.size >= limit) LaunchedEffect(limit) { limit += 40 }
+                itemsIndexed(rows, key = { _, g -> g.last().id }) { i, g ->
+                    val m = g.last()                       // an album is represented by its first photo (its id never changes while the rest arrive)
+                    val album = if (g.size > 1) g.reversed() else emptyList()
+                    val older = rows.getOrNull(i + 1)?.first(); val newer = rows.getOrNull(i - 1)?.last()
+                    if (i == rows.size - 1 && msgs.size >= limit) LaunchedEffect(limit) { limit += 40 }
                     val mine = m.from == me
-                    val sel = m.id in selected
+                    val sel = g.all { it.id in selected }
                     Column {
                         if (older == null || dayLabel(older.ts) != dayLabel(m.ts)) DayChip(dayLabel(m.ts))
                         val sameAsOlder = older != null && older.from == m.from && dayLabel(older.ts) == dayLabel(m.ts)
@@ -473,8 +509,10 @@ fun ChatScreen(ref: ChatRef) {
                             Box(Modifier.weight(1f)) { SwipeReply(enabled = canPost && !m.pending && !m.deleted && !selecting, onReply = { reply = m; editing = null }) {
                                 Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
                                     read = ref.kind == Kind.DM && !saved && peerRead >= m.ts && m.ts > 0, lastInRun = newer == null || newer.from != m.from, pinned = m.id in pinIds,
-                                    onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else if (m.unreadable) unreadableInfo = true },
-                                    onLong = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (!m.deleted) { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else menuMsg = m } },
+                                    album = album,
+                                    onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.removeAll(g.map { it.id }.toSet()) else g.forEach { x -> if (x.id !in selected) selected.add(x.id) } } else if (m.unreadable) unreadableInfo = true },
+                                    onLong = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (!m.deleted) { if (selecting) { if (sel) selected.removeAll(g.map { it.id }.toSet()) else g.forEach { x -> if (x.id !in selected) selected.add(x.id) } } else menuMsg = m } },
+                                    onLongOf = { x -> if (x.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == x.id } } else if (selecting) { if (x.id in selected) selected.remove(x.id) else selected.add(x.id) } else menuMsg = x },
                                     onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e) },
                                     notes = listOfNotNull(txNotes[m.id], trNotes[m.id]), onQuote = { jumpReq = it }) }
                             }
@@ -483,6 +521,12 @@ fun ChatScreen(ref: ChatRef) {
                         val gap = if (newer == null) 4.dp else if (newer.from == m.from && !isMedia(m) && !isMedia(newer)) (if (tight) 1.dp else 3.dp) else if (newer.from == m.from) (if (tight) 3.dp else 7.dp) else (if (tight) 6.dp else 12.dp)
                         Spacer(Modifier.height(gap))
                     }
+                }
+            }
+            val showDown by remember { derivedStateOf { listState.firstVisibleItemIndex > 3 } }
+            androidx.compose.animation.AnimatedVisibility(showDown, Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 12.dp), enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(), exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()) {
+                Box(Modifier.size(44.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(We.surface).clickable { scope.launch { listState.animateScrollToItem(0) } }, contentAlignment = Alignment.Center) {
+                    Icon(Ic.ChevronDown, We.text, 24.dp)
                 }
             }
         }
@@ -528,6 +572,7 @@ fun ChatScreen(ref: ChatRef) {
                 F("{ }", mono = true) { fmtWrap("```\n", "\n```") }; F("❝") { fmtLines { "> " } }; F("• List") { fmtLines { "- " } }; F("1. List") { fmtLines { "${it + 1}. " } }
                 F("Link") { fmtWrap("[", "](https://)") }; F("Spoiler") { fmtWrap("||") }
             }
+            fmtToolbar.Content(wrap = { a, b -> fmtWrap(a, b) }, lines = { f -> fmtLines(f) })
             Box {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.Bottom) {
                     if (rec != null) {
@@ -537,9 +582,9 @@ fun ChatScreen(ref: ChatRef) {
                         Row(Modifier.weight(1f).heightIn(min = 46.dp).padding(vertical = 2.dp).clip(RoundedCornerShape(23.dp)).background(We.field).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
                                 if (input.isEmpty()) Text(if (textOk) "Message" else "Text messages are turned off", color = We.text2, style = T.body)
-                                if (textOk) BasicTextField(tfs, Modifier.fillMaxWidth().contentReceiver(keyboardReceiver), textStyle = T.body.copy(color = We.text), cursorBrush = SolidColor(We.primary),
+                                if (textOk) androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalTextToolbar provides fmtToolbar) { BasicTextField(tfs, Modifier.fillMaxWidth().contentReceiver(keyboardReceiver), inputTransformation = listEnter, textStyle = T.body.copy(color = We.text), cursorBrush = SolidColor(We.primary),
                                     lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
-                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences))
+                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)) }
                             }
                             if (textOk && UiPrefs.markdown.value) IconBtn(Ic.Type, if (fmtBar) We.primary else We.text2, { fmtBar = !fmtBar }, 22.dp, Modifier.size(40.dp))
                             if (stickerOk) IconBtn(Ic.Smile, We.text2, { stickers = true }, 22.dp, Modifier.size(40.dp)) else Spacer(Modifier.width(10.dp))
@@ -687,7 +732,7 @@ fun DayChip(t: String) {
 }
 
 @Composable
-fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit, notes: List<BubbleNote> = emptyList(), onQuote: (String) -> Unit = {}) {
+fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit, notes: List<BubbleNote> = emptyList(), onQuote: (String) -> Unit = {}, album: List<Msg> = emptyList(), onLongOf: (Msg) -> Unit = {}) {
     val r = UiPrefs.bubble.intValue.dp
     val shape = RoundedCornerShape(r, r, if (mine && lastInRun) 4.dp else r, if (!mine && lastInRun) 4.dp else r)
     val bStyle = UiPrefs.bubbleStyle.intValue
@@ -716,6 +761,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 when {
                     m.deleted -> Text("This message was deleted", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
                     m.unreadable -> Text("🔒 Locked with an older encryption key. Tap for details", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
+                    m.type == "image" && album.size > 1 -> AlbumBody(album, ref, mine, read, fg, pinned, onLongOf)
                     m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong)
                     m.type == "voice" -> VoiceBody(m, ref, fg)
                     m.type == "video" -> VideoCard(m, ref, onLong)
@@ -724,10 +770,10 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.type == "gif" -> GifBody(m, ref, onLong)
                     m.type == "call" -> CallBody(m, mine, fg)
                     m.type == "link" && m.link != null -> {
-                        FormattedText(m.text, fg, T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
+                        CollapsibleText(m.text, fg, T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
                         LinkCard(m.link, fg, onLong)
                     }
-                    else -> FormattedText(m.text, fg, T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
+                    else -> CollapsibleText(m.text, fg, T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
                 }
                 if (!isSticker) notes.forEach { n ->
                     Column(Modifier.padding(top = 6.dp).then(if (m.type == "image") Modifier.padding(horizontal = 12.dp) else Modifier)) {
@@ -800,7 +846,7 @@ private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color,
 private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLong: () -> Unit) {
     var manual by remember(m.id) { mutableStateOf(false) }
     val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) } == true) || remember { DataPrefs.mayAutoDownload() }
-    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, m.mediaId, allowed) { if (allowed) m.mediaId?.let { id -> Repo.loadMedia(ref, id)?.let { value = Pics.decode(it) } } }
+    val bmp = rememberChatBitmap(ref, m.mediaId, allowed)
     val hasCap = m.text.isNotEmpty()
     Column(Modifier.width(262.dp)) {
         Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong)) {
@@ -817,6 +863,77 @@ private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Co
         if (hasCap) {
             Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp))
             Box(Modifier.padding(end = 12.dp, bottom = 8.dp).align(Alignment.End)) { Column { MetaRow(m, mine, read, fg, pinned) } }
+        }
+    }
+}
+
+/** Photos are decoded once and kept, so scrolling or a refresh never downloads or decodes them again. */
+@Composable
+fun rememberChatBitmap(ref: ChatRef, id: String?, allowed: Boolean): androidx.compose.ui.graphics.ImageBitmap? {
+    val b by produceState<androidx.compose.ui.graphics.ImageBitmap?>(id?.let { Pics.cachedBmp(it) }, id, allowed) {
+        if (id == null) return@produceState
+        Pics.cachedBmp(id)?.let { value = it; return@produceState }
+        if (allowed) Repo.loadMedia(ref, id)?.let { bytes ->
+            val d = withContext(Dispatchers.Default) { Pics.decodeSampled(bytes, 1280) }
+            if (d != null) { Pics.putBmp(id, d); value = d }
+        }
+    }
+    return b
+}
+
+/** Consecutive photos sent together (same album id, same sender) become one row. The input and the groups are newest first. */
+fun groupAlbums(rev: List<Msg>): List<List<Msg>> {
+    val out = ArrayList<MutableList<Msg>>()
+    for (m in rev) {
+        val last = out.lastOrNull()
+        if (last != null && m.type == "image" && m.album.isNotEmpty() && last.first().album.substringBefore('#') == m.album.substringBefore('#') && last.first().from == m.from && !m.deleted) last.add(m)
+        else out.add(mutableListOf(m))
+    }
+    // photos may finish uploading in any order: show them in the order they were picked (the list is newest first)
+    for (g in out) if (g.size > 1) g.sortByDescending { it.album.substringAfter('#', "0").toIntOrNull() ?: 0 }
+    return out
+}
+
+/** WhatsApp-style grid: up to 4 tiles, the last one says "+N" when there are more. Tap a tile to open the photos one by one. */
+@Composable
+private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLongOf: (Msg) -> Unit) {
+    val ids = list.mapNotNull { it.mediaId }
+    val cap = list.firstOrNull { it.text.isNotEmpty() }?.text ?: ""
+    val shown = list.take(4); val extra = list.size - shown.size
+    val last = list.last()
+    @Composable fun Tile(m: Msg, mod: Modifier, more: Int = 0) {
+        var manual by remember(m.id) { mutableStateOf(false) }
+        val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) || Pics.cachedBmp(it) != null } == true) || remember { DataPrefs.mayAutoDownload() }
+        val b = rememberChatBitmap(ref, m.mediaId, allowed) ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
+        Box(mod.clip(RoundedCornerShape(6.dp)).background(We.field).combinedClickable(
+            onClick = { if (b == null && !allowed) manual = true else m.mediaId?.let { Nav.push(RImage(ref, it, ids)) } }, onLongClick = { onLongOf(m) }), contentAlignment = Alignment.Center) {
+            if (b != null) Image(b, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            else if (!allowed) Icon(Ic.Download, We.primary, 26.dp)
+            else androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.primary, strokeWidth = 2.dp)
+            if (m.pending) Box(Modifier.matchParentSize().background(Color(0x55000000)), contentAlignment = Alignment.Center) {
+                if (Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true) Icon(Ic.Alert, Color.White, 22.dp) else androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+            }
+            if (more > 0) Box(Modifier.matchParentSize().background(Color(0x99000000)), contentAlignment = Alignment.Center) { Text("+$more", color = Color.White, style = T.title) }
+        }
+    }
+    Column(Modifier.width(262.dp)) {
+        Box(Modifier.padding(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                when (shown.size) {
+                    2 -> Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { shown.forEach { Tile(it, Modifier.weight(1f).aspectRatio(.85f)) } }
+                    3 -> { Tile(shown[0], Modifier.fillMaxWidth().aspectRatio(1.6f)); Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { Tile(shown[1], Modifier.weight(1f).aspectRatio(1f)); Tile(shown[2], Modifier.weight(1f).aspectRatio(1f)) } }
+                    else -> { Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { Tile(shown[0], Modifier.weight(1f).aspectRatio(1f)); Tile(shown[1], Modifier.weight(1f).aspectRatio(1f)) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) { Tile(shown[2], Modifier.weight(1f).aspectRatio(1f)); Tile(shown[3], Modifier.weight(1f).aspectRatio(1f), extra) } }
+                }
+            }
+            if (cap.isEmpty()) Row(Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(clock(last.ts), color = Color.White, style = T.tiny.copy(fontSize = 10.5.sp))
+                if (mine) { Spacer(Modifier.width(3.dp)); if (last.pending) Icon(Ic.Clock, Color.White, 13.dp) else Icon(if (read) Ic.Check2 else Ic.Check, if (read) Color(0xFF7DD3FC) else Color.White, 14.dp) }
+            }
+        }
+        if (cap.isNotEmpty()) {
+            Text(linkified(cap, fg), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp))
+            Box(Modifier.padding(end = 12.dp, bottom = 8.dp).align(Alignment.End)) { Column { MetaRow(last, mine, read, fg, pinned) } }
         }
     }
 }
@@ -1017,10 +1134,13 @@ fun StickerSheet(onDismiss: () -> Unit, onPick: (String) -> Unit) {
 }
 
 @Composable
-fun ImageViewer(ref: ChatRef, mediaId: String) {
+fun ImageViewer(ref: ChatRef, mediaId0: String, ids: List<String> = emptyList()) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    val bytes by produceState<ByteArray?>(null, mediaId) { value = Repo.loadMedia(ref, mediaId) }
+    val list = ids.ifEmpty { listOf(mediaId0) }
+    var idx by remember { mutableIntStateOf(list.indexOf(mediaId0).coerceAtLeast(0)) }
+    val mediaId = list[idx.coerceIn(0, list.size - 1)]
+    val bytes by produceState<ByteArray?>(null, mediaId) { value = null; value = Repo.loadMedia(ref, mediaId) }
     val bmp = remember(bytes) { bytes?.let { Pics.decode(it) } }
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
@@ -1028,6 +1148,7 @@ fun ImageViewer(ref: ChatRef, mediaId: String) {
     var bars by remember { mutableStateOf(true) }
     var touched by remember { mutableIntStateOf(0) }
     LaunchedEffect(bars, touched) { if (bars) { delay(4000); bars = false } }
+    LaunchedEffect(mediaId) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (bmp == null) androidx.compose.material3.CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
         else Image(bmp, null, Modifier.fillMaxSize().systemBarsPadding()
@@ -1041,7 +1162,14 @@ fun ImageViewer(ref: ChatRef, mediaId: String) {
                     val maxX = size.width * (scale - 1) / 2; val maxY = size.height * (scale - 1) / 2
                     offset = if (scale <= 1.01f) androidx.compose.ui.geometry.Offset.Zero else androidx.compose.ui.geometry.Offset((offset.x + pan.x * scale).coerceIn(-maxX, maxX), (offset.y + pan.y * scale).coerceIn(-maxY, maxY))
                 }
-            }.graphicsLayer { scaleX = animScale; scaleY = animScale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
+            }
+            .pointerInput(list.size, scale > 1.01f) {
+                // swipe left / right to move between the photos of an album
+                if (list.size > 1 && scale <= 1.01f) { var dx = 0f
+                    detectHorizontalDragGestures(onDragStart = { dx = 0f }, onDragEnd = { if (dx < -90f && idx < list.size - 1) idx++ else if (dx > 90f && idx > 0) idx-- }) { _, d -> dx += d } }
+            }
+            .graphicsLayer { scaleX = animScale; scaleY = animScale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
+        if (list.size > 1) Text("${idx + 1} / ${list.size}", color = Color.White, style = T.small.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x88000000)).padding(horizontal = 14.dp, vertical = 6.dp))
         androidx.compose.animation.AnimatedVisibility(bars, Modifier.align(Alignment.TopCenter), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
         Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp).background(Color(0x66000000), RoundedCornerShape(30.dp)), verticalAlignment = Alignment.CenterVertically) {
             IconBtn(Ic.Close, Color.White, { Nav.pop() })

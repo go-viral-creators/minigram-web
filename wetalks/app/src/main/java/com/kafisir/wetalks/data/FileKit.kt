@@ -160,18 +160,48 @@ object FileKit {
     private val infoCache = object : android.util.LruCache<String, VideoInfo>(40) {}
     /** Same as [videoInfo] for a file already on the phone; remembered so scrolling the chat stays smooth. */
     fun videoInfoOf(ctx: Context, f: File): VideoInfo = infoCache.get(f.absolutePath) ?: videoInfo(ctx, Uri.fromFile(f)).also { if (it.thumb != null || it.seconds > 0) infoCache.put(f.absolutePath, it) }
+    /** True when a frame is (nearly) all black: many phones return that for the very first frame or for a hardware-decoded one. */
+    private fun mostlyBlack(b: android.graphics.Bitmap): Boolean {
+        val sm = android.graphics.Bitmap.createScaledBitmap(b, 12, 12, true)
+        var sum = 0L
+        for (y in 0 until 12) for (x in 0 until 12) { val c = sm.getPixel(x, y); sum += ((c shr 16 and 255) * 3 + (c shr 8 and 255) * 6 + (c and 255)) / 10 }
+        if (sm !== b) sm.recycle()
+        return sum / 144 < 14
+    }
+
+    /** A usable picture from the video: tries several moments and decoders and skips black frames. */
+    private fun bestFrame(r: android.media.MediaMetadataRetriever, durSec: Long): android.graphics.Bitmap? {
+        val ms = durSec * 1000
+        val times = listOf(minOf(1000L, ms / 2), ms / 4, ms / 2, 0L, ms * 3 / 4).map { it.coerceAtLeast(0L) * 1000 }.distinct()
+        var first: android.graphics.Bitmap? = null
+        for (t in times) for (opt in intArrayOf(android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, android.media.MediaMetadataRetriever.OPTION_CLOSEST)) {
+            val f = try {
+                if (Build.VERSION.SDK_INT >= 27) r.getScaledFrameAtTime(t, opt, 480, 480) else r.getFrameAtTime(t, opt)
+            } catch (_: Exception) { null } ?: continue
+            if (first == null) first = f
+            if (!mostlyBlack(f)) return f
+        }
+        return first
+    }
+
     /** Length, size and a small preview picture of a video (the picture travels inside the encrypted message, like WhatsApp's preview). */
     fun videoInfo(ctx: Context, uri: Uri): VideoInfo {
         val r = android.media.MediaMetadataRetriever()
+        var tmp: File? = null
         return try {
-            r.setDataSource(ctx, uri)
+            try { r.setDataSource(ctx, uri) } catch (e: Exception) {
+                // some pickers hand over a link the retriever cannot open: work from a private copy instead
+                val c = File(ctx.cacheDir, "vi_${System.nanoTime()}.tmp"); tmp = c
+                ctx.contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(c).use { o -> i.copyTo(o) } }
+                r.setDataSource(c.absolutePath)
+            }
             val dur = (r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) / 1000
             var w = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
             var h = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
             val rot = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
             if (rot == 90 || rot == 270) { val t = w; w = h; h = t }
             var thumb: ByteArray? = null
-            val frame = r.getFrameAtTime(minOf(1_000_000L, dur * 500_000L), android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            val frame = bestFrame(r, dur)
             if (frame != null) {
                 val sc = 400f / maxOf(frame.width, frame.height)
                 val bmp = if (sc < 1f) android.graphics.Bitmap.createScaledBitmap(frame, (frame.width * sc).toInt().coerceAtLeast(1), (frame.height * sc).toInt().coerceAtLeast(1), true) else frame
@@ -180,7 +210,7 @@ object FileKit {
                 if (thumb!!.size > 28_000) thumb = null
             }
             VideoInfo(dur.toInt(), w, h, thumb)
-        } catch (e: Exception) { VideoInfo(0, 0, 0, null) } finally { try { r.release() } catch (_: Exception) {} }
+        } catch (e: Exception) { VideoInfo(0, 0, 0, null) } finally { try { r.release() } catch (_: Exception) {}; tmp?.delete() }
     }
 
     fun size(n: Long): String = when { n >= 1024 * 1024 -> String.format("%.1f MB", n / 1048576.0); n >= 1024 -> (n / 1024).toString() + " KB"; else -> "$n B" }

@@ -24,13 +24,13 @@ object MediaApi {
 
     private class Reply(val code: Int, val body: ByteArray)
 
-    private suspend fun call(method: String, path: String, body: ByteArray?, mime: String?): Reply {
+    private suspend fun call(method: String, path: String, body: ByteArray?, mime: String?, kind: String? = null): Reply {
         var force = false
         repeat(2) {
             val r = withContext(Dispatchers.IO) {
                 val c = (URL("$BASE/$path").openConnection() as HttpURLConnection).apply {
                     requestMethod = method; connectTimeout = 15000; readTimeout = 60000
-                    setRequestProperty("Authorization", "Bearer " + token(force)); if (mime != null) setRequestProperty("X-Mime", mime)
+                    setRequestProperty("Authorization", "Bearer " + token(force)); if (mime != null) setRequestProperty("X-Mime", mime); if (kind != null) setRequestProperty("X-Kind", kind)
                     if (body != null) { doOutput = true; setFixedLengthStreamingMode(body.size); setRequestProperty("Content-Type", "application/octet-stream") }
                 }
                 try {
@@ -48,8 +48,8 @@ object MediaApi {
 
     private fun why(r: Reply): String = try { org.json.JSONObject(String(r.body)).optString("error") } catch (_: Exception) { "" }
 
-    suspend fun upload(chatId: String, bytes: ByteArray, mime: String): String {
-        val r = try { call("POST", "media?cid=" + java.net.URLEncoder.encode(chatId, "UTF-8"), bytes, mime) }
+    suspend fun upload(chatId: String, bytes: ByteArray, mime: String, kind: String = if (mime.startsWith("audio/")) "voice" else if (mime == "image/gif") "gif" else "image"): String {
+        val r = try { call("POST", "media?cid=" + java.net.URLEncoder.encode(chatId, "UTF-8"), bytes, mime, kind) }
         catch (e: java.io.IOException) { throw IllegalStateException("No connection to the media server. Check your internet.") }
         if (r.code != 201) throw IllegalStateException(when (r.code) {
             413 -> "That file is too large"; 429 -> "Too many uploads, try again later"; 507 -> "Your media storage is full"

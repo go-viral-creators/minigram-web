@@ -95,7 +95,7 @@ object I18n {
             val acc = HashMap(table); val gate = Semaphore(6); var done = 0
             try {
                 todo.chunked(40).forEach { chunk ->
-                    chunk.map { s -> async { gate.withPermit { val r = try { Translator.translate(s, code, "en") } catch (e: Exception) { null }; if (r != null) synchronized(acc) { acc[s] = r.text } } } }.awaitAll()
+                    chunk.map { s -> async { gate.withPermit { val r = if (code == "hi-Latn" && com.kafisir.wetalks.data.HinglishOut.keep(s)) Translator.Result(s, "en") else try { Translator.translate(s, code, "en") } catch (e: Exception) { null }; if (r != null) synchronized(acc) { acc[s] = r.text } } } }.awaitAll()
                     done += chunk.size
                     table = HashMap(acc); version++; progress = done.toFloat() / todo.size
                     sp(c).edit().putString("tbl_$code", JSONObject(acc as Map<*, *>).toString()).apply()

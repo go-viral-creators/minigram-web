@@ -304,14 +304,18 @@ fun PhotoEditorScreen() {
             Box(Modifier.size(48.dp).clip(CircleShape).background(We.primary).clickable(enabled = !busy && items.isNotEmpty()) {
                 // like Telegram: the editor closes at once and the photos appear in the chat as "sending" bubbles
                 val cap = caption.trim()
+                val albumId = if (items.size > 1) java.util.UUID.randomUUID().toString().take(12) else ""     // several photos sent together show as one album
                 items.toList().forEachIndexed { i, it ->
-                    val sc = 420f / max(it.base.width, it.base.height)
+                    val sc = 960f / max(it.base.width, it.base.height)
                     val thumb = Bitmap.createScaledBitmap(it.base, (it.base.width * sc).toInt().coerceAtLeast(1), (it.base.height * sc).toInt().coerceAtLeast(1), true).asImageBitmap()
-                    val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, "image", text = if (i == 0) cap else "", thumb = thumb)
+                    val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, "image", text = if (i == 0) cap else "", thumb = thumb, album = if (albumId.isEmpty()) "" else "$albumId#$i")
                     Repo.runOutgoing(o) {
                         val (bytes, size) = withContext(Dispatchers.Default) { export(it) }
                         val id = Repo.uploadMedia(ref, bytes, "image/jpeg")
-                        Repo.send(ref, "image", JSONObject().put("m", id).put("w", size.width).put("h", size.height).put("c", if (i == 0) cap else "").toString(), if (i == 0) replyId else null, if (i == 0 && cap.isNotBlank()) cap else "Photo")
+                        Pics.putBmp(id, thumb)          // the photo is already on screen: no flash or re-download when the real message replaces the "sending" one
+                        val j = JSONObject().put("m", id).put("w", size.width).put("h", size.height).put("c", if (i == 0) cap else "")
+                        if (albumId.isNotEmpty()) j.put("ag", "$albumId#$i")
+                        Repo.send(ref, "image", j.toString(), if (i == 0) replyId else null, if (i == 0 && cap.isNotBlank()) cap else "Photo")
                     }
                 }
                 Nav.pendingReply = null

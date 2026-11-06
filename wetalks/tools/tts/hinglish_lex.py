@@ -587,4 +587,141 @@ bhagwan:भगवान
 ram:राम
 krishna:कृष्ण
 india_:इंडिया
+yr yrr yaaar yarr:यार
+kharab kharaab:ख़राब
+maaf maafi:माफ़
+maafi:माफ़ी
+galti:ग़लती
+galat:ग़लत
+sahi:सही
+zaroor zarur jaroor jarur:ज़रूर
+zaroorat zarurat:ज़रूरत
+khayal khyal:ख़याल
+khushi:ख़ुशी
+khush:ख़ुश
+dukh:दुख
+pyaar pyar:प्यार
+dil:दिल
+dost dosti:दोस्त
+dushman:दुश्मन
+zindagi:ज़िंदगी
+waqt vakt:वक़्त
+shukriya:शुक्रिया
+mehnat:मेहनत
+musibat:मुसीबत
+mushkil:मुश्किल
+aasaan asaan:आसान
+insaan:इंसान
+ijazat:इजाज़त
+kabhi:कभी
+kabhi_:
+bilkul:बिलकुल
+bhool bhul:भूल
+yaad:याद
+pareshan pareshaan:परेशान
+pareshani:परेशानी
+fikar fikr:फ़िक्र
+h:है
+hu hun:हूँ
+hn hnn haan han:हाँ
+nhi nai nahin nahi_:नहीं
+ni:नहीं
+kr:कर
+krna:करना
+krde krdena:कर दे
+krdo:कर दो
+karde kardena:कर दे
+kardo:कर दो
+kardu:कर दूँ
+kro:करो
+krunga:करूँगा
+krta:करता
+krti:करती
+mt:मत
+ky kya_:क्या
+kyu kyun kyon:क्यों
+kyunki kyonki:क्योंकि
+kese kaise:कैसे
+kb:कब
+kahan kha_:कहाँ
+mje mjhe:मुझे
+btao bataao batao:बताओ
+bta bata:बता
+dekho:देखो
+dekh:देख
+sunlo:सुन लो
+suno:सुनो
+bolo:बोलो
+chalo:चलो
+ruko:रुको
+aao:आओ
+jao:जाओ
+milte:मिलते
+milna:मिलना
+milenge:मिलेंगे
+dedo:दे दो
+dede dedena:दे दे
+lelo:ले लो
+lele:ले ले
+dega:देगा
+degi:देगी
+dunga:दूँगा
+dungi:दूँगी
+lega:लेगा
+legi:लेगी
+lunga:लूँगा
+lungi:लूँगी
+hoga:होगा
+hogi:होगी
+honge:होंगे
+hogaya hogya:हो गया
+hogayi hogyi:हो गयी
+gaya gya:गया
+gayi gyi:गयी
+gaye gye:गए
+raha rha:रहा
+rahi rhi:रही
+rahe rhe:रहे
+acha accha achha:अच्छा
+achi achhi acchi:अच्छी
+bura:बुरा
+bohot bahot bhot bahut:बहुत
+thoda thora:थोड़ा
+zyada jyada zada:ज़्यादा
+kam_:
+bas_:
+jaldi:जल्दी
+dheere dhire:धीरे
+abhi:अभी
+abhi_:
+baad baadme:बाद
+pehle pahle:पहले
+aaj:आज
+kal:कल
+parso:परसों
+subah:सुबह
+shaam:शाम
+raat:रात
+dopahar:दोपहर
+wapas vapas:वापस
+phir fir:फिर
+lekin lakin:लेकिन
+magar:मगर
+isliye:इसलिए
+kyunki_:
+agar:अगर
+warna varna:वरना
+chahiye chahie:चाहिए
+chahta:चाहता
+chahti:चाहती
+chahte:चाहते
+sakta:सकता
+sakti:सकती
+sakte:सकते
+padega:पड़ेगा
+padegi:पड़ेगी
+padta:पड़ता
+padti:पड़ती
+lagta:लगता
+lagti:लगती
 """

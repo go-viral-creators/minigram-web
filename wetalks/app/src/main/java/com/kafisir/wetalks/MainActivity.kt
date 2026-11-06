@@ -1,5 +1,6 @@
 package com.kafisir.wetalks
 
+import com.kafisir.wetalks.screens.CallMini
 import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -107,7 +108,7 @@ fun App() {
             when (me) {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) }
                 false -> ProfileSetupScreen(null, onDone = {})
-                true -> if (Repo.keyConflict.collectAsState().value) RestoreKeyScreen() else if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
+                true -> if (Repo.keyConflict.collectAsState().value) RestoreKeyScreen() else if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(com.kafisir.wetalks.data.Calls.minimized && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING) && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
                     else if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
@@ -172,7 +173,7 @@ fun Main() {
                 RAppearance -> AppearanceScreen()
                 RBlocked -> BlockedScreen()
                 RAbout -> AboutScreen()
-                is RImage -> ImageViewer(r.ref, r.mediaId)
+                is RImage -> ImageViewer(r.ref, r.mediaId, r.ids)
                 is RNaturalVoices -> com.kafisir.wetalks.screens.NaturalVoicesScreen()
                 is RHtml -> com.kafisir.wetalks.screens.HtmlPreviewScreen(r.html)
                 is RServices -> com.kafisir.wetalks.screens.ServiceInboxScreen()
@@ -190,6 +191,7 @@ fun Main() {
         }
     }
     VoiceOverlay()
+    CallMini()
     }
 }
 

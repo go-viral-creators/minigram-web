@@ -52,6 +52,7 @@ object Ic {
     val Pin: ImageVector by lazy { icon("Pin", "M9 4h6l-1 6l3 3H7l3-3L9 4ZM12 13v7") }
     val Info: ImageVector by lazy { icon("Info", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM12 11v5M12 8h.01") }
     val Chevron: ImageVector by lazy { icon("Chevron", "M9 5l7 7l-7 7") }
+    val ChevronDown: ImageVector by lazy { icon("ChevronDown", "M5 9l7 7l7-7") }
     val Camera: ImageVector by lazy { icon("Camera", "M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM12 17a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z") }
     val Key: ImageVector by lazy { icon("Key", "M8 14a4 4 0 1 1 3.9-5H21v3h-2v2h-3v-2h-4.1A4 4 0 0 1 8 14Z") }
     val Palette: ImageVector by lazy { icon("Palette", "M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2s0-2 1.5-2h2a4 4 0 0 0 4-4c0-5-4-10-9-10ZM7.5 11h.01M10 7.5h.01M14.5 7.5h.01") }

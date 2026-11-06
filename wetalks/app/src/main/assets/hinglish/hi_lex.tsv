@@ -12,6 +12,7 @@ aapke	आपके
 aapki	आपकी
 aapko	आपको
 aapne	आपने
+aasaan	आसान
 aasan	आसान
 aata	आता
 aate	आते
@@ -26,6 +27,7 @@ aayi	आई
 ab	अब
 abhi	अभी
 accha	अच्छा
+acchi	अच्छी
 acha	अच्छा
 achchha	अच्छा
 ache	अच्छे
@@ -49,6 +51,7 @@ apko	आपको
 apne	अपने
 are	अरे
 arre	अरे
+asaan	आसान
 asan	आसान
 aur	और
 aurat	औरत
@@ -59,6 +62,7 @@ ayegi	आएगी
 ayenge	आएँगे
 ayi	आई
 baad	बाद
+baadme	बाद
 baat	बात
 baatein	बातें
 baaten	बातें
@@ -82,6 +86,7 @@ band	बंद
 bas	बस
 bata	बता
 bata_do	बता दो
+bataao	बताओ
 batana	बताना
 batao	बताओ
 batata	बताता
@@ -121,6 +126,8 @@ bola	बोला
 bolna	बोलना
 bolo	बोलो
 bolta	बोलता
+bta	बता
+btao	बताओ
 bulana	बुलाना
 bulao	बुलाओ
 bulaya	बुलाया
@@ -171,6 +178,9 @@ dalo	डालो
 darr	डर
 das	दस
 de	दे
+dede	दे दे
+dedena	दे दे
+dedo	दे दो
 dega	देगा
 degi	देगी
 dekh	देख
@@ -200,6 +210,7 @@ dikha	दिखा
 dikhao	दिखाओ
 dikhta	दिखता
 dikhti	दिखती
+dil	दिल
 din	दिन
 diya	दिया
 dobara	दोबारा
@@ -207,11 +218,13 @@ door	दूर
 doosra	दूसरा
 dopahar	दोपहर
 dost	दोस्त
+dosti	दोस्त
 dukh	दुख
 dunga	दूँगा
 dungi	दूँगी
 duniya	दुनिया
 dur	दूर
+dushman	दुश्मन
 dusra	दूसरा
 ek	एक
 fatafat	फटाफट
@@ -223,6 +236,7 @@ gaana	गाना
 gaanv	गाँव
 gai	गयी
 galat	गलत
+galti	ग़लती
 gana	गाना
 gaon	गाँव
 gaya	गया
@@ -237,6 +251,7 @@ gussa	गुस्सा
 gya	गया
 gye	गए
 gyi	गयी
+h	है
 haa	हाँ
 haal	हाल
 haan	हाँ
@@ -257,10 +272,15 @@ hazaar	हज़ार
 hazar	हज़ार
 hein	हैं
 hmesha	हमेशा
+hn	हाँ
+hnn	हाँ
 ho	हो
 hoga	होगा
 hogaya	हो गया
+hogayi	हो गयी
 hogi	होगी
+hogya	हो गया
+hogyi	हो गयी
 hokar	होकर
 honge	होंगे
 hoon	हूँ
@@ -280,6 +300,7 @@ humein	हमें
 humne	हमने
 hun	हूँ
 idhar	इधर
+ijazat	इजाज़त
 inhe	इन्हें
 inhein	इन्हें
 inhone	इन्होंने
@@ -312,6 +333,7 @@ jaldi	जल्दी
 jana	जाना
 janta	जानता
 jao	जाओ
+jaroor	ज़रूर
 jarur	ज़रूर
 jata	जाता
 jate	जाते
@@ -347,6 +369,10 @@ kal	कल
 kam	कम
 kar	कर
 karan	कारण
+karde	कर दे
+kardena	कर दे
+kardo	कर दो
+kardu	कर दूँ
 karega	करेगा
 karegi	करेगी
 karenge	करेंगे
@@ -359,6 +385,7 @@ karti	करती
 karunga	करूँगा
 karungi	करूँगी
 kaun	कौन
+kb	कब
 ke	के
 keh	कह
 kehdo	कह दो
@@ -372,6 +399,8 @@ kesi	कैसी
 kha	खा
 khabar	खबर
 khana	खाना
+kharaab	ख़राब
+kharab	ख़राब
 khatam	ख़त्म
 khaya	खाया
 khayal	ख़याल
@@ -383,6 +412,7 @@ khoobsurat	खूबसूरत
 khubsurat	खूबसूरत
 khula	खुला
 khush	खुश
+khushi	ख़ुशी
 khyal	ख़याल
 ki	की
 kia	क्या
@@ -401,13 +431,24 @@ kiye	किए
 ko	को
 koi	कोई
 kon	कौन
+kr	कर
+krde	कर दे
+krdena	कर दे
+krdo	कर दो
 krishna	कृष्ण
+krna	करना
+kro	करो
+krta	करता
+krti	करती
+krunga	करूँगा
 kuch	कुछ
 kuchh	कुछ
+ky	क्या
 kya	क्या
 kyaa	क्या
 kyo	क्यों
 kyon	क्यों
+kyonki	क्योंकि
 kyu	क्यों
 kyuki	क्योंकि
 kyun	क्यों
@@ -424,12 +465,15 @@ lagta	लगता
 lagte	लगते
 lagti	लगती
 lakh	लाख
+lakin	लेकिन
 lamba	लंबा
 le	ले
 lega	लेगा
 legi	लेगी
 lekin	लेकिन
 lekn	लेकिन
+lele	ले ले
+lelo	ले लो
 lena	लेना
 lenge	लेंगे
 likha	लिखा
@@ -443,6 +487,7 @@ lunga	लूँगा
 lungi	लूँगी
 maa	माँ
 maaf	माफ़
+maafi	माफ़
 maang	माँग
 maange	माँगे
 maangna	माँगना
@@ -461,6 +506,7 @@ matlab	मतलब
 mausam	मौसम
 maza	मज़ा
 mazaa	मज़ा
+mehnat	मेहनत
 mein	में
 mera	मेरा
 mere	मेरे
@@ -475,19 +521,23 @@ milke	मिलके
 milna	मिलना
 milo	मिलो
 milte	मिलते
+mje	मुझे
 mjhe	मुझे
 mjhko	मुझे
 mra	मेरा
 mre	मेरे
 mri	मेरी
+mt	मत
 mujhe	मुझे
 mujhey	मुझे
 mujhko	मुझे
 mummy	मम्मी
 mushkil	मुश्किल
+musibat	मुसीबत
 na	ना
 nahi	नहीं
 nahin	नहीं
+nai	नहीं
 namaskar	नमस्कार
 namaste	नमस्ते
 nau	नौ
@@ -498,6 +548,7 @@ ne	ने
 neeche	नीचे
 neend	नींद
 nhi	नहीं
+ni	नहीं
 niche	नीचे
 nind	नींद
 nya	नया
@@ -530,6 +581,9 @@ panch	पाँच
 pani	पानी
 papa	पापा
 par	पर
+pareshaan	परेशान
+pareshan	परेशान
+pareshani	परेशानी
 parso	परसों
 pass	पास
 pata	पता
@@ -637,6 +691,7 @@ sun	सुन
 suna	सुना
 sundar	सुंदर
 sunkar	सुनकर
+sunlo	सुन लो
 sunna	सुनना
 suno	सुनो
 sununga	सुनूँगा
@@ -662,6 +717,7 @@ thin	थीं
 thoda	थोड़ा
 thode	थोड़े
 thodi	थोड़ी
+thora	थोड़ा
 tmhara	तुम्हारा
 tmhare	तुम्हारे
 tmhari	तुम्हारी
@@ -726,6 +782,7 @@ warna	वरना
 wo	वो
 woh	वो
 ya	या
+yaaar	यार
 yaad	याद
 yaar	यार
 yah	यह
@@ -733,11 +790,17 @@ yaha	यहाँ
 yahan	यहाँ
 yahi	यही
 yar	यार
+yarr	यार
 ye	ये
 yeh	ये
+yr	यार
+yrr	यार
 zabardast	ज़बरदस्त
+zada	ज़्यादा
 zaroor	ज़रूर
+zaroorat	ज़रूरत
 zarur	ज़रूर
+zarurat	ज़रूरत
 zindagi	ज़िंदगी
 zyaada	ज़्यादा
 zyada	ज़्यादा
