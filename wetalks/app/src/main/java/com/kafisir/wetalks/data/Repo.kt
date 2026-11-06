@@ -128,7 +128,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
+    private fun detachAll() { inboxWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -263,6 +263,23 @@ object Repo {
         if (old == null) m["createdAt"] = ServerValue.TIMESTAMP
         return try { db.getReference("users/$me").updateChildren(m).await(); try { publishWebProfile() } catch (_: Exception) {}; null } catch (e: Exception) { e.message ?: "Could not save" }
     }
+
+    // ------------------------------------------------------------------------------------------ service inbox (developer API)
+    val serviceMsgs = MutableStateFlow<List<ServiceMsg>>(emptyList())
+    private var inboxWatching = ""
+    fun watchServiceInbox() {
+        if (uid.isEmpty() || inboxWatching == uid) return
+        inboxWatching = uid
+        watch("service_inbox/$uid") { s ->
+            serviceMsgs.value = s.children.mapNotNull { c ->
+                val a = c.str("a"); if (a.isEmpty()) return@mapNotNull null
+                ServiceMsg(c.key!!, a, c.str("an"), c.lng("v") == 1L, c.str("k"), c.str("t"), c.str("x"), c.str("l"), c.lng("o") == 1L, c.lng("ts"))
+            }.sortedByDescending { it.ts }
+        }
+    }
+    suspend fun deleteServiceMsgs(ids: List<String>) { val up = HashMap<String, Any?>(); ids.forEach { up["service_inbox/$uid/$it"] = null }; db.reference.updateChildren(up).await() }
+    suspend fun blockedServices(): Set<String> = db.getReference("service_blocks/$uid").get().await().children.mapNotNull { it.key }.toSet()
+    suspend fun setServiceBlocked(appId: String, on: Boolean) { db.getReference("service_blocks/$uid/$appId").setValue(if (on) true else null).await() }
 
     // ------------------------------------------------------------------------------------------ public web card
     // The link page on the web needs a name and picture without signing in. Only what a public profile / public channel already shows

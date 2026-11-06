@@ -327,3 +327,35 @@ test('web cards: public to read, only the owner writes, unknown fields rejected'
   await assertFails(set(ref(db(B), 'web/c/news'), { n: 'Hacked' }));
   await assertSucceeds(remove(ref(db(A), 'web/u/alice')));
 });
+
+test('service inbox: only the relay writes, people can switch services off or block an app, strangers cannot read or write', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'config/relay'), 'relayuid'); });
+  const msg = { a: 'app_0123456789ab', an: 'Acme', v: 0, k: 'otp', x: 'Your code is 123456', ts: Date.now(), o: 1 };
+  await assertSucceeds(set(ref(db('relayuid'), 'service_inbox/alice/m1'), msg));
+  await assertSucceeds(get(ref(db(A), 'service_inbox/alice')));
+  await assertFails(get(ref(db(B), 'service_inbox/alice')));
+  await assertFails(get(ref(anon(), 'service_inbox/alice')));
+  await assertFails(set(ref(db(B), 'service_inbox/alice/m2'), msg));                        // a normal user can't send service messages
+  await assertFails(set(ref(db(A), 'service_inbox/alice/m3'), msg));                        // not even to themselves
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m1'), { ...msg, x: 'changed' })); // no editing sent messages
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m4'), { ...msg, x: 'x'.repeat(501) }));
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m5'), { ...msg, k: 'spam' }));
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m6'), { ...msg, extra: 'field' }));
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m7'), { ...msg, l: 'http://evil.example' }));
+  await assertSucceeds(set(ref(db('relayuid'), 'service_inbox/alice/m8'), { ...msg, l: 'https://example.com/a?b=1' }));
+  // block this app
+  await assertSucceeds(set(ref(db(A), 'service_blocks/alice/app_0123456789ab'), true));
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m9'), msg));
+  await assertSucceeds(set(ref(db('relayuid'), 'service_inbox/alice/m10'), { ...msg, a: 'app_aaaaaaaaaaaa' })); // other apps still fine
+  await assertFails(set(ref(db(B), 'service_blocks/alice/app_bbbbbbbbbbbb'), true));        // only you manage your block list
+  await assertSucceeds(remove(ref(db(A), 'service_blocks/alice/app_0123456789ab')));
+  // switch all services off
+  await assertSucceeds(set(ref(db(A), 'privacy/alice/services'), 'nobody'));
+  await assertFails(set(ref(db('relayuid'), 'service_inbox/alice/m11'), msg));
+  await assertSucceeds(set(ref(db(A), 'privacy/alice/services'), 'all'));
+  await assertSucceeds(set(ref(db('relayuid'), 'service_inbox/alice/m12'), msg));
+  // delete: owner only
+  await assertFails(remove(ref(db(B), 'service_inbox/alice/m1')));
+  await assertSucceeds(remove(ref(db(A), 'service_inbox/alice/m1')));
+  await assertFails(set(ref(db(A), 'config/relay'), 'alice'));                              // nobody can make themselves the relay
+});

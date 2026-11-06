@@ -60,7 +60,7 @@ fun HomeScreen() {
         })
         Box(Modifier.weight(1f)) {
             when (tab) {
-                0 -> ChatList(visible.filter { it.ref.kind == Kind.DM }, Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.")
+                0 -> ChatList(visible.filter { it.ref.kind == Kind.DM }, Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.", header = { ServicesRow() })
                 1 -> ChatList(visible.filter { it.ref.kind == Kind.GROUP }, Ic.Group, "No groups yet", "Create a group to chat with several people at once.")
                 2 -> ChatList(visible.filter { it.ref.kind == Kind.CHANNEL }, Ic.Mega, "No channels yet", "Tap the search icon to find public channels, or + to start your own.")
                 else -> MeScreen()

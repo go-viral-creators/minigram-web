@@ -48,6 +48,33 @@
       } }
     },
 
+    "service_inbox": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$mid": {
+          ".write": "auth != null && ((auth.uid === $uid && data.exists() && !newData.exists()) || (root.child('config').child('relay').val() === auth.uid && !data.exists() && newData.exists() && root.child('privacy').child($uid).child('services').val() !== 'nobody' && !root.child('service_blocks').child($uid).child(newData.child('a').val()).exists()))",
+          ".validate": "!newData.exists() || newData.hasChildren(['a','an','k','x','ts'])",
+          "a": { ".validate": "newData.isString() && newData.val().matches(/^app_[a-f0-9]{12}$/)" },
+          "an": { ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 32" },
+          "v": { ".validate": "newData.val() === 0 || newData.val() === 1" },
+          "k": { ".validate": "newData.val() === 'info' || newData.val() === 'alert' || newData.val() === 'followup' || newData.val() === 'otp'" },
+          "t": { ".validate": "newData.isString() && newData.val().length <= 60" },
+          "x": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500" },
+          "l": { ".validate": "newData.isString() && newData.val().length <= 200 && newData.val().matches(/^https:\\/\\/.*/)" },
+          "o": { ".validate": "newData.val() === 1" },
+          "ts": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "service_blocks": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$app": { ".write": "auth != null && auth.uid === $uid", ".validate": "$app.matches(/^app_[a-f0-9]{12}$/) && newData.val() === true" }
+      }
+    },
+
     "config": {
       "maintenance": { ".read": true, ".write": false }
     },

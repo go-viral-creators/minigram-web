@@ -46,3 +46,7 @@ data class Msg(
 
 /** Preview card fetched by the sender and sent inside the encrypted message. */
 data class LinkPreview(val url: String, val title: String, val desc: String, val thumb: String)
+
+/** A message from an app or service (sent through the WeTalks developer API). */
+data class ServiceMsg(val id: String, val appId: String, val appName: String, val verified: Boolean, val kind: String,
+                      val title: String, val text: String, val link: String, val otp: Boolean, val ts: Long)

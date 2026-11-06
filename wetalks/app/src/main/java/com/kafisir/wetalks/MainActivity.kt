@@ -43,7 +43,7 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this) }
+    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -61,6 +61,7 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); intent.data?.let { Nav.pendingLink.value = it.toString() }; openChatFrom(intent) }
     /** Tapping a message notification opens that chat. */
     private fun openChatFrom(i: android.content.Intent?) {
+        if (i?.getBooleanExtra("services", false) == true) { Nav.pendingServices.value = true; return }
         val cid = i?.getStringExtra("cid")?.takeIf { it.isNotEmpty() } ?: return
         Nav.pendingChat.value = com.kafisir.wetalks.data.ChatRef(cid, com.kafisir.wetalks.data.Kind.values().getOrElse(i.getIntExtra("kind", 0)) { com.kafisir.wetalks.data.Kind.DM }, i.getStringExtra("peer")?.ifEmpty { null })
         com.kafisir.wetalks.data.Notifier.cancel(cid)
@@ -90,10 +91,12 @@ fun App() {
             LaunchedEffect(uid, me) { if (me == true) {
                 // incoming calls first: nothing else may stop the phone from ringing
                 try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
-                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush(); try { Repo.publishWebProfile() } catch (_: Exception) {}
+                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush(); Repo.watchServiceInbox(); try { Repo.publishWebProfile() } catch (_: Exception) {}
                 try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             val pendChat by Nav.pendingChat
+            val pendSvc by Nav.pendingServices
+            LaunchedEffect(pendSvc, me) { if (me == true && pendSvc) { Nav.pendingServices.value = false; Nav.stack.clear(); Nav.push(RServices) } }
             LaunchedEffect(pendChat, me) { if (me == true && pendChat != null) { val c = pendChat!!; Nav.pendingChat.value = null; Nav.stack.clear(); Nav.push(RChat(c)) } }
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
             // the first resume often happens before the profile check has finished, so also go online as soon as it has
@@ -170,6 +173,7 @@ fun Main() {
                 RBlocked -> BlockedScreen()
                 RAbout -> AboutScreen()
                 is RImage -> ImageViewer(r.ref, r.mediaId)
+                is RServices -> com.kafisir.wetalks.screens.ServiceInboxScreen()
                 is RVideo -> com.kafisir.wetalks.screens.VideoPlayerScreen(r.path, r.title)
                 RPhotoEdit -> PhotoEditorScreen()
                 is RBrowser -> BrowserScreen(r.url)

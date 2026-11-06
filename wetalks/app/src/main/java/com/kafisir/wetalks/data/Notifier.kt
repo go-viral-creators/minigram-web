@@ -45,8 +45,35 @@ object Notifier {
         if (!enabled(app) || Repo.uid.isEmpty() || job?.isActive == true) return
         baseline = false; last.clear()
         job = Repo.scope.launch { Repo.chats().collect { list -> try { handle(list) } catch (_: Exception) {} } }
+        svcJob?.cancel()
+        svcJob = Repo.scope.launch { Repo.watchServiceInbox(); Repo.serviceMsgs.collect { list -> try { serviceNotify(list) } catch (_: Exception) {} } }
     }
-    fun stop() { job?.cancel(); job = null; try { NotificationManagerCompat.from(app).cancelAll() } catch (_: Exception) {}; lines.clear(); convs.clear() }
+
+    // ---- messages from apps / services (developer API): one notification each, the newest few
+    private var svcJob: kotlinx.coroutines.Job? = null
+    private var svcFirst = true
+    private fun svcPrefs() = app.getSharedPreferences("wt_ui", Context.MODE_PRIVATE)
+    private fun serviceNotify(list: List<ServiceMsg>) {
+        val done = svcPrefs().getLong("svc_notified", 0L)
+        val newest = list.firstOrNull()?.ts ?: 0L
+        if (svcFirst) { svcFirst = false; if (done == 0L && newest > 0) { svcPrefs().edit().putLong("svc_notified", newest).apply(); return } }
+        val fresh = list.filter { it.ts > done }.take(3).reversed()
+        if (newest > done) svcPrefs().edit().putLong("svc_notified", newest).apply()
+        if (fresh.isEmpty() || (Calls.foreground && (Nav.stack.lastOrNull() is com.kafisir.wetalks.ui.RServices))) return
+        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel("services") == null) nm.createNotificationChannel(NotificationChannel("services", "Service messages", NotificationManager.IMPORTANCE_HIGH))
+        val open = PendingIntent.getActivity(app, 8123, Intent(app, MainActivity::class.java).putExtra("services", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP).setAction("wt.open.services"), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        for (m in fresh) {
+            val title = m.appName + if (m.verified) "" else " · unverified"
+            val body = (if (m.title.isNotEmpty() && !m.otp) m.title + ": " else "") + m.text
+            val n = NotificationCompat.Builder(app, "services").setSmallIcon(R.mipmap.ic_launcher).setContentTitle(title).setContentText(body).setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setContentIntent(open).setWhen(m.ts).setShowWhen(true).setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setVisibility(if (m.otp) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC).build()
+            try { NotificationManagerCompat.from(app).notify(9000 + (m.id.hashCode() and 0xFFF), n) } catch (_: SecurityException) {}
+        }
+    }
+    fun clearServices() { if (!::app.isInitialized) return; try { val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager; nm.activeNotifications.filter { it.id in 9000..13095 }.forEach { nm.cancel(it.id) } } catch (_: Exception) {} }
+    fun stop() { job?.cancel(); job = null; svcJob?.cancel(); svcJob = null; svcFirst = true; try { NotificationManagerCompat.from(app).cancelAll() } catch (_: Exception) {}; lines.clear(); convs.clear() }
     fun cancel(cid: String) { if (!::app.isInitialized) return; try { NotificationManagerCompat.from(app).cancel(cid.hashCode()) } catch (_: Exception) {}; lines.remove(cid) }
 
     private fun isOpen(ref: ChatRef) = Calls.foreground && (Nav.stack.lastOrNull() as? RChat)?.ref?.id == ref.id

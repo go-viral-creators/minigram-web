@@ -21,6 +21,7 @@ data object RBlocked : Route
 data object RAbout : Route
 data class RAddMembers(val gid: String) : Route
 data class RImage(val ref: ChatRef, val mediaId: String) : Route
+object RServices : Route
 data class RVideo(val path: String, val title: String) : Route
 data object RPhotoEdit : Route
 data class RBrowser(val url: String) : Route
@@ -44,6 +45,7 @@ object Nav {
     var jumpTo: String? = null
     val pendingLink = mutableStateOf<String?>(null)
     val pendingChat = mutableStateOf<ChatRef?>(null)
+    val pendingServices = mutableStateOf(false)
     /** Opens the chat and scrolls to (and highlights) one message. */
     fun openChatAt(ref: ChatRef, mid: String) {
         jumpTo = mid

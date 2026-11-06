@@ -41,6 +41,9 @@ fun PrivacyScreen() {
             Row2(Ic.Eye, "Online status", label(pv["online"] ?: "all"), onClick = { choose = Triple("online", "Who can see when I'm online", "all") })
             Row2(Ic.Search, "Find me by phone number", if ((pv["find"] ?: "all") == "nobody") "Nobody" else "Everybody", onClick = { choose = Triple("find", "Who can find me by my phone number", "all") })
             Row2(Ic.User, "Show profile on web links", "Name, photo and bio appear on your wetalks link page", trailing = { Toggle(me?.webProfile ?: true) { scope.launch { try { Repo.setWebProfile(it) } catch (_: Exception) { Nav.say("Could not save") } } } })
+            Row2(Ic.Bell, "Messages from apps & services", "Codes and alerts sent through the WeTalks developer API", trailing = { Toggle((pv["services"] ?: "all") != "nobody") { v -> scope.launch { try { Repo.setPrivacyChoice("services", if (v) "all" else "nobody") } catch (_: Exception) { Nav.say("Could not save") } } } })
+            val blocked by produceState(emptySet<String>(), pv) { value = try { Repo.blockedServices() } catch (_: Exception) { emptySet() } }
+            if (blocked.isNotEmpty()) Row2(Ic.Block, "Blocked services", blocked.size.toString() + " blocked · tap to unblock all", onClick = { scope.launch { try { blocked.forEach { Repo.setServiceBlocked(it, false) }; Nav.say("Unblocked") } catch (_: Exception) {} } })
             Row2(Ic.Check2, "Read receipts", "Show blue ticks when you read messages", trailing = { Toggle(me?.readReceipts ?: true) { Repo.setPrivacy("readReceipts", it) } })
             SectionLabel("Key backup")
             val backedUp by produceState<Boolean?>(null, backupTick) { value = Repo.hasKeyBackup() }

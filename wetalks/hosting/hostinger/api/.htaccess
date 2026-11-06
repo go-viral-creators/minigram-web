@@ -1,0 +1,3 @@
+<FilesMatch "^(lib|media|dev|service)\.php$">
+  Require all denied
+</FilesMatch>
