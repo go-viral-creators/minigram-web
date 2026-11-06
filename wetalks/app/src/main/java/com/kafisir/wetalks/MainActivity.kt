@@ -106,6 +106,17 @@ fun Main() {
     // Android 13+: notifications (calls, voice-message controls) need a one-time permission
     val ctx0 = androidx.compose.ui.platform.LocalContext.current
     val notifPerm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+    var askBackup by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val sp = ctx0.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE)
+        delay(4000)
+        if (sp.getInt("bk_skips", 0) < 3 && !Repo.hasKeyBackup()) askBackup = true
+    }
+    if (askBackup) {
+        val sp = ctx0.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE)
+        val skip = { sp.edit().putInt("bk_skips", sp.getInt("bk_skips", 0) + 1).apply(); askBackup = false }
+        KeyBackupSheet(skip) { askBackup = false }
+    }
     LaunchedEffect(Unit) {
         val sp = ctx0.getSharedPreferences("wt_ui", android.content.Context.MODE_PRIVATE)
         if (android.os.Build.VERSION.SDK_INT >= 33 && !sp.getBoolean("notif_asked", false) && ctx0.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {

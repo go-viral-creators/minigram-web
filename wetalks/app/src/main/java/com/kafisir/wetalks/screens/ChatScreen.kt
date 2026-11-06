@@ -144,6 +144,7 @@ fun ChatScreen(ref: ChatRef) {
     val trNotes = remember { mutableStateMapOf<String, BubbleNote>() }
     val txNotes = remember { mutableStateMapOf<String, BubbleNote>() }
     var pickLang by remember { mutableStateOf<Msg?>(null) }
+    var unreadableInfo by remember { mutableStateOf(false) }
     var forwarding by remember { mutableStateOf<List<Msg>?>(null) }
     val selected = remember { mutableStateListOf<String>() }
     val selecting = selected.isNotEmpty()
@@ -368,7 +369,7 @@ fun ChatScreen(ref: ChatRef) {
                             Box(Modifier.weight(1f)) {
                                 Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
                                     read = ref.kind == Kind.DM && !saved && peerRead >= m.ts && m.ts > 0, lastInRun = newer == null || newer.from != m.from, pinned = m.id in pinIds,
-                                    onClick = { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } },
+                                    onClick = { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else if (m.unreadable) unreadableInfo = true },
                                     onLong = { if (!m.deleted) { if (selecting) { if (sel) selected.remove(m.id) else selected.add(m.id) } else menuMsg = m } },
                                     onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e) },
                                     notes = listOfNotNull(txNotes[m.id], trNotes[m.id]))
@@ -480,6 +481,13 @@ fun ChatScreen(ref: ChatRef) {
             }
         }
     }
+    if (unreadableInfo) Sheet({ unreadableInfo = false }) {
+        val n = msgs.count { it.unreadable }
+        Text("These messages can't be opened", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
+        Text("They were locked with an encryption key that is no longer on this phone (the app's data was cleared, it was reinstalled, or the account was used on another phone). Messages sent from now on work normally. If you backed the key up, go to Me → Privacy → Back up encryption key on the old phone, then restore it here.", color = We.text2, style = T.body, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+        SheetItem(Ic.Trash2, "Hide $n unreadable message${if (n == 1) "" else "s"}") { msgs.filter { it.unreadable }.forEach { Repo.hideForMe(it.id) }; hideTick++; unreadableInfo = false }
+        SheetItem(Ic.Key, "Back up my key now") { unreadableInfo = false; Nav.pop(); Nav.push(RPrivacy) }
+    }
     pickLang?.let { m ->
         Sheet({ pickLang = null }) {
             var q by remember { mutableStateOf("") }
@@ -555,7 +563,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 }
                 when {
                     m.deleted -> Text("This message was deleted", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
-                    m.unreadable -> Text("Can't decrypt this message on this device", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
+                    m.unreadable -> Text("🔒 Locked with an older encryption key. Tap for details", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
                     m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong)
                     m.type == "voice" -> VoiceBody(m, ref, fg)
                     m.type == "sticker" -> StickerBody(m.text)

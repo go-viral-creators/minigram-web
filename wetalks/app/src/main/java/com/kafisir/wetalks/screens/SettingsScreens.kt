@@ -48,17 +48,7 @@ fun PrivacyScreen() {
             Spacer(Modifier.height(30.dp))
         }
     }
-    if (showBackup) Sheet({ showBackup = false }) {
-        var p1 by remember { mutableStateOf("") }; var p2 by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
-        Text("Back up encryption key", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
-        Text("Your key is locked with a passphrase on this phone and then stored. Nobody, including us, can read it without the passphrase. Remember it: if you forget it the backup cannot be opened.", color = We.text2, style = T.body, modifier = Modifier.padding(horizontal = 24.dp))
-        Column(Modifier.padding(24.dp)) {
-            Field(p1, { p1 = it }, "Passphrase (8+ characters)", password = true)
-            Spacer(Modifier.height(12.dp)); Field(p2, { p2 = it }, "Repeat passphrase", password = true, error = if (p2.isNotEmpty() && p1 != p2) "Does not match" else null)
-            Spacer(Modifier.height(16.dp))
-            PrimaryButton("Save backup", loading = busy, enabled = p1.length >= 8 && p1 == p2, onClick = { scope.launch { busy = true; try { Repo.backupKey(p1); backupTick++; showBackup = false; Nav.say("Encryption key backed up") } catch (e: Exception) { Nav.say("Could not back up: " + (e.message ?: "")) }; busy = false } })
-        }
-    }
+    if (showBackup) KeyBackupSheet({ showBackup = false }) { backupTick++ }
     if (confirm) Sheet({ confirm = false }) {
         Text("Delete your account?", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
         Text("This can't be undone. If sign-in was a long time ago you may be asked to sign in again first.", color = We.text2, style = T.body, modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
@@ -116,7 +106,7 @@ fun AboutScreen() {
         TopBar("About", onBack = { Nav.pop() })
         Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Logo(96.dp); Spacer(Modifier.height(14.dp))
-            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.5.0", color = We.text2, style = T.body)
+            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.5.1", color = We.text2, style = T.body)
             Spacer(Modifier.height(20.dp))
             Text("Private messaging with groups and channels. Direct chats and groups are end-to-end encrypted with X25519 + AES-256-GCM; your keys stay on your phone.", color = We.text2, style = T.body, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
@@ -189,5 +179,23 @@ fun RestoreKeyScreen() {
         Spacer(Modifier.height(10.dp))
         Text("Skip and start fresh", color = We.danger, style = T.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.keepNewKey() } catch (_: Exception) {} } }.padding(14.dp))
         Text("Old chats will stay unreadable on this phone if you skip.", color = We.text2, style = T.small)
+    }
+}
+
+
+/** Passphrase dialog that locks the private key and stores it, so chats survive a reinstall or a new phone. */
+@Composable
+fun KeyBackupSheet(onDismiss: () -> Unit, onDone: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    Sheet(onDismiss) {
+        var p1 by remember { mutableStateOf("") }; var p2 by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }
+        Text("Back up encryption key", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
+        Text("Chats are locked with a key that lives only on this phone. If you reinstall the app, clear its data or switch phones, that key is gone and old messages can never be opened. Lock a copy with a passphrase now. Nobody, including us, can read it without the passphrase, and if you forget the passphrase the backup cannot be opened.", color = We.text2, style = T.body, modifier = Modifier.padding(horizontal = 24.dp))
+        Column(Modifier.padding(24.dp)) {
+            Field(p1, { p1 = it }, "Passphrase (8+ characters)", password = true)
+            Spacer(Modifier.height(12.dp)); Field(p2, { p2 = it }, "Repeat passphrase", password = true, error = if (p2.isNotEmpty() && p1 != p2) "Does not match" else null)
+            Spacer(Modifier.height(16.dp))
+            PrimaryButton("Save backup", loading = busy, enabled = p1.length >= 8 && p1 == p2, onClick = { scope.launch { busy = true; try { Repo.backupKey(p1); onDone(); onDismiss(); Nav.say("Encryption key backed up") } catch (e: Exception) { Nav.say("Could not back up: " + (e.message ?: "")) }; busy = false } })
+        }
     }
 }

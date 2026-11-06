@@ -91,7 +91,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); keyConflict.value = false; Calls.reset() }
+    private fun detachAll() { listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -182,7 +182,7 @@ object Repo {
         // This phone has a different key than the one the server knows (reinstall / new phone). If a backup exists, ask the user to
         // restore it instead of silently replacing the key, which would make every old chat unreadable.
         if (exists && onServer.isNotEmpty() && onServer != mine && hasKeyBackup()) { keyConflict.value = true; return }
-        if (exists) db.getReference("users/$uid/pk").setValue(mine).await()
+        if (exists) { db.getReference("users/$uid/pk").setValue(mine).await(); db.getReference("users/$uid/pkh/" + mine.filter { it.isLetterOrDigit() }.take(24)).setValue(mine) }
         if (exists) auth.currentUser?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { registerPhone(it) }
     }
 
@@ -212,7 +212,7 @@ object Repo {
         } catch (e: Exception) { false }
     }
     /** "Start fresh": keep this phone's new key; old chats stay unreadable. */
-    suspend fun keepNewKey() { db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await(); keyConflict.value = false }
+    suspend fun keepNewKey() { val m = Crypto.b64(Crypto.keys(app).pub); db.getReference("users/$uid/pk").setValue(m).await(); db.getReference("users/$uid/pkh/" + m.filter { it.isLetterOrDigit() }.take(24)).setValue(m); keyConflict.value = false }
 
     fun setPrivacy(key: String, v: Boolean) { db.getReference("users/$uid/$key").setValue(v) }
 
@@ -279,6 +279,25 @@ object Repo {
     private val dmKeys = HashMap<String, Pair<String, ByteArray>>()
     private val groupKeys = HashMap<String, ByteArray>()
 
+    // ---- every public key a person has ever used, so chats stay readable when keys change (second phone, two accounts on one phone …)
+    private val seenPrefs get() = app.getSharedPreferences("wt_seenpk", Context.MODE_PRIVATE)
+    private val dmAll = HashMap<String, Pair<Long, List<ByteArray>>>()
+    private val dmWinner = HashMap<String, ByteArray>()
+
+    /** All keys this phone could have used with [peer]: my key x every public key the peer has published (current, history, seen before). */
+    private suspend fun dmKeyList(peer: String, fresh: Boolean = false): List<ByteArray> {
+        dmAll[peer]?.let { (t, l) -> if (!fresh || System.currentTimeMillis() - t < 20_000) return l }
+        val pubs = LinkedHashSet<String>()
+        (user(peer).value?.pk ?: userOnce(peer)?.pk)?.takeIf { it.isNotEmpty() }?.let { pubs += it }
+        try { db.getReference("users/$peer/pkh").get().await().children.forEach { c -> c.getValue(String::class.java)?.let { pubs += it } } } catch (_: Exception) {}
+        pubs += seenPrefs.getStringSet(peer, emptySet()).orEmpty()
+        seenPrefs.edit().putStringSet(peer, pubs.toSet()).apply()
+        val me = Crypto.keys(app)
+        val list = pubs.mapNotNull { p -> try { Crypto.shared(me.priv, me.pub, Crypto.unb64(p)) } catch (e: Exception) { null } }
+        dmAll[peer] = System.currentTimeMillis() to list
+        return list
+    }
+
     private suspend fun dmKey(peer: String): ByteArray? {
         val pk = (user(peer).value?.pk?.takeIf { it.isNotEmpty() } ?: userOnce(peer)?.pk?.takeIf { it.isNotEmpty() }) ?: return null
         dmKeys[peer]?.let { if (it.first == pk) return it.second }
@@ -341,8 +360,11 @@ object Repo {
         var bad = false
         if (ref.kind == Kind.CHANNEL) plain = r.body
         else {
-            val key = try { chatKey(ref, r.kv) } catch (e: Exception) { null }
-            plain = if (key == null) { bad = true; "" } else try { Crypto.openText(key, r.body) } catch (e: Exception) { bad = true; "" }
+            val opened: String? = try {
+                if (ref.kind == Kind.DM) openDm(ref.peer!!, r.body)
+                else chatKey(ref, r.kv)?.let { k -> try { Crypto.openText(k, r.body) } catch (e: Exception) { null } }
+            } catch (e: Exception) { null }
+            plain = opened ?: ""; if (opened == null) bad = true
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
         var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0
@@ -360,6 +382,15 @@ object Repo {
             } catch (e: Exception) { bad = true }
         }
         return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd)
+    }
+
+    /** Opens a DM body with whichever candidate key works (AES-GCM tells us which one is right). */
+    private suspend fun openDm(peer: String, body: String): String? {
+        dmWinner[peer]?.let { w -> try { return Crypto.openText(w, body) } catch (_: Exception) {} }
+        for (round in 0..1) {
+            for (k in dmKeyList(peer, fresh = round == 1)) try { val t = Crypto.openText(k, body); dmWinner[peer] = k; return t } catch (_: Exception) {}
+        }
+        return null
     }
 
     private suspend fun fanOut(ref: ChatRef, updates: HashMap<String, Any?>, type: String, body: String, preview: String) {
@@ -556,8 +587,14 @@ object Repo {
     suspend fun loadMedia(ref: ChatRef, id: String, kv: Int = 0): ByteArray? {
         mediaCache.get(id)?.let { return it }
         val s = db.getReference("media/$id/data").get().await().getValue(String::class.java) ?: return null
-        val key = chatKey(ref, kv)
-        val bytes = try { if (key == null) Crypto.unb64(s) else Crypto.open(key, s) } catch (e: Exception) { return null }
+        val bytes = try {
+            if (ref.kind == Kind.DM) {
+                var out: ByteArray? = null
+                dmWinner[ref.peer!!]?.let { w -> try { out = Crypto.open(w, s) } catch (_: Exception) {} }
+                if (out == null) for (k in dmKeyList(ref.peer!!)) try { out = Crypto.open(k, s); break } catch (_: Exception) {}
+                out ?: return null
+            } else { val key = chatKey(ref, kv); if (key == null) Crypto.unb64(s) else Crypto.open(key, s) }
+        } catch (e: Exception) { return null }
         mediaCache.put(id, bytes)
         return bytes
     }
