@@ -26,6 +26,16 @@
       }
     },
 
+    "config": {
+      "maintenance": { ".read": true, ".write": false }
+    },
+
+    "fcm_tokens": {
+      "$uid": {
+        "$token": { ".write": "auth != null && auth.uid === $uid", ".validate": "$token.length >= 20 && $token.length <= 400 && (newData.isNumber() || !newData.exists())" }
+      }
+    },
+
     "blocks": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid" } },
 
     "user_chats": {

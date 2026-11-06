@@ -77,7 +77,38 @@ object Repo {
         PhoneAuthProvider.verifyPhoneNumber(opts)
     }
 
+    // ------------------------------------------------------------------------------------------ app status (maintenance) + push token
+    /** Set from the Firebase console (config/maintenance). Readable without signing in so a closed app still shows it. */
+    data class Maint(val on: Boolean = false, val title: String = "", val message: String = "", val eta: String = "", val minVersion: Long = 0)
+    val maint = kotlinx.coroutines.flow.MutableStateFlow(Maint())
+    private var cfgWatching = false
+    fun watchConfig() {
+        if (cfgWatching) return
+        cfgWatching = true
+        db.getReference("config/maintenance").addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(s: DataSnapshot) {
+                maint.value = Maint(s.child("on").getValue(Boolean::class.java) ?: false, s.child("title").getValue(String::class.java) ?: "",
+                    s.child("message").getValue(String::class.java) ?: "", s.child("eta").getValue(String::class.java) ?: "", s.child("minVersion").getValue(Long::class.java) ?: 0)
+            }
+            override fun onCancelled(e: DatabaseError) {}
+        })
+    }
+
+    /** Registers this phone for push (FCM). The push carries no message text, only "something new in chat X", so end-to-end encryption is untouched. */
+    fun registerPush(token: String? = null) {
+        if (uid.isEmpty()) return
+        val put = { t: String -> db.getReference("fcm_tokens/$uid/$t").setValue(ServerValue.TIMESTAMP); Unit }
+        if (token != null) put(token)
+        else try { com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnSuccessListener { if (it != null) put(it) } } catch (_: Exception) {}
+    }
+    private fun unregisterPush() {
+        if (uid.isEmpty()) return
+        val u = uid
+        try { com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnSuccessListener { if (it != null) db.getReference("fcm_tokens/$u/$it").removeValue() } } catch (_: Exception) {}
+    }
+
     fun signOut() {
+        unregisterPush()
         setOnline(false)
         detachAll()
         auth.signOut()

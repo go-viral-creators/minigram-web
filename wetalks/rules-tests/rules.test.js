@@ -301,3 +301,18 @@ test('call flow: candidates only after the call exists, callee marks ringing, st
   await assertSucceeds(set(ref(db(B), 'calls/k1/ice_callee/y'), 'sealed'));
   await assertSucceeds(remove(ref(db(B), 'incoming_calls/bob/k1')));
 });
+
+test('maintenance switch is public to read and impossible to change from the app; push tokens are private to their owner', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'config/maintenance'), { on: true, title: 'x' }); });
+  await assertSucceeds(get(ref(anon(), 'config/maintenance')));
+  await assertFails(set(ref(db(A), 'config/maintenance/on'), false));
+  await assertFails(set(ref(anon(), 'config/maintenance/on'), false));
+  await assertFails(get(ref(db(A), 'config')));
+  const tok = 'x'.repeat(40);
+  await assertSucceeds(set(ref(db(A), 'fcm_tokens/alice/' + tok), serverTimestamp()));
+  await assertFails(set(ref(db(B), 'fcm_tokens/alice/' + tok), serverTimestamp()));   // nobody can plant a token on someone else
+  await assertFails(get(ref(db(A), 'fcm_tokens/alice')));                              // tokens can't be read back, even by the owner
+  await assertFails(get(ref(db(B), 'fcm_tokens/alice')));
+  await assertFails(set(ref(db(A), 'fcm_tokens/alice/short'), serverTimestamp()));
+  await assertFails(set(ref(db(A), 'fcm_tokens/alice/' + tok), 'text'));
+});

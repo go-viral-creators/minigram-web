@@ -218,10 +218,15 @@ object Calls {
         if (flipping) return
         flipping = true
         scope.launch { delay(2500); flipping = false }
-        c.switchCamera(object : CameraVideoCapturer.CameraSwitchHandler {
+        // phones with several back lenses (wide, tele...) made the plain "next camera" switch cycle through all of them;
+        // ask for the exact camera we want instead: the other side, main lens
+        val en = Camera2Enumerator(app)
+        val target = if (frontCam) en.deviceNames.firstOrNull { en.isBackFacing(it) } else en.deviceNames.firstOrNull { en.isFrontFacing(it) }
+        val h = object : CameraVideoCapturer.CameraSwitchHandler {
             override fun onCameraSwitchDone(front: Boolean) { scope.launch(Dispatchers.Main) { frontCam = front; flipping = false } }
             override fun onCameraSwitchError(e: String?) { scope.launch(Dispatchers.Main) { flipping = false } }
-        })
+        }
+        if (target != null) c.switchCamera(h, target) else c.switchCamera(h)
     }
     private fun applySpeaker(on: Boolean) {
         speaker = on

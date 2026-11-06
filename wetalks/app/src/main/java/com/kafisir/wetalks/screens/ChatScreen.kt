@@ -168,9 +168,8 @@ fun ChatScreen(ref: ChatRef) {
         val j = jumpReq ?: return@LaunchedEffect
         val idx = msgs.reversed().indexOfFirst { it.id == j }
         if (idx >= 0) {
-            jumpReq = null
-            delay(120); listState.animateScrollToItem(idx)
-            highlightId = j
+            jumpReq = null   // clearing this restarts the effect, so the scroll runs in its own scope or it would be cancelled
+            scope.launch { delay(120); listState.animateScrollToItem(idx); highlightId = j }
         } else if (msgs.size >= limit && limit < 2000) limit += 300
         else if (msgs.isNotEmpty()) { jumpReq = null; toast("That message is no longer available") }
     }

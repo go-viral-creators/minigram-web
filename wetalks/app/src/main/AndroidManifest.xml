@@ -58,6 +58,7 @@
         <service android:name=".voice.PlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".data.NotifReceiver" android:exported="false" />
         <receiver android:name=".data.BootReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter></receiver>
+        <service android:name=".data.PushService" android:exported="false"><intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter></service>
         <service android:name=".data.ConnectService" android:exported="false" android:foregroundServiceType="remoteMessaging" />
         <service android:name=".data.CallService" android:exported="false" android:foregroundServiceType="microphone|camera" />
     </application>

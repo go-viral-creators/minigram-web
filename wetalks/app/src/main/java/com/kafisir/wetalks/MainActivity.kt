@@ -43,7 +43,7 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
+    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -90,7 +90,7 @@ fun App() {
             LaunchedEffect(uid, me) { if (me == true) {
                 // incoming calls first: nothing else may stop the phone from ringing
                 try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
-                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp)
+                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush()
                 try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             val pendChat by Nav.pendingChat
@@ -108,6 +108,9 @@ fun App() {
                     else if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
+        val maint by Repo.maint.collectAsState()
+        val myVer = remember { try { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(ctxApp.packageManager.getPackageInfo(ctxApp.packageName, 0)) } catch (_: Exception) { Long.MAX_VALUE } }
+        if (maint.on || maint.minVersion > myVer) com.kafisir.wetalks.screens.MaintenanceScreen(maint, update = !maint.on)
         val toast by Nav.toast
         LaunchedEffect(toast) { if (toast != null) { delay(2600); Nav.toast.value = null } }
         if (toast != null) Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 90.dp, start = 24.dp, end = 24.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xE60F1B2D)).padding(horizontal = 18.dp, vertical = 12.dp)) {

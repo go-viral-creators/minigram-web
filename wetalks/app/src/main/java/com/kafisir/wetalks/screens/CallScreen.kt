@@ -17,6 +17,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -135,7 +137,7 @@ fun CallScreen() {
             val pw = 104.dp; val ph = 148.dp
             val pwPx = pw.value * density; val phPx = ph.value * density
             Box(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 100.dp, end = 14.dp).offset { IntOffset(pip.x.roundToInt(), pip.y.roundToInt()) }
-                .size(pw, ph).clip(RoundedCornerShape(14.dp)).background(Color(0xFF0F1B2D))
+                .size(pw, ph).shadow(8.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp)).border(1.dp, Color.White.copy(alpha = .25f), RoundedCornerShape(24.dp)).background(Color(0xFF0F1B2D))
                 .pointerInput(Unit) { detectTapGestures(onTap = { swapped = !swapped }) }
                 .pointerInput(Unit) { detectDragGestures { c, d -> c.consume(); pip = Offset((pip.x + d.x).coerceIn(-(box.width - pwPx - 28 * density), 0f), (pip.y + d.y).coerceIn(-70 * density, box.height - phPx - 220 * density)) } }) {
                 val showLocalHere = !bigIsLocal
@@ -196,11 +198,13 @@ private fun SlideCallButton(answer: Boolean, icon: androidx.compose.ui.graphics.
     val y = if (dragging) drag else auto
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(150.dp, 260.dp).pointerInput(Unit) {
-            detectVerticalDragGestures(onDragStart = { dragging = true }, onDragEnd = { dragging = false; drag = 0f }, onDragCancel = { dragging = false; drag = 0f },
+            detectVerticalDragGestures(onDragStart = { dragging = true },
+                // the action happens on release, and only if the button is still past the line - sliding back cancels it
+                onDragEnd = { val go = abs(drag) >= trigger; dragging = false; drag = 0f; if (go && !fired) { fired = true; onTrigger() } },
+                onDragCancel = { dragging = false; drag = 0f },
                 onVerticalDrag = { c, dy ->
                     c.consume()
                     drag = if (answer) (drag + dy).coerceIn(-travel, 0f) else (drag + dy).coerceIn(0f, travel)
-                    if (!fired && abs(drag) >= trigger) { fired = true; onTrigger() }
                 })
         }, contentAlignment = Alignment.Center) {
             // waves leaving the button
