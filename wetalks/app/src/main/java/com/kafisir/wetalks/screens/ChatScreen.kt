@@ -114,7 +114,7 @@ fun tidyTranscript(t: String): String {
 }
 class BubbleNote(val label: String, val text: String, val loading: Boolean)
 
-private fun isMedia(m: Msg) = m.type == "call" || m.type == "image" || m.type == "sticker" || m.type == "voice" || m.type == "gif" || m.type == "link"
+private fun isMedia(m: Msg) = m.type == "call" || m.type == "image" || m.type == "sticker" || m.type == "voice" || m.type == "gif" || m.type == "link" || m.type == "video" || m.type == "audio" || m.type == "file"
 
 @Composable private fun nameOf(uid: String, fallback: String): String { val u by Repo.user(uid).collectAsState(); return u?.name ?: fallback }
 
@@ -133,7 +133,7 @@ fun ChatScreen(ref: ChatRef) {
     var hideTick by remember { mutableIntStateOf(0) }
     var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }
     val outs = Repo.outgoing.filter { it.ref.id == ref.id }
-    val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h) }
+    val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h, name = o.name, size = o.size) }
     val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
     val pinIds by remember(ref) { Repo.pins(ref) }.collectAsState(emptyList())
@@ -281,6 +281,28 @@ fun ChatScreen(ref: ChatRef) {
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { us: List<Uri> ->
         if (us.isNotEmpty()) { Nav.pendingPhotos = us; Nav.pendingRef = ref; Nav.pendingReply = reply?.id; reply = null; Nav.push(RPhotoEdit) }
     }
+
+    // ---------------- files (video / audio / documents, max 30 MB) and the camera
+    fun sendPickedFile(uri: Uri, wanted: String?) {
+        val p = try { FileKit.check(ctx, uri, wanted) } catch (e: IllegalArgumentException) { toast(e.message ?: "This file can't be sent"); return }
+        val replyId = reply?.id; reply = null
+        val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, p.kind, name = p.name, size = p.size)
+        Repo.runOutgoing(o) { Repo.sendFile(ref, uri, p, replyId, null) { o.progress = it } }
+    }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u: Uri? -> if (u != null) sendPickedFile(u, "video") }
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u: Uri? -> if (u != null) sendPickedFile(u, "audio") }
+    val docPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u: Uri? -> if (u != null) sendPickedFile(u, null) }
+    var camUri by remember { mutableStateOf<Uri?>(null) }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok: Boolean ->
+        val u = camUri
+        if (ok && u != null) { Nav.pendingPhotos = listOf(u); Nav.pendingRef = ref; Nav.pendingReply = reply?.id; reply = null; Nav.push(RPhotoEdit) }
+    }
+    fun launchCamera() {
+        val f = java.io.File(ctx.cacheDir, "cam_" + System.nanoTime() + ".jpg")
+        val u = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)
+        camUri = u; try { takePhoto.launch(u) } catch (e: Exception) { toast("No camera app found") }
+    }
+    val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok: Boolean -> if (ok) launchCamera() else toast("Allow the camera to take photos") }
 
     // ---------------- calls
     val startCall = if (ref.kind == Kind.DM && !saved) rememberCallStarter(ref.peer!!) else { _: Boolean -> }
@@ -510,7 +532,11 @@ fun ChatScreen(ref: ChatRef) {
 
     // ---------------- popups / sheets
     if (attach) Sheet({ attach = false }) {
+        if (imageOk) SheetItem(Ic.Camera, "Camera") { attach = false; if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) launchCamera() else camPerm.launch(Manifest.permission.CAMERA) }
         if (imageOk) SheetItem(Ic.Image, "Photos") { attach = false; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+        if (imageOk) SheetItem(Ic.Video, "Video (max 30 MB)") { attach = false; videoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }
+        if (imageOk) SheetItem(Ic.Audio, "Audio file (max 30 MB)") { attach = false; audioPicker.launch(arrayOf("audio/*")) }
+        if (imageOk) SheetItem(Ic.File, "Document (max 30 MB)") { attach = false; docPicker.launch(arrayOf("*/*")) }
         if (stickerOk) SheetItem(Ic.Smile, "Sticker") { attach = false; stickers = true }
     }
     if (stickers) StickerSheet({ stickers = false }) { payload ->
@@ -523,6 +549,10 @@ fun ChatScreen(ref: ChatRef) {
             onReply = { reply = m; editing = null; menuMsg = null },
             onCopy = { (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("message", m.text)); menuMsg = null; toast("Copied") },
             speakText = speakTextOf(m), onSpeak = { menuMsg = null; com.kafisir.wetalks.voice.Speaker.speak(ctx, m.id, speakTextOf(m), I18n.speechLang, ::toast) },
+            onSaveFile = if (m.type in listOf("video", "audio", "file") && !m.pending) ({
+                menuMsg = null
+                scope.launch { try { val f = Repo.fetchFile(m) {}; toast(if (FileKit.saveToDownloads(ctx, f, m.name, FileKit.mimeOf(FileKit.extOf(m.name)))) "Saved to Downloads/WeTalks" else "Could not save") } catch (e: Exception) { toast(e.message ?: "Could not save") } }
+            }) else null,
             onPin = { Repo.setPin(ref, m.id, m.id !in pinIds); menuMsg = null },
             onForward = { forwarding = listOf(m); menuMsg = null },
             onEdit = { editing = m; reply = null; setInput(m.text); menuMsg = null },
@@ -647,6 +677,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.unreadable -> Text("🔒 Locked with an older encryption key. Tap for details", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
                     m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong)
                     m.type == "voice" -> VoiceBody(m, ref, fg)
+                    m.type == "video" || m.type == "audio" || m.type == "file" -> FileBody(m, ref, mine, fg, onLong)
                     m.type == "sticker" -> StickerBody(m.text)
                     m.type == "gif" -> GifBody(m, ref, onLong)
                     m.type == "call" -> CallBody(m, mine, fg)
@@ -826,7 +857,7 @@ private fun StickerBody(payload: String) {
 // ---------------------------------------------------------------------------------------------------- long-press menu
 @Composable
 private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean, pinned: Boolean, mine: Boolean, onDismiss: () -> Unit, onReact: (String) -> Unit,
-                        speakText: String, onReply: () -> Unit, onCopy: () -> Unit, onSpeak: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit) {
+                        speakText: String, onSaveFile: (() -> Unit)?, onReply: () -> Unit, onCopy: () -> Unit, onSpeak: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true, usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }, contentAlignment = Alignment.Center) {
             Column(Modifier.padding(horizontal = 20.dp).widthIn(max = 340.dp).pointerInput(Unit) { awaitEachGesture { awaitFirstDown().consume() } }, horizontalAlignment = Alignment.Start) {
@@ -840,6 +871,7 @@ private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean
                     if (canReply) MenuRow(Ic.Reply, "Reply", onClick = onReply)
                     if ((m.type == "text" || m.type == "link" || m.type == "image") && m.text.isNotEmpty()) MenuRow(Ic.Copy, if (m.type == "image") "Copy caption" else "Copy text", onClick = onCopy)
                     if (speakText.isNotEmpty()) MenuRow(Ic.Speaker, if (com.kafisir.wetalks.voice.Speaker.speakingId == m.id) "Stop listening" else "Listen", onClick = onSpeak)
+                    onSaveFile?.let { MenuRow(Ic.Download, "Save to Downloads", onClick = it) }
                     if (canPin) MenuRow(Ic.Pin, if (pinned) "Unpin" else "Pin", onClick = onPin)
                     if (m.type == "image" || m.type == "gif") MenuRow(Ic.Download, "Save to gallery", onClick = onSave)
                     MenuRow(Ic.Forward, "Forward", onClick = onForward)

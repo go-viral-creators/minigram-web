@@ -43,6 +43,7 @@ object Ic {
     val Moon: ImageVector by lazy { icon("Moon", "M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z") }
     val Shield: ImageVector by lazy { icon("Shield", "M12 3l8 3v6c0 5-3.5 8-8 9c-4.5-1-8-4-8-9V6l8-3ZM9 12l2.2 2.2L15.5 10") }
     val Logout: ImageVector by lazy { icon("Logout", "M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4l-4 4M19 12H9") }
+    val File: ImageVector by lazy { icon("File", "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9ZM14 3v6h6M8 13h8M8 17h6") }
     val Eye: ImageVector by lazy { icon("Eye", "M2 12s4-7 10-7s10 7 10 7s-4 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6Z") }
     val EyeOff: ImageVector by lazy { icon("EyeOff", "M3 3l18 18M10.6 6.2A9.6 9.6 0 0 1 12 6c6 0 10 6 10 6a17 17 0 0 1-3.2 3.7M6.6 7.6A16 16 0 0 0 2 12s4 7 10 7a9 9 0 0 0 4-1") }
     val Block: ImageVector by lazy { icon("Block", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM5.6 5.6l12.8 12.8") }

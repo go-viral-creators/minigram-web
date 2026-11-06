@@ -10,7 +10,17 @@ declare(strict_types=1);
 
 const PROJECT = 'wetalks-78e5a';
 const RTDB = 'https://wetalks-78e5a-default-rtdb.firebaseio.com';
-const MAX_BYTES = 12 * 1024 * 1024;          // one file
+// what each kind of upload may be (the phone checks the same limits; the server never trusts the phone)
+const KINDS = [
+    'image' => ['max' => 12, 'mime' => '#^image/(jpeg|png|webp|gif)$#', 'ext' => ['jpg', 'jpeg', 'png', 'webp', 'gif']],
+    'gif'   => ['max' => 12, 'mime' => '#^image/(jpeg|png|webp|gif)$#', 'ext' => ['jpg', 'jpeg', 'png', 'webp', 'gif']],
+    'voice' => ['max' => 12, 'mime' => '#^audio/[a-z0-9.+-]+$#', 'ext' => ['m4a', 'mp4', 'aac', 'ogg', 'opus']],
+    'video' => ['max' => 30, 'mime' => '#^video/[a-z0-9.+-]+$#', 'ext' => ['mp4', 'm4v', '3gp', 'mkv', 'webm', 'mov']],
+    'audio' => ['max' => 30, 'mime' => '#^audio/[a-z0-9.+-]+$#', 'ext' => ['mp3', 'm4a', 'aac', 'wav', 'ogg', 'oga', 'opus', 'flac', 'amr']],
+    'file'  => ['max' => 30, 'mime' => '#^[a-z]+/[a-z0-9.+-]+$#', 'ext' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'rtf', 'odt', 'ods', 'odp', 'json', 'xml', 'md', 'epub', 'vcf', 'zip', 'rar', '7z', 'tar', 'gz']],
+];
+const OVERHEAD = 64 * 1024;                  // encryption adds a few hundred bytes to every file
+const MAX_BYTES = 31 * 1024 * 1024;          // absolute cap on any request
 const QUOTA_BYTES = 2 * 1024 * 1024 * 1024;  // per user
 const MAX_UPLOADS_PER_HOUR = 200;
 
@@ -106,6 +116,15 @@ if ($method === 'POST' && $path === 'media') {
     $len = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
     if ($len <= 0) fail(411, 'length required');
     if ($len > MAX_BYTES) fail(413, 'file too large');
+    // declared kind / type / extension must be one we allow, and the size must fit that kind (older apps send no kind: treated as a small image-class blob)
+    $kind = strtolower((string)($_SERVER['HTTP_X_KIND'] ?? 'image'));
+    if (!isset(KINDS[$kind])) fail(400, 'unknown kind');
+    $K = KINDS[$kind];
+    if ($len > $K['max'] * 1024 * 1024 + OVERHEAD) fail(413, 'file too large for this type (max ' . $K['max'] . ' MB)');
+    $mimeIn = strtolower(trim((string)($_SERVER['HTTP_X_MIME'] ?? '')));
+    if ($mimeIn !== '' && !preg_match($K['mime'], $mimeIn)) fail(415, 'type not allowed');
+    $extIn = strtolower(trim((string)($_SERVER['HTTP_X_EXT'] ?? '')));
+    if ($extIn !== '' && !in_array($extIn, $K['ext'], true)) fail(415, 'file type not allowed');
     // rate limit
     $ok = locked($ROOT . '/r/' . $uid, function ($h) {
         $d = json_decode((string)stream_get_contents($h), true) ?: ['t' => time(), 'n' => 0];
@@ -121,12 +140,13 @@ if ($method === 'POST' && $path === 'media') {
     $id = 'x' . bin2hex(random_bytes(16));
     $tmp = $ROOT . '/f/' . $id . '.part';
     $in = fopen('php://input', 'rb'); $out = fopen($tmp, 'wb'); $n = 0;
-    while (!feof($in)) { $b = fread($in, 65536); if ($b === false) break; $n += strlen($b); if ($n > MAX_BYTES) { fclose($out); @unlink($tmp); fail(413, 'file too large'); } fwrite($out, $b); }
+    $cap = $K['max'] * 1024 * 1024 + OVERHEAD;
+    while (!feof($in)) { $b = fread($in, 65536); if ($b === false) break; $n += strlen($b); if ($n > $cap) { fclose($out); @unlink($tmp); fail(413, 'file too large'); } fwrite($out, $b); }
     fclose($in); fclose($out);
     if ($n <= 0 || $n !== $len) { @unlink($tmp); fail(400, 'incomplete upload'); }
     chmod($tmp, 0600);
     rename($tmp, $ROOT . '/f/' . $id);
-    file_put_contents($ROOT . '/f/' . $id . '.json', json_encode(['uid' => $uid, 'cid' => $cid, 'size' => $n, 'ts' => time(), 'mime' => preg_replace('/[^a-z0-9.\/+-]/i', '', (string)($_SERVER['HTTP_X_MIME'] ?? ''))]), LOCK_EX);
+    file_put_contents($ROOT . '/f/' . $id . '.json', json_encode(['uid' => $uid, 'cid' => $cid, 'size' => $n, 'ts' => time(), 'kind' => $kind, 'mime' => preg_replace('/[^a-z0-9.\/+-]/i', '', $mimeIn)]), LOCK_EX);
     locked($ROOT . '/q/' . $uid, function ($h) use ($n) { $v = (int)stream_get_contents($h) + $n; ftruncate($h, 0); rewind($h); fwrite($h, (string)$v); });
     http_response_code(201); header('Content-Type: application/json');
     echo json_encode(['id' => $id, 'size' => $n]);

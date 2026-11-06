@@ -125,7 +125,7 @@ fun titleOf(ref: ChatRef): Triple<String, String, String> {   // name, photo, se
 }
 
 fun previewText(type: String, text: String) = when (type) {
-    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; "call" -> "Call"; else -> text
+    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; "call" -> "Call"; "video" -> "Video"; "audio" -> "Audio"; "file" -> "Document"; else -> text
 }
 
 /** Telegram-style dialog: optionally tick "Also delete for X" to wipe the chat on both phones. */

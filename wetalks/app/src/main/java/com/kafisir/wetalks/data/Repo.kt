@@ -19,6 +19,7 @@ import org.json.JSONObject
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
@@ -521,8 +522,8 @@ object Repo {
             plain = opened ?: ""; if (opened == null) bad = true
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
-        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0
-        if (!bad && r.type in listOf("image", "voice", "gif", "link", "call")) {
+        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0; var fname = ""; var fsize = 0L; var fkey = ""
+        if (!bad && r.type in listOf("image", "voice", "gif", "link", "call", "video", "audio", "file")) {
             try {
                 val j = org.json.JSONObject(plain)
                 when (r.type) {
@@ -530,12 +531,13 @@ object Repo {
                     "link" -> { text = j.optString("t"); link = LinkPreview(j.optString("u"), j.optString("ti"), j.optString("d"), j.optString("i")) }
                     else -> {
                         mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
+                        if (r.type == "video" || r.type == "audio" || r.type == "file") { fname = FileKit.cleanName(j.optString("n")); fsize = j.optLong("s"); fkey = j.optString("k"); mime = FileKit.mimeOf(FileKit.extOf(fname)) }
                         j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
                     }
                 }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd)
+        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey)
     }
 
     /** Opens a DM body with whichever candidate key works (AES-GCM tells us which one is right). */
@@ -579,7 +581,7 @@ object Repo {
         if (privileged) return 0
         val who = if (ref.kind == Kind.GROUP) "this group" else "this channel"
         if (perms["send"] == false) throw IllegalStateException("Only admins can send messages in $who")
-        val key = when (type) { "text", "link" -> "text"; "image" -> "image"; "gif", "sticker" -> "sticker"; "voice" -> "voice"; else -> "" }
+        val key = when (type) { "text", "link" -> "text"; "image", "video", "audio", "file" -> "image"; "gif", "sticker" -> "sticker"; "voice" -> "voice"; else -> "" }
         if (key.isNotEmpty() && perms[key] == false) throw IllegalStateException(when (key) { "text" -> "Text messages"; "image" -> "Photos"; "sticker" -> "Stickers and GIFs"; else -> "Voice messages" } + " are turned off in $who")
         if (slow > 0) { val wait = slowPrefs.getLong(ref.id, 0L) + slow * 1000L - System.currentTimeMillis(); if (wait > 0) throw IllegalStateException("Slow mode is on · wait ${wait / 1000 + 1}s") }
         return slow
@@ -588,8 +590,10 @@ object Repo {
     /** Encrypts (DM/group) and sends. [payload] is the plain text, or a small JSON for image/voice, or a sticker id. */
     // ------------------------------------------------------------------------------------------ outbox (shows "sending" bubbles at once)
     class Outgoing(val id: String, val ref: ChatRef, val type: String, val text: String = "", val wave: List<Int> = emptyList(), val dur: Int = 0,
-                   val w: Int = 0, val h: Int = 0, val thumb: androidx.compose.ui.graphics.ImageBitmap? = null) {
+                   val w: Int = 0, val h: Int = 0, val thumb: androidx.compose.ui.graphics.ImageBitmap? = null,
+                   val name: String = "", val size: Long = 0) {
         val ts = System.currentTimeMillis()
+        var progress by androidx.compose.runtime.mutableFloatStateOf(0f)
         var failed by androidx.compose.runtime.mutableStateOf(false)
         var error by androidx.compose.runtime.mutableStateOf("")
         var work: (suspend () -> Unit)? = null
@@ -847,9 +851,43 @@ object Repo {
     }
 
     // ------------------------------------------------------------------------------------------ forward
+    /** Video / audio / document: check, encrypt with a fresh key, upload from disk, then send the message that carries the key. */
+    suspend fun sendFile(ref: ChatRef, uri: android.net.Uri, p: FileKit.Picked, rid: String?, fwd: String?, onProgress: (Float) -> Unit) {
+        val ctx = app
+        val key = FileKit.newKey()
+        val tmp = java.io.File(ctx.cacheDir, "up_" + System.nanoTime() + ".enc")
+        try {
+            val plain = withContext(Dispatchers.IO) { FileKit.encryptPicked(ctx, uri, p, key, tmp) { onProgress(it * 0.25f) } }
+            val id = MediaApi.uploadFile(ref.id, tmp, p.kind, p.ext, p.mime) { onProgress(0.25f + it * 0.75f) }
+            val j = org.json.JSONObject().put("m", id).put("k", Crypto.b64(key)).put("n", p.name).put("s", plain).put("mime", p.mime)
+            send(ref, p.kind, j.toString(), rid, when (p.kind) { "video" -> "Video"; "audio" -> "Audio"; else -> "Document" }, fwd)
+        } finally { tmp.delete() }
+    }
+
+    /** Downloads and decrypts a received file into the cache (once); returns the readable copy. */
+    suspend fun fetchFile(m: Msg, onProgress: (Float) -> Unit): java.io.File {
+        val id = m.mediaId?.takeIf { it.isNotEmpty() } ?: throw IllegalStateException("This file is not available")
+        val out = FileKit.cachedFile(app, id, m.name)
+        if (out.exists() && out.length() > 0) { out.setLastModified(System.currentTimeMillis()); return out }
+        val key = try { Crypto.unb64(m.fkey) } catch (_: Exception) { throw IllegalStateException("This file can't be opened (missing key)") }
+        if (key.size != 32) throw IllegalStateException("This file can't be opened (bad key)")
+        val enc = java.io.File(app.cacheDir, "dl_" + System.nanoTime() + ".enc")
+        try {
+            if (!MediaApi.downloadToFile(id, enc) { onProgress(it * 0.85f) }) throw IllegalStateException("Could not download the file. It may have been deleted.")
+            return withContext(Dispatchers.IO) {
+                try { FileKit.decrypt(enc, key, out, m.size, FileKit.extOf(m.name)) } catch (e: Exception) { out.delete(); throw IllegalStateException(e.message ?: "The file could not be decrypted") }
+            }
+        } finally { enc.delete() }
+    }
+
     suspend fun forward(from: ChatRef, m: Msg, to: ChatRef) {
         val orig = m.fwd ?: m.from
         when (m.type) {
+            "video", "audio", "file" -> {
+                val f = fetchFile(m) {}
+                val ext = FileKit.extOf(m.name)
+                sendFile(to, android.net.Uri.fromFile(f), FileKit.Picked(m.name, ext, m.type, FileKit.mimeOf(ext), f.length()), null, orig) {}
+            }
             "text" -> send(to, "text", m.text, null, m.text.take(90), orig)
             "sticker" -> send(to, "sticker", m.text, null, "Sticker", orig)
             "link" -> send(to, "link", org.json.JSONObject().put("t", m.text).put("u", m.link?.url ?: "").put("ti", m.link?.title ?: "").put("d", m.link?.desc ?: "").put("i", m.link?.thumb ?: "").toString(), null, m.text.take(90), orig)
