@@ -423,3 +423,69 @@ test('H3: "contacts" privacy cannot be faked with a stub, and blocked people see
   await assertFails(get(ref(db(B), 'contact_info/alice/phone')));
   await assertFails(get(ref(db(B), 'contacts/alice')));
 });
+
+// ---- remediation H2: private channels need an invite, and only participants read their content ----
+const TOK = 'Abcdefgh12345678XY';
+async function makePrivate() {
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database();
+    await set(ref(d, 'channels/c1/priv'), true);
+    await set(ref(d, 'channel_subs/c1/alice'), true); await set(ref(d, 'channel_subs/c1/bob'), true);   // existing followers (legacy value)
+    await set(ref(d, 'messages/c1/p1'), msg(A)); await set(ref(d, 'pins/c1/p1'), 1); await set(ref(d, 'reads/c1/bob'), 5); await set(ref(d, 'typing/c1/alice'), true); });
+}
+
+test('H2: outsiders cannot read a private channel; followers and admins can', async () => {
+  await makePrivate();
+  await assertFails(get(ref(db(C), 'messages/c1')));
+  await assertFails(get(ref(db(C), 'pins/c1')));
+  await assertFails(get(ref(db(C), 'reads/c1')));
+  await assertFails(get(ref(db(C), 'typing/c1')));
+  await assertFails(set(ref(db(C), 'messages/c1/p1/react/carol'), '👍'));
+  await assertFails(get(ref(db(C), 'channel_priv/c1')));
+  await assertSucceeds(get(ref(db(B), 'messages/c1')));                       // legacy follower keeps access
+  await assertSucceeds(get(ref(db(B), 'pins/c1')));
+  await assertSucceeds(get(ref(db(B), 'reads/c1')));
+  await assertSucceeds(set(ref(db(B), 'messages/c1/p1/react/bob'), '🔥'));
+  await assertSucceeds(get(ref(db(A), 'messages/c1')));                       // owner
+});
+
+test('H2: public channels stay open (join with true, read, react)', async () => {
+  await assertSucceeds(get(ref(db(C), 'messages/c1')));
+  await assertSucceeds(set(ref(db(C), 'channel_subs/c1/carol'), true));
+  await assertSucceeds(get(ref(db(C), 'reads/c1')));
+});
+
+test('H2: joining a private channel needs a valid invite token', async () => {
+  await makePrivate();
+  await assertFails(set(ref(db(C), 'channel_subs/c1/carol'), true));                                  // old-client join
+  await assertFails(set(ref(db(C), 'channel_subs/c1/carol'), { t: TOK, ts: 1 }));                    // token does not exist
+  await assertFails(set(ref(db(C), `channel_invites/c1/${TOK}`), { by: C, exp: 0, created: 1 }));    // outsider cannot mint tokens
+  await assertSucceeds(set(ref(db(A), `channel_invites/c1/${TOK}`), { by: A, exp: Date.now() + 86400000, created: Date.now() }));
+  await assertFails(get(ref(db(C), 'channel_invites/c1')));                                           // tokens are not listable by outsiders
+  await assertSucceeds(get(ref(db(A), 'channel_invites/c1')));
+  await assertFails(set(ref(db(C), 'channel_subs/c1/dave'), { t: TOK, ts: 1 }));                      // only for yourself
+  await assertSucceeds(set(ref(db(C), 'channel_subs/c1/carol'), { t: TOK, ts: Date.now() }));
+  await assertSucceeds(get(ref(db(C), 'messages/c1')));                                               // now a participant
+  await assertSucceeds(get(ref(db(C), 'channel_priv/c1')));
+  await assertSucceeds(remove(ref(db(C), 'channel_subs/c1/carol')));                                  // leaving always works
+  await assertFails(get(ref(db(C), 'messages/c1')));
+  await assertSucceeds(remove(ref(db(A), `channel_invites/c1/${TOK}`)));                              // revoke
+  await assertFails(set(ref(db(C), 'channel_subs/c1/carol'), { t: TOK, ts: Date.now() }));
+});
+
+test('H2: expired invites and malformed tokens are rejected', async () => {
+  await makePrivate();
+  await assertSucceeds(set(ref(db(A), `channel_invites/c1/${TOK}`), { by: A, exp: Date.now() - 1000, created: 1 }));
+  await assertFails(set(ref(db(C), 'channel_subs/c1/carol'), { t: TOK, ts: 1 }));
+  await assertFails(set(ref(db(A), 'channel_invites/c1/short'), { by: A, exp: 0, created: 1 }));
+  await assertFails(set(ref(db(A), `channel_invites/c1/${TOK}x`), { by: B, exp: 0, created: 1 }));   // `by` must be the writer
+  await assertFails(set(ref(db(B), 'channel_invites/c1/Zbcdefgh12345678XY'), { by: B, exp: 0, created: 1 })); // followers cannot invite
+});
+
+test('H2: private previews live in channel_priv, written by admins (or followers when allowed)', async () => {
+  await makePrivate();
+  await assertSucceeds(update(ref(db(A)), { 'channel_priv/c1/lastTs': Date.now(), 'channel_priv/c1/lastPreview': 'hello' }));
+  await assertSucceeds(get(ref(db(B), 'channel_priv/c1/lastPreview')));
+  await assertFails(set(ref(db(B), 'channel_priv/c1/lastPreview'), 'x'));                              // followers cannot, unless the owner allows
+  await assertFails(set(ref(db(A), 'channel_priv/c1/lastPreview'), 'x'.repeat(201)));
+  await assertFails(set(ref(db(A), 'channel_priv/c1/other'), 1));
+});

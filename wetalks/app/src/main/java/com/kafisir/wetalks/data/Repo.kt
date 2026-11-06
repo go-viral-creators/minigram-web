@@ -400,15 +400,15 @@ object Repo {
     /** Shareable web links: they open in any browser, and open the app directly on phones that have it. */
     object Links {
         const val HOST = "wetalks.fireclashpro.com"
-        fun channel(handle: String) = "https://$HOST/c/$handle"
+        fun channel(handle: String, token: String? = null) = "https://$HOST/c/$handle" + if (token.isNullOrEmpty()) "" else "?t=$token"
         fun user(username: String) = "https://$HOST/u/$username"
     }
 
     suspend fun resolveLink(text: String): com.kafisir.wetalks.ui.Route? {
-        val m = Regex("""(?:wetalks://|https?://wetalks-78e5a\.(?:web\.app|firebaseapp\.com)/)([uc])/([A-Za-z0-9_]{3,32})""").find(text.trim()) ?: return null
+        val m = Regex("""(?:wetalks://|https?://wetalks-78e5a\.(?:web\.app|firebaseapp\.com)/)([uc])/([A-Za-z0-9_]{3,32})(?:[?&]t=([A-Za-z0-9]{16,32}))?""").find(text.trim()) ?: return null
         val key = m.groupValues[2].lowercase()
         return if (m.groupValues[1] == "u") db.getReference("usernames/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RProfile(it) }
-        else db.getReference("channel_handles/$key").get().await().getValue(String::class.java)?.let { com.kafisir.wetalks.ui.RChannelInfo(it) }
+        else db.getReference("channel_handles/$key").get().await().getValue(String::class.java)?.let { cid -> m.groupValues[3].takeIf { it.isNotEmpty() }?.let { inviteTokens[cid] = it }; com.kafisir.wetalks.ui.RChannelInfo(cid) }
     }
 
     fun setMuted(id: String, v: Boolean) { val me = uid; db.getReference("user_chats/$me/$id/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$id/muted").setValue(v) } }
@@ -608,7 +608,7 @@ object Repo {
                     ?: db.getReference("groups/${ref.id}/members").get().await().children.mapNotNull { it.key }
                 for (m in members) entry(m, "group", null, m == uid)
             }
-            Kind.CHANNEL -> { updates["channels/${ref.id}/lastTs"] = now; updates["channels/${ref.id}/lastPreview"] = preview }
+            Kind.CHANNEL -> { updates["channels/${ref.id}/lastTs"] = now; if (channel(ref.id).value?.priv == true) updates["channel_priv/${ref.id}/lastPreview"] = preview else updates["channels/${ref.id}/lastPreview"] = preview }
         }
     }
 
@@ -735,7 +735,7 @@ object Repo {
                 "link" -> try { org.json.JSONObject(body).optString("t").take(90) } catch (_: Exception) { "Link" }
                 else -> ""
             }
-            val up = HashMap<String, Any?>(); up["channels/${ref.id}/lastPreview"] = pv
+            val up = HashMap<String, Any?>(); if (channel(ref.id).value?.priv == true) up["channel_priv/${ref.id}/lastPreview"] = pv else up["channels/${ref.id}/lastPreview"] = pv
             if (last != null) up["channels/${ref.id}/lastTs"] = last.lng("ts")
             try { db.reference.updateChildren(up).await() } catch (_: Exception) {}
             return
@@ -1122,8 +1122,32 @@ object Repo {
 
     suspend fun isSubscribed(cid: String) = db.getReference("channel_subs/$cid/$uid").get().await().exists()
 
+    /** Invite tokens seen in opened links (kept in memory only), used when joining a private channel. */
+    private val inviteTokens = HashMap<String, String>()
+
+    /** A private-channel invite link the owner can share. Reuses a live token, otherwise mints one (valid 30 days, revocable). */
+    suspend fun inviteLink(cid: String, handle: String): String {
+        val now = System.currentTimeMillis()
+        val live = db.getReference("channel_invites/$cid").get().await().children.firstOrNull { val e = it.lng("exp"); e == 0L || e > now + 86_400_000L }?.key
+        val tok = live ?: run {
+            val rnd = java.security.SecureRandom(); val abc = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+            val t = (1..22).map { abc[rnd.nextInt(abc.length)] }.joinToString("")
+            db.getReference("channel_invites/$cid/$t").setValue(hashMapOf("by" to uid, "exp" to now + 30L * 86_400_000L, "created" to now)).await()
+            t
+        }
+        return Links.channel(handle, tok)
+    }
+
+    /** Revokes every invite link of a private channel. */
+    suspend fun revokeInvites(cid: String) { db.getReference("channel_invites/$cid").removeValue().await() }
+
+    /** Latest post preview of a private channel (kept apart from the world-readable channel node). */
+    suspend fun privPreview(cid: String): String = try { db.getReference("channel_priv/$cid/lastPreview").get().await().getValue(String::class.java) ?: "" } catch (_: Exception) { "" }
+
     suspend fun subscribe(cid: String) {
-        db.getReference("channel_subs/$cid/$uid").setValue(true).await()
+        val tok = inviteTokens[cid]
+        val join: Any = if (channel(cid).value?.priv == true && tok != null) hashMapOf("t" to tok, "ts" to System.currentTimeMillis()) else true
+        db.getReference("channel_subs/$cid/$uid").setValue(join).await()
         db.getReference("channels/$cid/subCount").setValue(ServerValue.increment(1)).await()
         db.getReference("user_chats/$uid/$cid").updateChildren(mapOf("type" to "channel", "lastTs" to ServerValue.TIMESTAMP)).await()
     }

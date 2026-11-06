@@ -95,7 +95,7 @@ fun ChannelSettingsScreen(id: String) {
     val owner = ch.owner == Repo.uid
     fun on(k: String, def: Boolean = true) = ch.perms[k] ?: def
     fun toggle(k: String, v: Boolean) { scope.launch { try { Repo.setPerm(Kind.CHANNEL, id, k, v) } catch (e: Exception) { fail(e) } } }
-    val link = Repo.Links.channel(ch.handle)
+    val link by produceState(Repo.Links.channel(ch.handle), ch.priv, ch.handle) { value = if (ch.priv && owner) try { Repo.inviteLink(id, ch.handle) } catch (_: Exception) { Repo.Links.channel(ch.handle) } else Repo.Links.channel(ch.handle) }
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Channel settings", onBack = { Nav.pop() })
         if (!owner) { Empty(Ic.Lock, "Owner only", "Only the channel owner can change these settings."); return@Column }
@@ -104,6 +104,7 @@ fun ChannelSettingsScreen(id: String) {
             Choice("Public", "Anyone can find it in search and join", !ch.priv) { scope.launch { try { Repo.setChannelPrivate(id, false) } catch (e: Exception) { fail(e) } } }
             Choice("Private", "Hidden from search. People join with the invite link", ch.priv) { scope.launch { try { Repo.setChannelPrivate(id, true) } catch (e: Exception) { fail(e) } } }
             Row2(Ic.Link, "Invite link", link, onClick = { shareText(ctx, "Join ${ch.name} on WeTalks: $link") })
+            if (ch.priv) Row2(Ic.Lock, "Reset invite links", "Old links stop working", onClick = { scope.launch { try { Repo.revokeInvites(id); Nav.say("Invite links reset") } catch (e: Exception) { fail(e) } } })
             SectionLabel("Who can post")
             Choice("Only admins", "Followers can read and react", !on("followers", false)) { toggle("followers", false) }
             Choice("Followers can send messages", "Turns the channel into a discussion", on("followers", false)) { toggle("followers", true) }

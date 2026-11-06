@@ -168,8 +168,8 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     val saved = c.ref.kind == Kind.DM && c.ref.peer == Repo.uid
     val ob = Repo.outgoing.lastOrNull { it.ref.id == c.ref.id }
     val shownTs = if (ob != null) ob.ts else if (chan != null && chan.lastTs > c.lastTs) chan.lastTs else c.lastTs
-    val preview by produceState("", c.lastBody, c.lastType, chan?.lastPreview) {
-        if (chan != null && c.lastBody.isEmpty()) { value = chan.lastPreview; return@produceState }
+    val preview by produceState("", c.lastBody, c.lastType, chan?.lastPreview, chan?.lastTs) {
+        if (chan != null && c.lastBody.isEmpty()) { value = if (chan.priv) Repo.privPreview(chan.id) else chan.lastPreview; return@produceState }
         value = if (c.lastBody.isEmpty()) "" else {
             val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
             if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else if (m.type == "call") callLabel(m, c.lastFrom == Repo.uid) else previewText(m.type, m.text))

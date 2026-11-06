@@ -333,11 +333,11 @@ fun ChannelInfoScreen(id: String) {
     val ch = c ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Channel", onBack = { Nav.pop() }) }; return }
     val owner = ch.owner == Repo.uid
     if (editing) { EditNameScreen("Edit channel", ch.name, ch.about, ch.photo, ch.id, { n, a, p -> Repo.updateChannel(id, n, a, p) }) { editing = false }; return }
-    val link = Repo.Links.channel(ch.handle)
+    val link by produceState(Repo.Links.channel(ch.handle), ch.priv, ch.handle) { value = if (ch.priv && owner) try { Repo.inviteLink(id, ch.handle) } catch (_: Exception) { Repo.Links.channel(ch.handle) } else Repo.Links.channel(ch.handle) }
     val qr = RQr(ch.name, "@" + ch.handle, ch.photo, ch.id, link)
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Channel", onBack = { Nav.pop() }, actions = {
-            IconBtn(Ic.Qr, We.onAppBar, { Nav.push(qr) })
+            if (!ch.priv || owner) IconBtn(Ic.Qr, We.onAppBar, { Nav.push(qr) })
             if (owner) IconBtn(Ic.Edit, We.onAppBar, { editing = true })
         })
         Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -354,8 +354,7 @@ fun ChannelInfoScreen(id: String) {
                 add(Tile(Ic.Chat, if (isSub || owner) "Open" else "Preview") { Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.CHANNEL))) })
                 if (!owner) add(if (isSub) Tile(if (muted) Ic.Bell else Ic.BellOff, if (muted) "Unmute" else "Mute") { Repo.setMuted(id, !muted) }
                     else Tile(Ic.Plus, "Join") { scope.launch { try { Repo.subscribe(id); joined = true } catch (e: Exception) { Nav.say("Could not join") } } })
-                add(Tile(Ic.Share, "Share") { shareText(ctx, "Join ${ch.name} on WeTalks: $link") })
-                add(Tile(Ic.Qr, "QR code") { Nav.push(qr) })
+                if (!ch.priv || owner) { add(Tile(Ic.Share, "Share") { shareText(ctx, "Join ${ch.name} on WeTalks: $link") }); add(Tile(Ic.Qr, "QR code") { Nav.push(qr) }) }
                 if (owner) add(Tile(Ic.Sliders, "Settings") { Nav.push(RChannelSettings(id)) })
                 if (!owner && isSub) add(Tile(Ic.Logout, "Leave", We.danger) { scope.launch { Repo.unsubscribe(id); joined = false; Nav.say("You left the channel") } })
             })
