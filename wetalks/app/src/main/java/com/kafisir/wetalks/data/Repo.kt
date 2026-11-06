@@ -994,7 +994,7 @@ object Repo {
     }
 
     /**
-     * The hash of my own number. It lives in phone_keys/<uid>, which only I can read (users/* is readable by every account, so the hash must not stay there).
+     * The hash of my own number. It lives in phone_keys/<uid>, which only I can read (the whole users node is readable by every account, so the hash must not stay there).
      * Falls back to the legacy users/<uid>/phoneKey so this build also works before the new database rules are live, and moves it across when it can.
      */
     private suspend fun myPhoneKey(): String? {
