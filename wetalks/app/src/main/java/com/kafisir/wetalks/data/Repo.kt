@@ -436,12 +436,43 @@ object Repo {
         val s = db.getReference("group_keys/$gid/$kv/$uid").get().await()
         if (!s.exists()) return null
         val by = s.str("by"); val ct = s.str("ct")
-        val byPk = userOnce(by)?.pk?.takeIf { it.isNotEmpty() } ?: return null
+        // the sender may have reinstalled since: try their current key and the older ones they published
+        val pks = LinkedHashSet<String>()
+        userOnce(by)?.pk?.takeIf { it.isNotEmpty() }?.let { pks += it }
+        try { db.getReference("users/$by/pkh").get().await().children.forEach { c -> c.getValue(String::class.java)?.let { pks += it } } } catch (_: Exception) {}
+        pks += seenPrefs.getStringSet("g:$by", emptySet()).orEmpty()
+        if (pks.isEmpty()) return null
         val me = Crypto.keys(app)
-        return try {
-            val wk = Crypto.shared(me.priv, me.pub, Crypto.unb64(byPk))
-            Crypto.open(wk, ct).also { groupKeys[ck] = it }
-        } catch (e: Exception) { null }
+        for (pk in pks) {
+            try { val k = Crypto.open(Crypto.shared(me.priv, me.pub, Crypto.unb64(pk)), ct); groupKeys[ck] = k; seenPrefs.edit().putStringSet("g:$by", pks.toSet()).apply(); return k } catch (_: Exception) {}
+        }
+        return null
+    }
+
+    private val repaired = HashSet<String>()
+    /**
+     * A member can be left without a usable group key (they had not opened the app when the group was made, or a key changed).
+     * Any admin who holds the key hands it out again; if the admin has lost it too, a new key version is created for everyone.
+     * Returns true when something was repaired.
+     */
+    suspend fun repairGroupKeys(gid: String, force: Boolean = false): Boolean {
+        if (!force && !repaired.add(gid)) return false
+        val g = group(gid).value ?: return false
+        if (g.members[uid] != "admin") return false
+        val members = g.members.keys.toList()
+        val have = groupKey(gid, g.kv)
+        val up = HashMap<String, Any?>()
+        if (have != null) {
+            wrapFor(up, gid, g.kv, have, members)
+        } else {
+            val nk = Crypto.randomKey(); val nv = g.kv + 1
+            wrapFor(up, gid, nv, nk, members)
+            up["groups/$gid/kv"] = nv
+            groupKeys["$gid:$nv"] = nk
+        }
+        if (up.isEmpty()) return false
+        db.reference.updateChildren(up).await()
+        return true
     }
 
     suspend fun chatKey(ref: ChatRef, kv: Int = 0): ByteArray? = when (ref.kind) {
@@ -591,8 +622,12 @@ object Repo {
     suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String, fwd: String? = null): String {
         val slowSecs = checkAllowed(ref, type)
         val kv = if (ref.kind == Kind.GROUP) (group(ref.id).value?.kv ?: groupVersion(ref.id)) else 0
-        val key = chatKey(ref, kv)
-        if (ref.kind != Kind.CHANNEL && key == null) throw IllegalStateException("Encryption key not available yet. The other person must open WeTalks once.")
+        var key = chatKey(ref, kv)
+        if (key == null && ref.kind == Kind.GROUP) {
+            // repair (as admin) and try again before giving up
+            try { if (repairGroupKeys(ref.id, force = true)) { groupKeys.clear(); key = chatKey(ref, 0) } } catch (_: Exception) {}
+        }
+        if (ref.kind != Kind.CHANNEL && key == null) throw IllegalStateException(if (ref.kind == Kind.GROUP) "This group's key is not on your phone yet. Ask a group admin to open WeTalks once, then try again." else "Encryption key not available yet. The other person must open WeTalks once.")
         val body = if (key == null) payload else Crypto.sealText(key, payload)
         val listBody = if (type == "link") {
             val slim = try { org.json.JSONObject(payload).apply { remove("i") }.toString() } catch (e: Exception) { payload }
