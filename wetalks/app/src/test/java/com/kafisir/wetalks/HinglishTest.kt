@@ -51,4 +51,12 @@ class HinglishTest {
         assertEquals("दोस्त", Hinglish.translit("dost")); assertEquals("कमल", Hinglish.translit("kamal")); assertEquals("करना", Hinglish.translit("karna")); assertEquals("मस्त", Hinglish.translit("mast")); assertEquals("चलती", Hinglish.translit("chalti"))
         assertEquals("पहुंच", Hinglish.translit("pahunch"))
     }
+
+    @Test fun segmentsUseTheRightVoice() {
+        init()
+        val s = Hinglish.segments("Bhai ek problem ho gayi yr Tu help kar dega?")
+        assertEquals(listOf("hi", "en", "hi", "en", "hi"), s.map { it.first })
+        assertEquals("problem", s[1].second.trim()); assertEquals("help", s[3].second.trim())
+        assertTrue(s[0].second.contains("भाई")); assertTrue(s[2].second.contains("यार")); assertTrue(s[4].second.trim().endsWith("?"))
+    }
 }

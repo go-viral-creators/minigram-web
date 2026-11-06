@@ -86,6 +86,29 @@ object Hinglish {
     private val WORD = Regex("[A-Za-z']+")
     fun toDevanagari(text: String): String = WORD.replace(text) { convertWord(it.value.replace("'", "")) }
 
+    /**
+     * Mixed text, split into pieces that each use the right voice: Hindi words (romanised ones are converted to Devanagari) for the Hindi voice,
+     * real English words for the English voice. "Bhai ek problem ho gayi" -> [hi "भाई एक"] [en "problem"] [hi "हो गयी"]. Spaces and punctuation follow the piece before them.
+     */
+    fun segments(text: String): List<Pair<String, String>> {
+        val out = ArrayList<Pair<String, String>>()
+        fun add(l: String, t: String) { if (t.isEmpty()) return; if (out.isNotEmpty() && out.last().first == l) out[out.lastIndex] = l to (out.last().second + t) else out.add(l to t) }
+        for (m in Regex("[A-Za-z']+|[^A-Za-z']+").findAll(text)) {
+            val tok = m.value
+            val cur = out.lastOrNull()?.first ?: "hi"
+            if (tok[0].code < 128 && (tok[0].isLetter() || tok[0] == '\'')) {
+                val lw = tok.lowercase().replace("'", "")
+                when {
+                    lw.length < 2 -> add(cur, tok)
+                    lex.containsKey(lw) -> add("hi", lex.getValue(lw))
+                    lw in en -> add("en", tok)
+                    else -> add("hi", translit(lw))
+                }
+            } else add(if (tok.any { it.code in 0x0900..0x097F }) "hi" else cur, tok)
+        }
+        return out.filter { it.second.isNotBlank() }
+    }
+
     private val SOFT = setOf("to", "do", "ho", "par", "kar", "ab", "main", "se", "ke", "ki", "ka", "ko", "ne", "pe", "na", "ya", "mat", "bas", "tab", "sab", "din", "kam", "bhi", "toh", "aur", "ek")
     /** True when the text is romanised Hindi (several Hindi words), never plain English. */
     fun looksHinglish(text: String): Boolean {

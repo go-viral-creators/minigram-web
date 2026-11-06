@@ -45,6 +45,9 @@ object Nav {
     var pendingRef: ChatRef? = null
     var pendingReply: String? = null
     var jumpTo: String? = null
+    /** Where each chat was scrolled to and what was typed, kept while a photo, profile or other screen is open on top. */
+    class ChatMemo(val index: Int, val offset: Int, val draft: String)
+    val chatMemo = HashMap<String, ChatMemo>()
     val pendingLink = mutableStateOf<String?>(null)
     val pendingChat = mutableStateOf<ChatRef?>(null)
     val pendingServices = mutableStateOf(false)

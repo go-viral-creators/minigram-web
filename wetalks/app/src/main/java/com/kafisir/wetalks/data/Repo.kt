@@ -128,7 +128,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { inboxWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
+    private fun detachAll() { inboxWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -423,6 +423,7 @@ object Repo {
 
     // ---- every public key a person has ever used, so chats stay readable when keys change (second phone, two accounts on one phone …)
     private val seenPrefs get() = app.getSharedPreferences("wt_seenpk", Context.MODE_PRIVATE)
+    private val gkeyPrefs get() = app.getSharedPreferences("wt_gkeys", Context.MODE_PRIVATE)
     private val dmAll = HashMap<String, Pair<Long, List<ByteArray>>>()
     private val dmWinner = HashMap<String, ByteArray>()
 
@@ -452,6 +453,8 @@ object Repo {
     private suspend fun groupKey(gid: String, kv: Int): ByteArray? {
         val ck = "$gid:$kv"
         groupKeys[ck]?.let { return it }
+        // kept on this phone (wrapped with the hardware key): a group opens at once after the app was closed, without asking the server again
+        try { gkeyPrefs.getString(ck, null)?.let { w -> val k = Crypto.unwrapForDevice(w); groupKeys[ck] = k; return k } } catch (_: Exception) {}
         val s = db.getReference("group_keys/$gid/$kv/$uid").get().await()
         if (!s.exists()) return null
         val by = s.str("by"); val ct = s.str("ct")
@@ -463,7 +466,7 @@ object Repo {
         if (pks.isEmpty()) return null
         val me = Crypto.keys(app)
         for (pk in pks) {
-            try { val k = Crypto.open(Crypto.shared(me.priv, me.pub, Crypto.unb64(pk)), ct); groupKeys[ck] = k; seenPrefs.edit().putStringSet("g:$by", pks.toSet()).apply(); return k } catch (_: Exception) {}
+            try { val k = Crypto.open(Crypto.shared(me.priv, me.pub, Crypto.unb64(pk)), ct); groupKeys[ck] = k; try { gkeyPrefs.edit().putString(ck, Crypto.wrapForDevice(k)).apply() } catch (_: Exception) {}; seenPrefs.edit().putStringSet("g:$by", pks.toSet()).apply(); return k } catch (_: Exception) {}
         }
         return null
     }
@@ -569,7 +572,9 @@ object Repo {
                 }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb, album = album)
+        // a photo that came through the keyboard (not a sticker or GIF) is shown like any other photo
+        val shownType = if (r.type == "gif" && (mime == "image/jpeg" || (mime == "image/png" && minOf(w, h) >= 600))) "image" else r.type
+        return Msg(r.id, r.from, r.ts, shownType, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb, album = album)
     }
 
     /** Opens a DM body with whichever candidate key works (AES-GCM tells us which one is right). */
@@ -638,7 +643,7 @@ object Repo {
         if (o !in outgoing) outgoing.add(o)
         o.failed = false
         scope.launch {
-            try { work(); outgoing.remove(o) }
+            try { work(); outgoing.remove(o); if (o.type != "text") com.kafisir.wetalks.ui.Sfx.play("done") }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { o.failed = true; o.error = e.message ?: "Could not send"; com.kafisir.wetalks.ui.Nav.say(o.error) }
         }
@@ -848,6 +853,7 @@ object Repo {
         val sealed = if (key == null) bytes else Crypto.sealBytes(key, bytes)
         val id = MediaApi.upload(ref.id, sealed, mime)
         DataPrefs.addUp(sealed.size.toLong())
+        DataPrefs.putPlain(id, bytes)               // what I sent is shown from my own file, never fetched back
         return id
     }
 
@@ -861,6 +867,7 @@ object Repo {
 
     suspend fun loadMedia(ref: ChatRef, id: String, kv: Int = 0): ByteArray? {
         mediaCache.get(id)?.let { return it }
+        DataPrefs.getPlain(id)?.let { mediaCache.put(id, it); return it }          // already opened on this phone: straight from the file
         var s = DataPrefs.getDisk(id)
         if (s == null) {
             s = (if (MediaApi.isRemote(id)) MediaApi.download(id)?.let { Crypto.b64(it) } else db.getReference("media/$id/data").get().await().getValue(String::class.java)) ?: return null
@@ -875,6 +882,7 @@ object Repo {
             } else { val key = chatKey(ref, kv); if (key == null) Crypto.unb64(s) else Crypto.open(key, s) }
         } catch (e: Exception) { return null }
         mediaCache.put(id, bytes)
+        DataPrefs.putPlain(id, bytes)
         return bytes
     }
 

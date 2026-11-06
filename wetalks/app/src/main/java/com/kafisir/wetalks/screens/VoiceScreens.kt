@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import com.kafisir.wetalks.ui.*
 import com.kafisir.wetalks.voice.NeuralTts
 import com.kafisir.wetalks.voice.Speaker
+import com.kafisir.wetalks.voice.VoiceSamples
 
 /** Settings → Natural voices: download, turn on/off, pick the voice, and try it. */
 @Composable
@@ -35,19 +36,28 @@ fun NaturalVoicesScreen() {
                     Row2(Ic.Check, "Installed", "About " + (NeuralTts.packBytes * 133 / 100 / 1048576) + " MB on your phone", trailing = { SmallBtn("Delete") { NeuralTts.remove(ctx) } })
                     Row2(Ic.Speaker, "Use natural voices", "Listen uses this voice for English, Hindi, Hinglish and 28 more languages", trailing = { Toggle(NeuralTts.enabled) { NeuralTts.setEnabled(ctx, it) } })
                     SectionLabel("Voice")
+                    // the language a voice is tried in: the app's own language first
+                    val appSample = remember { VoiceSamples.forAppLanguage(I18n.lang) }
+                    var tryCode by remember { mutableStateOf(appSample.code) }
+                    var more by remember { mutableStateOf(false) }
+                    fun tryIt(code: String) { tryCode = code; VoiceSamples.byCode(code)?.let { testNow(ctx, it.text, "t-$code") { v -> testing = v } } }
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        for (row in 0..1) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            for (k in 0..4) { val v = row * 5 + k; Pick(NeuralTts.voiceNames[v].replace("Female ", "F").replace("Male ", "M"), NeuralTts.voice == v) { NeuralTts.setVoice(ctx, v) } }
-                        }
-                        Text("F1–F5 are female voices, M1–M5 are male voices. Tap Try it to hear the one you picked.", color = We.text2, style = T.tiny)
+                        Text("Female", color = We.text2, style = T.tiny)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { for (k in 0..4) Pick(NeuralTts.voiceNames[k], NeuralTts.voice == k) { NeuralTts.setVoice(ctx, k); tryIt(tryCode) } }
+                        Text("Male", color = We.text2, style = T.tiny, modifier = Modifier.padding(top = 4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { for (k in 5..9) Pick(NeuralTts.voiceNames[k], NeuralTts.voice == k) { NeuralTts.setVoice(ctx, k); tryIt(tryCode) } }
+                        Text("Tap a voice to hear it in the language chosen below.", color = We.text2, style = T.tiny)
                     }
                     Column(Modifier.padding(16.dp)) {
                         Text("Try it", color = We.text, style = T.name)
-                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            SmallBtn(if (testing) "Stop" else "English") { testNow(ctx, "Hello! This is the natural voice in WeTalks. I can read your messages aloud in a clear, friendly way.", "t-en") { testing = it } }
-                            SmallBtn("हिन्दी") { testNow(ctx, "नमस्ते! मैं आपके मैसेज पढ़कर सुना सकती हूँ। आज का मौसम बहुत अच्छा है।", "t-hi") { testing = it } }
-                            SmallBtn("Hinglish") { testNow(ctx, "ab tum dekhna bhai, main apne application ke andar aise feature dal dunga.", "t-hg") { testing = it } }
+                        val first = listOf(appSample.code, "en", "hi", "hinglish").distinct().mapNotNull { VoiceSamples.byCode(it) }
+                        @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                        androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            for (s in first) SmallBtn(if (testing && tryCode == s.code) "Stop · ${s.label}" else s.label, primary = tryCode == s.code) { if (testing && tryCode == s.code) Speaker.stop() else tryIt(s.code) }
+                            if (more) for (s in VoiceSamples.all.filter { x -> first.none { it.code == x.code } }) SmallBtn(if (testing && tryCode == s.code) "Stop · ${s.label}" else s.label, primary = tryCode == s.code) { if (testing && tryCode == s.code) Speaker.stop() else tryIt(s.code) }
+                            SmallBtn(if (more) "Show less" else "Show more (${VoiceSamples.all.size - first.size})") { more = !more }
                         }
+                        VoiceSamples.byCode(tryCode)?.let { Text("“" + it.text + "”", color = We.text2, style = T.small, modifier = Modifier.padding(top = 12.dp)) }
                     }
                 }
                 NeuralTts.Status.Downloading -> Column(Modifier.padding(16.dp)) {

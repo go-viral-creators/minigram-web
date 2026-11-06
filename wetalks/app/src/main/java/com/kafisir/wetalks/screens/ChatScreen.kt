@@ -26,6 +26,9 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -184,7 +187,8 @@ fun ChatScreen(ref: ChatRef) {
 
     var reply by remember { mutableStateOf<Msg?>(null) }
     var editing by remember { mutableStateOf<Msg?>(null) }
-    val tfs = rememberTextFieldState()
+    val memo = remember(ref) { Nav.chatMemo[ref.id] }
+    val tfs = rememberTextFieldState(memo?.draft ?: "")
     val input = tfs.text.toString()
     fun setInput(v: String) = tfs.setTextAndPlaceCursorAtEnd(v)
     var fmtBar by remember { mutableStateOf(false) }
@@ -236,10 +240,25 @@ fun ChatScreen(ref: ChatRef) {
     val selected = remember { mutableStateListOf<String>() }
     val selecting = selected.isNotEmpty()
     var pinCursor by remember { mutableIntStateOf(0) }
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(memo?.index ?: 0, memo?.offset ?: 0)
+    // opening a photo (or any screen on top of the chat) and coming back must leave the chat exactly where it was, draft included
+    DisposableEffect(ref) {
+        onDispose {
+            if (Nav.stack.any { it is RChat && it.ref.id == ref.id }) Nav.chatMemo[ref.id] = Nav.ChatMemo(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset, tfs.text.toString())
+            else Nav.chatMemo.remove(ref.id)
+        }
+    }
     fun toast(m: String) = Nav.say(m)
 
     LaunchedEffect(ref.id, group != null) { if (ref.kind == Kind.GROUP && group != null) try { Repo.repairGroupKeys(ref.id) } catch (_: Exception) {} }
+    // a soft sound when someone else's message arrives while this chat is open
+    var lastIncoming by remember(ref) { mutableStateOf<String?>(null) }
+    LaunchedEffect(msgsRaw, loaded) {
+        val newest = msgsRaw.lastOrNull { !it.deleted } ?: return@LaunchedEffect
+        if (!loaded) return@LaunchedEffect
+        if (lastIncoming == null) { lastIncoming = newest.id; return@LaunchedEffect }
+        if (newest.id != lastIncoming) { lastIncoming = newest.id; if (newest.from != me && newest.type != "call") com.kafisir.wetalks.ui.Sfx.play("recv") }
+    }
     LaunchedEffect(msgs.size, ref) { Repo.markRead(ref); com.kafisir.wetalks.data.Notifier.cancel(ref.id) }
     val animOn = UiPrefs.wallpaper.intValue >= AWalls.BASE || Bubbles.animated(UiPrefs.bubbleStyle.intValue)
     LaunchedEffect(animOn) { while (animOn) androidx.compose.runtime.withFrameNanos { Clock.t = (it / 1_000_000_000.0 % 3600.0).toFloat() } }
@@ -301,6 +320,7 @@ fun ChatScreen(ref: ChatRef) {
         val t = if (UiPrefs.markdown.value && editing?.type != "image") CodeDetect.wrap(raw) else raw
         val e = editing; val r = reply
         tfs.clearText(); editing = null; reply = null
+        if (e == null) com.kafisir.wetalks.ui.Sfx.play("send")
         Repo.scope.launch {
             try {
                 if (e != null) { if (e.type == "image") Repo.editCaption(ref, e, t) else Repo.editMessage(ref, e.id, t) }
@@ -328,10 +348,12 @@ fun ChatScreen(ref: ChatRef) {
         val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
         val replyId = reply?.id; reply = null
-        val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, "gif", w = maxOf(opts.outWidth, 0), h = maxOf(opts.outHeight, 0), thumb = Pics.decodeSampled(bytes, 400))
+        val asPhoto = mime == "image/jpeg" || (mime == "image/png" && minOf(opts.outWidth, opts.outHeight) >= 600)      // a pasted picture is a photo, not a sticker
+        val sendType = if (asPhoto) "image" else "gif"
+        val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, sendType, w = maxOf(opts.outWidth, 0), h = maxOf(opts.outHeight, 0), thumb = Pics.decodeSampled(bytes, 400))
         Repo.runOutgoing(o) {
             val id = Repo.uploadMedia(ref, bytes, mime)
-            Repo.send(ref, "gif", JSONObject().put("m", id).put("mime", mime).put("w", o.w).put("h", o.h).toString(), replyId, if (mime.contains("gif")) "GIF" else "Sticker")
+            Repo.send(ref, sendType, JSONObject().put("m", id).put("mime", mime).put("w", o.w).put("h", o.h).toString(), replyId, if (mime.contains("gif")) "GIF" else "Sticker")
         }
     }
     val keyboardReceiver = object : ReceiveContentListener {
@@ -496,6 +518,7 @@ fun ChatScreen(ref: ChatRef) {
             }
             val rev = msgs.reversed()
             val rows = remember(msgs) { groupAlbums(rev) }
+            val imageIds = remember(msgs) { msgs.filter { it.type == "image" && !it.pending && !it.deleted && !it.mediaId.isNullOrEmpty() }.map { it.mediaId!! } }
             LazyColumn(Modifier.fillMaxSize(), state = listState, reverseLayout = true, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
                 itemsIndexed(rows, key = { _, g -> g.last().id }) { i, g ->
                     val m = g.last()                       // an album is represented by its first photo (its id never changes while the rest arrive)
@@ -513,7 +536,7 @@ fun ChatScreen(ref: ChatRef) {
                             Box(Modifier.weight(1f)) { SwipeReply(enabled = canPost && !m.pending && !m.deleted && !selecting, onReply = { reply = m; editing = null }) {
                                 Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
                                     read = ref.kind == Kind.DM && !saved && peerRead >= m.ts && m.ts > 0, lastInRun = newer == null || newer.from != m.from, pinned = m.id in pinIds,
-                                    album = album,
+                                    album = album, allImages = imageIds,
                                     onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.removeAll(g.map { it.id }.toSet()) else g.forEach { x -> if (x.id !in selected) selected.add(x.id) } } else if (m.unreadable) unreadableInfo = true },
                                     onLong = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (!m.deleted) { if (selecting) { if (sel) selected.removeAll(g.map { it.id }.toSet()) else g.forEach { x -> if (x.id !in selected) selected.add(x.id) } } else menuMsg = m } },
                                     onLongOf = { x -> if (x.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == x.id } } else if (selecting) { if (x.id in selected) selected.remove(x.id) else selected.add(x.id) } else menuMsg = x },
@@ -662,6 +685,7 @@ fun ChatScreen(ref: ChatRef) {
             SheetItem(Ic.Trash2, "Delete for me") { list.forEach { Repo.hideForMe(it.id) }; hideTick++; selected.clear(); deleting = null }
             if (canAll) SheetItem(Ic.Trash, if (peerName != null) "Delete for me and $peerName" else "Delete for everyone", danger = true) {
                 val ids = list.map { it.id }; selected.clear(); deleting = null
+                com.kafisir.wetalks.ui.Sfx.play("delete")
                 scope.launch { try { Repo.deleteMessages(ref, ids) } catch (ex: Exception) { toast("Could not delete: " + (ex.message ?: "")) } }
             }
         }
@@ -730,13 +754,13 @@ fun ChatScreen(ref: ChatRef) {
 
 @Composable
 fun DayChip(t: String) {
-    Box(Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxWidth().padding(vertical = 5.dp), contentAlignment = Alignment.Center) {
         Text(t, color = We.text2, style = T.tiny, modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(We.field).padding(horizontal = 12.dp, vertical = 5.dp))
     }
 }
 
 @Composable
-fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit, notes: List<BubbleNote> = emptyList(), onQuote: (String) -> Unit = {}, album: List<Msg> = emptyList(), onLongOf: (Msg) -> Unit = {}) {
+fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean, read: Boolean, lastInRun: Boolean, pinned: Boolean, onClick: () -> Unit, onLong: () -> Unit, onReact: (String) -> Unit, notes: List<BubbleNote> = emptyList(), onQuote: (String) -> Unit = {}, album: List<Msg> = emptyList(), onLongOf: (Msg) -> Unit = {}, allImages: List<String> = emptyList()) {
     val r = UiPrefs.bubble.intValue.dp
     val shape = RoundedCornerShape(r, r, if (mine && lastInRun) 4.dp else r, if (!mine && lastInRun) 4.dp else r)
     val bStyle = UiPrefs.bubbleStyle.intValue
@@ -765,8 +789,8 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 when {
                     m.deleted -> Text("This message was deleted", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
                     m.unreadable -> Text("🔒 Locked with an older encryption key. Tap for details", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
-                    m.type == "image" && album.size > 1 -> AlbumBody(album, ref, mine, read, fg, pinned, onLongOf)
-                    m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong)
+                    m.type == "image" && album.size > 1 -> AlbumBody(album, ref, mine, read, fg, pinned, onLongOf, allImages)
+                    m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong, allImages)
                     m.type == "voice" -> VoiceBody(m, ref, fg)
                     m.type == "video" -> VideoCard(m, ref, onLong)
                     m.type == "audio" || m.type == "file" -> FileBody(m, ref, mine, fg, onLong)
@@ -847,17 +871,17 @@ private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color,
 }
 
 @Composable
-private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLong: () -> Unit) {
+private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLong: () -> Unit, all: List<String> = emptyList()) {
     var manual by remember(m.id) { mutableStateOf(false) }
     val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) } == true) || remember { DataPrefs.mayAutoDownload() }
     val bmp = rememberChatBitmap(ref, m.mediaId, allowed)
     val hasCap = m.text.isNotEmpty()
-    Column(Modifier.width(262.dp)) {
-        Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong)) {
+    Column(Modifier.width(236.dp)) {
+        Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it, all.ifEmpty { listOf(it) })) } }, onLongClick = onLong)) {
             val b = bmp ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
-            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field).combinedClickable(onClick = { manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
-            else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
-            else Image(b, null, Modifier.fillMaxWidth().aspectRatio((b.width.toFloat() / b.height).coerceIn(.6f, 1.8f)), contentScale = ContentScale.Crop)
+            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
+            else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
+            else Image(b, null, Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)      // always square, centre-cropped: the chat stays short, tap to see the whole photo
             if (m.pending) SendingBadge(Modifier.align(Alignment.Center), Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true)
             if (!hasCap) Row(Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(clock(m.ts), color = Color.White, style = T.tiny.copy(fontSize = 10.5.sp))
@@ -900,8 +924,8 @@ fun groupAlbums(rev: List<Msg>): List<List<Msg>> {
 
 /** WhatsApp-style grid: up to 4 tiles, the last one says "+N" when there are more. Tap a tile to open the photos one by one. */
 @Composable
-private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLongOf: (Msg) -> Unit) {
-    val ids = list.mapNotNull { it.mediaId }
+private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLongOf: (Msg) -> Unit, all: List<String> = emptyList()) {
+    val ids = all.ifEmpty { list.mapNotNull { it.mediaId } }
     val cap = list.firstOrNull { it.text.isNotEmpty() }?.text ?: ""
     val shown = list.take(4); val extra = list.size - shown.size
     val last = list.last()
@@ -946,7 +970,7 @@ private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolea
 private fun CallBody(m: Msg, mine: Boolean, fg: Color) {
     val missed = m.mime != "ended" && m.mime != "declined" && !mine
     Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(if (missed) We.danger.copy(alpha = .15f) else fg.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(32.dp).clip(CircleShape).background(if (missed) We.danger.copy(alpha = .15f) else fg.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
             Icon(if (m.w == 1) Ic.Video else Ic.Phone, if (missed) We.danger else fg, 20.dp)
         }
         Spacer(Modifier.width(10.dp))
@@ -981,7 +1005,7 @@ private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
     Box(Modifier.width(if (ratio > 1f) 220.dp else 170.dp).aspectRatio(ratio).clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
         if (drawable == null && pendThumb != null) { Image(pendThumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit); SendingBadge(Modifier, Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true) }
         else if (drawable == null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = We.primary, strokeWidth = 2.dp)
-        else androidx.compose.ui.viewinterop.AndroidView(factory = { c -> android.widget.ImageView(c).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER } },
+        else androidx.compose.ui.viewinterop.AndroidView(factory = { c -> android.widget.ImageView(c).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER; outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, 12f * v.resources.displayMetrics.density) } }; clipToOutline = true } },
             update = { iv ->
                 iv.setImageDrawable(drawable)
                 if (android.os.Build.VERSION.SDK_INT >= 28 && drawable is android.graphics.drawable.AnimatedImageDrawable) { drawable.repeatCount = android.graphics.drawable.AnimatedImageDrawable.REPEAT_INFINITE; drawable.start() }
@@ -1012,8 +1036,8 @@ private fun LinkCard(l: LinkPreview, fg: Color, onLong: () -> Unit) {
 private fun StickerBody(payload: String) {
     val ctx = LocalContext.current
     when {
-        payload.startsWith("a:") -> AnimEmoji(payload.removePrefix("a:"), 150.dp)
-        else -> { val bmp = remember(payload) { Pics.asset(ctx, payload.removePrefix("s:")) }; if (bmp != null) Image(bmp, null, Modifier.size(150.dp)) else Text("Sticker", color = We.text2) }
+        payload.startsWith("a:") -> AnimEmoji(payload.removePrefix("a:"), 128.dp)
+        else -> { val bmp = remember(payload) { Pics.asset(ctx, payload.removePrefix("s:")) }; if (bmp != null) Image(bmp, null, Modifier.size(128.dp)) else Text("Sticker", color = We.text2) }
     }
 }
 
@@ -1137,62 +1161,80 @@ fun StickerSheet(onDismiss: () -> Unit, onPick: (String) -> Unit) {
     }
 }
 
+/** One photo of the viewer with its own pinch-zoom and double-tap zoom. [onZoomed] tells the pager to stop swiping while zoomed in. */
 @Composable
-fun ImageViewer(ref: ChatRef, mediaId0: String, ids: List<String> = emptyList()) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val list = ids.ifEmpty { listOf(mediaId0) }
-    var idx by remember { mutableIntStateOf(list.indexOf(mediaId0).coerceAtLeast(0)) }
-    val mediaId = list[idx.coerceIn(0, list.size - 1)]
-    val bytes by produceState<ByteArray?>(null, mediaId) { value = null; value = Repo.loadMedia(ref, mediaId) }
-    val bmp = remember(bytes) { bytes?.let { Pics.decode(it) } }
+private fun ZoomPage(ref: ChatRef, mediaId: String, onTap: () -> Unit, onZoomed: (Boolean) -> Unit) {
+    val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(Pics.cachedBmp(mediaId), mediaId) {
+        val b = withContext(Dispatchers.IO) { Repo.loadMedia(ref, mediaId) }
+        if (b != null) value = withContext(Dispatchers.Default) { Pics.decodeSampled(b, 2400) }
+    }
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val animScale by animateFloatAsState(scale, tween(160), label = "z")
+    LaunchedEffect(scale) { onZoomed(scale > 1.02f) }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val b = bmp
+        if (b == null) androidx.compose.material3.CircularProgressIndicator(color = Color.White)
+        else Image(b, null, Modifier.fillMaxSize().systemBarsPadding()
+            .pointerInput(Unit) { detectTapGestures(onTap = { onTap() }, onDoubleTap = { if (scale > 1.05f) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } else scale = 2.6f }) }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    // swallow the touch only while zoomed in or pinching; a one-finger swipe at normal size goes to the pager
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val ev = awaitPointerEvent()
+                        val zoom = ev.calculateZoom(); val pan = ev.calculatePan()
+                        if (ev.changes.size > 1 || scale > 1.02f) {
+                            scale = (scale * zoom).coerceIn(1f, 8f)
+                            val maxX = size.width * (scale - 1) / 2; val maxY = size.height * (scale - 1) / 2
+                            offset = if (scale <= 1.01f) androidx.compose.ui.geometry.Offset.Zero else androidx.compose.ui.geometry.Offset((offset.x + pan.x * scale).coerceIn(-maxX, maxX), (offset.y + pan.y * scale).coerceIn(-maxY, maxY))
+                            ev.changes.forEach { if (it.positionChanged()) it.consume() }
+                        }
+                    } while (ev.changes.any { it.pressed })
+                }
+            }
+            .graphicsLayer { scaleX = animScale; scaleY = animScale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
+    }
+}
+
+/** Full-screen photo viewer: swipe left / right through every photo of the chat, pinch to zoom. */
+@Composable
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun ImageViewer(ref: ChatRef, mediaId0: String, ids: List<String> = emptyList()) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val list = remember(ids, mediaId0) { ids.ifEmpty { listOf(mediaId0) } }
+    val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = list.indexOf(mediaId0).coerceAtLeast(0)) { list.size }
+    val mediaId = list[pager.currentPage.coerceIn(0, list.size - 1)]
+    val bytes by produceState<ByteArray?>(null, mediaId) { value = null; value = Repo.loadMedia(ref, mediaId) }
+    var zoomed by remember { mutableStateOf(false) }
     var bars by remember { mutableStateOf(true) }
     var touched by remember { mutableIntStateOf(0) }
     LaunchedEffect(bars, touched) { if (bars) { delay(4000); bars = false } }
-    LaunchedEffect(mediaId) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero }
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        if (bmp == null) androidx.compose.material3.CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
-        else Image(bmp, null, Modifier.fillMaxSize().systemBarsPadding()
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { bars = !bars; touched++ }, onDoubleTap = { if (scale > 1.05f) { scale = 1f; offset = androidx.compose.ui.geometry.Offset.Zero } else scale = 2.6f })
-            }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    if (bars && (zoom != 1f)) touched++
-                    scale = (scale * zoom).coerceIn(1f, 8f)
-                    val maxX = size.width * (scale - 1) / 2; val maxY = size.height * (scale - 1) / 2
-                    offset = if (scale <= 1.01f) androidx.compose.ui.geometry.Offset.Zero else androidx.compose.ui.geometry.Offset((offset.x + pan.x * scale).coerceIn(-maxX, maxX), (offset.y + pan.y * scale).coerceIn(-maxY, maxY))
+        androidx.compose.foundation.pager.HorizontalPager(pager, Modifier.fillMaxSize(), userScrollEnabled = !zoomed, beyondViewportPageCount = 1, key = { list[it] }) { p ->
+            ZoomPage(ref, list[p], onTap = { bars = !bars; touched++ }, onZoomed = { z -> if (p == pager.currentPage) zoomed = z })
+        }
+        if (list.size > 1) Text("${pager.currentPage + 1} / ${list.size}", color = Color.White, style = T.small.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x88000000)).padding(horizontal = 14.dp, vertical = 6.dp))
+        androidx.compose.animation.AnimatedVisibility(bars, Modifier.align(Alignment.TopCenter), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp).background(Color(0x66000000), RoundedCornerShape(30.dp)), verticalAlignment = Alignment.CenterVertically) {
+                IconBtn(Ic.Close, Color.White, { Nav.pop() })
+                Spacer(Modifier.weight(1f))
+                if (bytes != null) {
+                    IconBtn(Ic.Brush, Color.White, {
+                        scope.launch {
+                            val f = java.io.File(ctx.cacheDir, "edit_${System.nanoTime()}.jpg"); f.writeBytes(bytes!!)
+                            Nav.pendingPhotos = listOf(Uri.fromFile(f)); Nav.pendingRef = ref; Nav.pendingReply = null
+                            Nav.pop(); Nav.push(RPhotoEdit)
+                        }
+                    })
+                    IconBtn(Ic.Download, Color.White, { Nav.say(if (Gallery.save(ctx, bytes!!)) "Saved to gallery" else "Could not save") })
+                    IconBtn(Ic.Share, Color.White, {
+                        val f = java.io.File(ctx.cacheDir, "share_${System.nanoTime()}.jpg"); f.writeBytes(bytes!!)
+                        try { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share")) } catch (e: Exception) { Nav.say("Could not share") }
+                    })
                 }
             }
-            .pointerInput(list.size, scale > 1.01f) {
-                // swipe left / right to move between the photos of an album
-                if (list.size > 1 && scale <= 1.01f) { var dx = 0f
-                    detectHorizontalDragGestures(onDragStart = { dx = 0f }, onDragEnd = { if (dx < -90f && idx < list.size - 1) idx++ else if (dx > 90f && idx > 0) idx-- }) { _, d -> dx += d } }
-            }
-            .graphicsLayer { scaleX = animScale; scaleY = animScale; translationX = offset.x; translationY = offset.y }, contentScale = ContentScale.Fit)
-        if (list.size > 1) Text("${idx + 1} / ${list.size}", color = Color.White, style = T.small.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp).clip(RoundedCornerShape(14.dp)).background(Color(0x88000000)).padding(horizontal = 14.dp, vertical = 6.dp))
-        androidx.compose.animation.AnimatedVisibility(bars, Modifier.align(Alignment.TopCenter), enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
-        Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp).background(Color(0x66000000), RoundedCornerShape(30.dp)), verticalAlignment = Alignment.CenterVertically) {
-            IconBtn(Ic.Close, Color.White, { Nav.pop() })
-            Spacer(Modifier.weight(1f))
-            if (bytes != null) {
-                IconBtn(Ic.Brush, Color.White, {
-                    scope.launch {
-                        val f = java.io.File(ctx.cacheDir, "edit_${System.nanoTime()}.jpg"); f.writeBytes(bytes!!)
-                        Nav.pendingPhotos = listOf(Uri.fromFile(f)); Nav.pendingRef = ref; Nav.pendingReply = null
-                        Nav.pop(); Nav.push(RPhotoEdit)
-                    }
-                })
-                IconBtn(Ic.Download, Color.White, { Nav.say(if (Gallery.save(ctx, bytes!!)) "Saved to gallery" else "Could not save") })
-                IconBtn(Ic.Share, Color.White, {
-                    val f = java.io.File(ctx.cacheDir, "share_${System.nanoTime()}.jpg"); f.writeBytes(bytes!!)
-                    try { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".files", f)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share")) } catch (e: Exception) { Nav.say("Could not share") }
-                })
-            }
-        }
         }
     }
 }

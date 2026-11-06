@@ -181,6 +181,7 @@ fun Toggle(on: Boolean, onChange: (Boolean) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Sheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(Unit) { Sfx.play("pop") }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = We.surface,
         shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp), dragHandle = {
             Box(Modifier.padding(top = 10.dp, bottom = 6.dp).width(36.dp).height(4.dp).clip(CircleShape).background(We.line))

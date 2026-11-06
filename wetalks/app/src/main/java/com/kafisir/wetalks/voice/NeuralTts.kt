@@ -68,7 +68,8 @@ object NeuralTts {
     fun usable() = enabled && status == Status.Ready
     fun setEnabled(c: Context, v: Boolean) { enabled = v && status == Status.Ready; prefs(c).edit().putBoolean("on", enabled).apply() }
     fun setVoice(c: Context, v: Int) { voice = v.coerceIn(0, 9); prefs(c).edit().putInt("voice", voice).apply() }
-    val voiceNames = listOf("Female 1", "Female 2", "Female 3", "Female 4", "Female 5", "Male 1", "Male 2", "Male 3", "Male 4", "Male 5")
+    /** Friendly names for the ten voices (the pack calls them F1–F5 and M1–M5). */
+    val voiceNames = listOf("Asha", "Meera", "Tara", "Nisha", "Riya", "Arjun", "Kabir", "Rohan", "Vikram", "Aman")
     fun resetBroken(c: Context) { prefs(c).edit().remove("loading").remove("busy").remove("broken").apply(); lastCrash = ""; load(c) }
 
     // ------------------------------------------------------------------------------------------ download
@@ -282,9 +283,13 @@ object NeuralTts {
     fun speak(c: Context, text: String, lang: String, hinglish: Boolean, say: (String) -> Unit, done: () -> Unit) {
         val ctx = c.applicationContext; appCtx = ctx
         var code = norm(lang)
-        var body = prepare(text)
-        if (hinglish) { Hinglish.load(ctx); body = Hinglish.toDevanagari(body); code = "hi" }   // romanised Hindi is read in Devanagari
+        val body = prepare(text)
+        if (hinglish) code = "hi"
         if (code !in LANGS) { done(); return }
+        // Hinglish, or Hindi with English words in it: every word is read by the voice of its own language (Hindi words in Devanagari, English words in English)
+        val pieces: List<Pair<String, String>> = if (hinglish || (code == "hi" && body.any { it in 'A'..'Z' || it in 'a'..'z' })) { Hinglish.load(ctx); Hinglish.segments(body) } else listOf(code to body)
+        val chunkList = ArrayList<Pair<String, String>>()
+        for ((l, t) in pieces) for (c in chunks(t)) chunkList.add(l to c)
         stop()
         doneCb?.let { it() }          // an earlier reading that was replaced
         doneCb = done; sayCb = say
@@ -293,7 +298,7 @@ object NeuralTts {
         val threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
         val m = android.os.Message.obtain(null, TtsService.MSG_SPEAK).apply {
             replyTo = replies
-            data = android.os.Bundle().apply { putString("dir", dir(ctx).absolutePath + "/"); putStringArrayList("chunks", ArrayList(chunks(body))); putString("lang", code); putInt("sid", voice); putInt("threads", threads) }
+            data = android.os.Bundle().apply { putString("dir", dir(ctx).absolutePath + "/"); putStringArrayList("chunks", ArrayList(chunkList.map { it.second })); putStringArrayList("langs", ArrayList(chunkList.map { it.first })); putInt("sid", voice); putInt("threads", threads) }
         }
         send(ctx, m)
     }

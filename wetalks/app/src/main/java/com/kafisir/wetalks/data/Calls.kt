@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationCompat
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.core.app.ServiceCompat
 import com.google.firebase.database.ChildEventListener
 import com.google.firebase.database.DataSnapshot
@@ -436,6 +437,7 @@ object Calls {
         am.isSpeakerphoneOn = false; am.mode = prevAudioMode
         try { app.stopService(Intent(app, CallService::class.java)) } catch (_: Exception) {}
         key = null; pendingOffer = null; connectedAt = 0L; speaker = false; flipping = false; negSeq = 0; awaitingNeg = -1
+        if (phase != CallPhase.IDLE) com.kafisir.wetalks.ui.Sfx.callEnd()
         minimized = false; phase = CallPhase.IDLE; note = ""
     }
 
@@ -446,7 +448,16 @@ object Calls {
         applySpeaker(false)
     }
 
+    private var ringSilencer: android.content.BroadcastReceiver? = null
+    /** Like a normal call: pressing the power or a volume button stops the ringing (the call keeps waiting to be answered). */
+    fun silenceRing() { try { ringtone?.stop(); (app.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).cancel() } catch (_: Exception) {} }
     private fun startRinging() {
+        try {
+            ringSilencer?.let { try { app.unregisterReceiver(it) } catch (_: Exception) {} }
+            ringSilencer = object : android.content.BroadcastReceiver() { override fun onReceive(c: Context, i: Intent) { if (phase == CallPhase.INCOMING) silenceRing() } }
+            val f = android.content.IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction("android.media.VOLUME_CHANGED_ACTION") }
+            if (Build.VERSION.SDK_INT >= 33) app.registerReceiver(ringSilencer, f, Context.RECEIVER_NOT_EXPORTED) else app.registerReceiver(ringSilencer, f)
+        } catch (_: Exception) {}
         try {
             ringtone = RingtoneManager.getRingtone(app, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))?.also { if (Build.VERSION.SDK_INT >= 28) it.isLooping = true; it.play() }
             val v = app.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
@@ -454,6 +465,7 @@ object Calls {
         } catch (_: Exception) {}
     }
     private fun stopRinging() {
+        ringSilencer?.let { try { app.unregisterReceiver(it) } catch (_: Exception) {} }; ringSilencer = null
         try { ringtone?.stop(); (app.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).cancel() } catch (_: Exception) {}
         ringtone = null
     }
@@ -471,12 +483,24 @@ object Calls {
     private fun notifyIncoming() {
         if (foreground) return
         channel()
-        val n = NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle("Incoming " + (if (video) "video" else "voice") + " call")
-            .setContentText("WeTalks").setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_MAX).setOngoing(true).setAutoCancel(false)
-            .setContentIntent(openIntent()).setFullScreenIntent(openIntent(), true).setTimeoutAfter(55_000)
-            .addAction(0, "Decline", PendingIntent.getBroadcast(app, 11, Intent(app, NotifReceiver::class.java).setAction(Notifier.ACT_DECLINE).setPackage(app.packageName), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-            .addAction(0, "Answer", openIntent()).build()
-        try { (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(77, n) } catch (_: SecurityException) {}
+        val who = peer
+        scope.launch {
+            // who is calling: name and picture (waits a moment for them if they are not known yet)
+            val u = Repo.user(who).value ?: try { kotlinx.coroutines.withTimeoutOrNull(1500) { Repo.userOnce(who) } } catch (_: Exception) { null }
+            if (phase != CallPhase.INCOMING) return@launch
+            val name = u?.name?.ifBlank { null } ?: "WeTalks call"
+            val pic = u?.photo?.let { ph -> com.kafisir.wetalks.ui.Pics.decodeB64(ph)?.asAndroidBitmap() }
+            val pb = androidx.core.app.Person.Builder().setName(name).setImportant(true)
+            if (pic != null) pb.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(pic))
+            val decline = PendingIntent.getBroadcast(app, 11, Intent(app, NotifReceiver::class.java).setAction(Notifier.ACT_DECLINE).setPackage(app.packageName), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            // CallStyle: the caller's name and picture, a red Decline and a green Answer
+            val n = NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle(name)
+                .setContentText("Incoming " + (if (video) "video" else "voice") + " call · WeTalks").setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_MAX).setOngoing(true).setAutoCancel(false)
+                .setContentIntent(openIntent()).setFullScreenIntent(openIntent(), true).setTimeoutAfter(55_000)
+                .setStyle(NotificationCompat.CallStyle.forIncomingCall(pb.build(), decline, openIntent()))
+                .setColor(0xFF22C55E.toInt()).build()
+            try { (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(77, n) } catch (_: SecurityException) {}
+        }
     }
     private fun cancelNotification() { try { (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(77) } catch (_: Exception) {} }
 

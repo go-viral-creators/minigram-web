@@ -40,7 +40,14 @@ object DataPrefs {
     // ---- disk cache (the server's still-encrypted text, so nothing readable is ever stored)
     private fun f(id: String) = File(dir, "m_" + id.filter { it.isLetterOrDigit() || it == '-' || it == '_' })
     fun getDisk(id: String): String? = try { f(id).takeIf { it.exists() }?.also { it.setLastModified(System.currentTimeMillis()) }?.readText() } catch (e: Exception) { null }
-    fun hasDisk(id: String) = f(id).exists()
+    fun hasDisk(id: String) = f(id).exists() || hasPlain(id)
+
+    // ---- the photo / voice file itself, kept inside the app's private storage once it has been opened (or was sent from this phone).
+    // The chat then shows it from this file: no download, no decryption, no waiting, the same every time. Cleared by the cache limit / "Clear cache".
+    private fun pf(id: String) = File(dir, "p_" + id.filter { it.isLetterOrDigit() || it == '-' || it == '_' })
+    fun hasPlain(id: String) = ::app.isInitialized && pf(id).exists()
+    fun getPlain(id: String): ByteArray? = try { pf(id).takeIf { it.exists() }?.also { it.setLastModified(System.currentTimeMillis()) }?.readBytes() } catch (e: Exception) { null }
+    fun putPlain(id: String, bytes: ByteArray) { try { val t = File(dir, "p_tmp_" + System.nanoTime()); t.writeBytes(bytes); if (!t.renameTo(pf(id))) t.delete(); trim() } catch (_: Exception) {} }
     fun putDisk(id: String, s: String) { try { f(id).writeText(s); trim() } catch (_: Exception) {} }
     fun diskSize(): Long = dir.listFiles()?.sumOf { it.length() } ?: 0L
     fun clearDisk() { dir.listFiles()?.forEach { it.delete() } }

@@ -45,12 +45,21 @@ import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
     override fun onCreate() { super.onCreate(); if (Application.getProcessName().endsWith(":tts")) return   // the voice engine process needs none of the app
-        com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
+        com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onStart() { super.onStart(); com.kafisir.wetalks.data.Calls.foreground = true }
     override fun onStop() { super.onStop(); com.kafisir.wetalks.data.Calls.foreground = false }
+
+    // a volume button while a call is ringing only silences the ring (like the normal phone app)
+    override fun dispatchKeyEvent(e: android.view.KeyEvent): Boolean {
+        if (com.kafisir.wetalks.data.Calls.phase == com.kafisir.wetalks.data.CallPhase.INCOMING && (e.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP || e.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            if (e.action == android.view.KeyEvent.ACTION_DOWN) com.kafisir.wetalks.data.Calls.silenceRing()
+            return true
+        }
+        return super.dispatchKeyEvent(e)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

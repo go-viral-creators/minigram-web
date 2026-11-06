@@ -195,12 +195,21 @@ fun BoxScope.CallMini() {
             Text(sub, color = Color.White, style = T.tiny, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp))
         }
     } else {
-        Row(move.shadow(10.dp, RoundedCornerShape(30.dp)).clip(RoundedCornerShape(30.dp)).background(Green).padding(start = 6.dp, end = 16.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(move.shadow(10.dp, RoundedCornerShape(32.dp)).clip(RoundedCornerShape(32.dp)).background(Green).padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(user?.name ?: "", user?.photo ?: "", 38.dp, Calls.peer)
             Spacer(Modifier.width(9.dp))
             Column {
-                Text(user?.name ?: "Call", color = Color.White, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, modifier = Modifier.widthIn(max = 120.dp))
+                Text(user?.name ?: "Call", color = Color.White, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1, modifier = Modifier.widthIn(max = 96.dp))
                 Text(sub, color = Color.White.copy(alpha = .9f), style = T.tiny)
+            }
+            Spacer(Modifier.width(8.dp))
+            // mute / unmute and end, without going back to the call screen
+            Box(Modifier.size(38.dp).clip(CircleShape).background(if (Calls.muted) Color.White else Color.White.copy(alpha = .22f)).combinedClickable(onClick = { Calls.toggleMute() }), contentAlignment = Alignment.Center) {
+                Icon(if (Calls.muted) Ic.MicOff else Ic.Mic, if (Calls.muted) Green else Color.White, 20.dp)
+            }
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.size(38.dp).clip(CircleShape).background(Red).combinedClickable(onClick = { Calls.hangUp() }), contentAlignment = Alignment.Center) {
+                Icon(Ic.Phone, Color.White, 20.dp, Modifier.rotate(135f))
             }
         }
     }

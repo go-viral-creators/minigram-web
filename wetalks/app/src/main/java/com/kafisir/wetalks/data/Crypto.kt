@@ -53,6 +53,10 @@ object Crypto {
         return c.doFinal(raw, 12, raw.size - 12)
     }
 
+    /** Wraps a small secret with this phone's hardware-backed key (for keys kept on this phone only). */
+    fun wrapForDevice(data: ByteArray): String = wrap(data)
+    fun unwrapForDevice(s: String): ByteArray = unwrap(s)
+
     /** Loads (or creates) this device's key pair. */
     @Synchronized fun keys(ctx: Context): Pair {
         pair?.let { return it }

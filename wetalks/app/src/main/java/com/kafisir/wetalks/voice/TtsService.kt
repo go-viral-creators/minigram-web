@@ -61,7 +61,7 @@ class TtsService : Service() {
 
     private fun handle(m: Message) {
         when (m.what) {
-            MSG_SPEAK -> { client = m.replyTo; val d = m.data; start(d.getString("dir") ?: "", d.getStringArrayList("chunks") ?: arrayListOf(), d.getString("lang") ?: "en", d.getInt("sid"), d.getInt("threads", 2)) }
+            MSG_SPEAK -> { client = m.replyTo; val d = m.data; start(d.getString("dir") ?: "", d.getStringArrayList("chunks") ?: arrayListOf(), d.getStringArrayList("langs") ?: arrayListOf(), d.getInt("sid"), d.getInt("threads", 2)) }
             MSG_STOP -> stopWork()
             MSG_PAUSE -> try { track?.pause() } catch (_: Exception) {}
             MSG_RESUME -> try { track?.play() } catch (_: Exception) {}
@@ -81,7 +81,7 @@ class TtsService : Service() {
         return OfflineTts(config = cfg).also { tts = it; Log.i("WeTts", "engine ready, sampleRate=" + it.sampleRate() + " speakers=" + it.numSpeakers()) }
     }
 
-    private fun start(dir: String, chunks: List<String>, lang: String, sid: Int, threads: Int) {
+    private fun start(dir: String, chunks: List<String>, langs: List<String>, sid: Int, threads: Int) {
         stopWork()
         val prev = worker
         cancel = false
@@ -98,9 +98,10 @@ class TtsService : Service() {
                     .setBufferSizeInBytes(maxOf(min, sr * 4)).setTransferMode(AudioTrack.MODE_STREAM).build()
                 track = at; at.play()
                 var frames = 0L
-                val cfg = GenerationConfig(sid = sid, speed = 1.0f, extra = mapOf("lang" to lang))
-                for (chunk in chunks) {
+                for ((ci, chunk) in chunks.withIndex()) {
                     if (cancel) break
+                    val lang = langs.getOrElse(ci) { "en" }
+                    val cfg = GenerationConfig(sid = sid, speed = 1.0f, extra = mapOf("lang" to lang))      // each piece is read by the voice of its own language
                     Log.i("WeTts", "generate sid=$sid lang=$lang chars=" + chunk.length + " text=" + chunk.take(60))
                     // an exception thrown inside this callback would cross into native code and abort the process: catch it, stop, and report it afterwards
                     val sink = PcmSink(at, { cancel })

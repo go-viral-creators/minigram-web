@@ -174,6 +174,8 @@ fun ChatSettingsScreen() {
             Row2(Ic.Link, "Link previews", "Your phone fetches the page to build the preview card. Turn off to send plain links.", trailing = { Toggle(linkPrev) { UiPrefs.setLinkPreview(ctx, it) } })
             val md by UiPrefs.markdown
             Row2(Ic.Type, "Text formatting (Markdown)", "**bold**, *italic*, ~~strike~~, `code`, lists, tables and ``` code blocks ``` look formatted in chats", trailing = { Toggle(md) { UiPrefs.setMarkdown(ctx, it) } })
+            var sfxOn by remember { mutableStateOf(com.kafisir.wetalks.ui.Sfx.enabled) }
+            Row2(Ic.Speaker, "Sound effects", "Small sounds for sent / received messages, uploads, voice play, delete and the end of a call (silent when the phone is silent)", trailing = { Toggle(sfxOn) { sfxOn = it; com.kafisir.wetalks.ui.Sfx.set(ctx, it) } })
             SectionLabel("More with WeTalks Plus")
             listOf("A different background for every chat", "Animated backgrounds", "Blur & parallax effects").forEach { t ->
                 Row2(Ic.Lock, t, "Coming soon", onClick = { locked(t) })

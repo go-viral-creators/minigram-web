@@ -48,7 +48,7 @@ object VoicePlayer {
                 val p = MediaPlayer().apply { setDataSource(f.absolutePath); prepare(); setOnCompletionListener { finished() } }
                 mp = p; currentId = m.id; ref = chat; title = who; total = p.duration; pos = 0
                 ctx.getSharedPreferences("wt_listened", Context.MODE_PRIVATE).edit().putBoolean(m.id, true).apply()
-                p.start(); playing = true; applySpeed(); startTicker(); notifyService()
+                p.start(); playing = true; com.kafisir.wetalks.ui.Sfx.play("play"); applySpeed(); startTicker(); notifyService()
             } catch (e: Exception) { stop(); Nav.say("Could not play this voice message") }
             loadingId = null
         }
