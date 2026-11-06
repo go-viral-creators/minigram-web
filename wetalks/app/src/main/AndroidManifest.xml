@@ -48,6 +48,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="wetalks.fireclashpro.com" android:pathPrefix="/c/" />
+                <data android:scheme="https" android:host="wetalks.fireclashpro.com" android:pathPrefix="/u/" />
                 <data android:scheme="https" android:host="wetalks-78e5a.web.app" android:pathPrefix="/c/" />
                 <data android:scheme="https" android:host="wetalks-78e5a.web.app" android:pathPrefix="/u/" />
             </intent-filter>

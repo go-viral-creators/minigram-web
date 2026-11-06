@@ -354,7 +354,7 @@ object Repo {
     /** Turns a scanned/pasted wetalks:// link into a screen: wetalks://u/<username> or wetalks://c/<handle>. */
     /** Shareable web links: they open in any browser, and open the app directly on phones that have it. */
     object Links {
-        const val HOST = "wetalks-78e5a.web.app"
+        const val HOST = "wetalks.fireclashpro.com"
         fun channel(handle: String) = "https://$HOST/c/$handle"
         fun user(username: String) = "https://$HOST/u/$username"
     }
