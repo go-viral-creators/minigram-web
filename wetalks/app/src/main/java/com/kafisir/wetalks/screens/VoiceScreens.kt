@@ -57,7 +57,7 @@ fun NaturalVoicesScreen() {
                     SmallBtn("Cancel", Modifier.padding(top = 10.dp)) { NeuralTts.cancelDownload() }
                 }
                 NeuralTts.Status.TooWeak -> Row2(Ic.Info, "Not supported on this phone", "Natural voices need a phone with about 3 GB of memory or more. Your phone's normal voice keeps working.")
-                NeuralTts.Status.Broken -> Row2(Ic.Alert, "Switched off", "The app closed unexpectedly the last time a natural voice was used, so it was turned off for safety. Tap to try again.", onClick = { NeuralTts.resetBroken(ctx) })
+                NeuralTts.Status.Broken -> Row2(Ic.Alert, "Switched off", "The natural voice engine stopped unexpectedly (the app itself kept running), so it was turned off. Tap to try again." + (if (NeuralTts.lastCrash.isNotEmpty()) "\n\n" + NeuralTts.lastCrash else ""), onClick = { NeuralTts.resetBroken(ctx) })
                 else -> Column(Modifier.padding(16.dp)) {
                     Text("Download once (about " + (NeuralTts.packBytes / 1048576) + " MB)", color = We.text, style = T.name)
                     Text("Use Wi-Fi. The voice stays on your phone and you can delete it any time. It reads 31 languages including English, Hindi and Hinglish. Other languages use your phone's voice.", color = We.text2, style = T.small, modifier = Modifier.padding(top = 4.dp))

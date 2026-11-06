@@ -13,6 +13,8 @@ object CrashLog {
             prev?.uncaughtException(t, e)
         }
     }
+    /** Adds a line (for crashes that happen outside the app's own process, where no stack trace exists). */
+    fun note(c: Context, line: String) { try { file(c).writeText("WeTalks note · " + java.util.Date() + "\n\n" + line) } catch (_: Exception) {} }
     fun last(c: Context): String? = file(c).takeIf { it.exists() }?.readText()
     fun clear(c: Context) { file(c).delete() }
 }

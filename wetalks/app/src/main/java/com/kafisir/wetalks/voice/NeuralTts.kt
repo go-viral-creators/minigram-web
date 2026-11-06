@@ -58,8 +58,7 @@ object NeuralTts {
         enabled = p.getBoolean("on", false); voice = p.getInt("voice", 0).coerceIn(0, 9)
         val mem = ActivityManager.MemoryInfo().also { (c.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it) }
         status = when {
-            // the app closed while the native engine was loading or speaking last time: do not try again on its own
-            p.getBoolean("loading", false) || p.getBoolean("busy", false) -> { p.edit().putBoolean("on", false).apply(); enabled = false; Status.Broken }
+            p.getBoolean("broken", false) -> { enabled = false; Status.Broken }
             mem.totalMem < 2_800_000_000L -> Status.TooWeak
             installed(c) -> Status.Ready
             else -> Status.Missing
@@ -70,7 +69,7 @@ object NeuralTts {
     fun setEnabled(c: Context, v: Boolean) { enabled = v && status == Status.Ready; prefs(c).edit().putBoolean("on", enabled).apply() }
     fun setVoice(c: Context, v: Int) { voice = v.coerceIn(0, 9); prefs(c).edit().putInt("voice", voice).apply() }
     val voiceNames = listOf("Female 1", "Female 2", "Female 3", "Female 4", "Female 5", "Male 1", "Male 2", "Male 3", "Male 4", "Male 5")
-    fun resetBroken(c: Context) { prefs(c).edit().remove("loading").remove("busy").apply(); load(c) }
+    fun resetBroken(c: Context) { prefs(c).edit().remove("loading").remove("busy").remove("broken").apply(); lastCrash = ""; load(c) }
 
     // ------------------------------------------------------------------------------------------ download
     private var dlJob: Job? = null
@@ -194,77 +193,97 @@ object NeuralTts {
     fun norm(lang: String) = when (lang) { "in" -> "id"; "iw" -> "he"; else -> lang }
     fun supports(lang: String) = norm(lang) in LANGS
 
-    private var tts: OfflineTts? = null
-    @Volatile private var cancel = false
-    private var job: Job? = null
-    private var track: AudioTrack? = null
-    private var idle: Job? = null
+    // The engine is native code and lives in its own process (TtsService, ":tts"): a crash there cannot close the app.
+    private var svc: android.os.Messenger? = null
+    private var bound = false
+    private var queued: android.os.Message? = null
+    private var doneCb: (() -> Unit)? = null
+    private var sayCb: ((String) -> Unit)? = null
+    private var appCtx: Context? = null
+    var lastCrash by mutableStateOf("")          // what the system recorded when the voice engine process died
+        private set
+    private val replies by lazy { android.os.Messenger(android.os.Handler(android.os.Looper.getMainLooper()) { m ->
+        when (m.what) {
+            TtsService.R_STARTED -> {}
+            TtsService.R_DONE -> finishCall()
+            TtsService.R_ERROR -> { sayCb?.invoke("Natural voice failed. Using your phone's voice next time."); lastCrash = "Engine error: " + (m.data?.getString("t") ?: ""); appCtx?.let { markBroken(it) }; finishCall() }
+        }
+        true
+    }) }
+    private val conn by lazy { object : android.content.ServiceConnection {
+        override fun onServiceConnected(n: android.content.ComponentName?, b: android.os.IBinder?) {
+            svc = android.os.Messenger(b); bound = true
+            queued?.let { try { svc?.send(it) } catch (_: Exception) {} }; queued = null
+        }
+        override fun onServiceDisconnected(n: android.content.ComponentName?) { onEngineDied() }
+        override fun onBindingDied(n: android.content.ComponentName?) { onEngineDied() }
+    } }
 
-    private fun engine(c: Context): OfflineTts {
-        tts?.let { return it }
-        val p = prefs(c); p.edit().putBoolean("loading", true).commit()
-        val d = dir(c).absolutePath + "/"
-        val threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
-        val cfg = OfflineTtsConfig(model = OfflineTtsModelConfig(supertonic = OfflineTtsSupertonicModelConfig(
-            durationPredictor = d + "duration_predictor.int8.onnx", textEncoder = d + "text_encoder.int8.onnx", vectorEstimator = d + "vector_estimator.int8.onnx",
-            vocoder = d + "vocoder.int8.onnx", ttsJson = d + "tts.json", unicodeIndexer = d + "unicode_indexer.bin", voiceStyle = d + "voice.bin"),
-            numThreads = threads, debug = false, provider = "cpu"), maxNumSentences = 1)
-        val t = OfflineTts(config = cfg)
-        p.edit().remove("loading").commit()
-        tts = t
-        return t
+    private fun finishCall() { val d = doneCb; doneCb = null; sayCb = null; appCtx?.let { prefs(it).edit().remove("busy").remove("loading").apply() }; d?.invoke() }
+
+    private fun markBroken(c: Context) { prefs(c).edit().putBoolean("on", false).putBoolean("broken", true).remove("busy").remove("loading").apply(); enabled = false; status = Status.Broken }
+
+    /** The engine process died in the middle of speaking (a native crash). The app is fine: say so, switch the natural voice off and read the reason the system kept. */
+    private fun onEngineDied() {
+        svc = null; bound = false; queued = null
+        val c = appCtx ?: return
+        if (doneCb == null) return
+        lastCrash = readExitReason(c)
+        sayCb?.invoke("The natural voice engine crashed on this phone, so it was switched off. Your phone's voice is used instead.")
+        markBroken(c)
+        com.kafisir.wetalks.data.CrashLog.note(c, "natural voice engine process died: $lastCrash")
+        finishCall()
     }
-    private fun free() { try { tts?.release() } catch (_: Throwable) {}; tts = null }
 
-    fun stop() { cancel = true; try { track?.pause(); track?.flush() } catch (_: Exception) {} }
-    fun pause() { try { track?.pause() } catch (_: Exception) {} }
-    fun resume() { try { track?.play() } catch (_: Exception) {} }
+    /** Android keeps the reason a process ended (signal number and, for native crashes, the tombstone). Pull out the readable bits. */
+    private fun readExitReason(c: Context): String {
+        if (android.os.Build.VERSION.SDK_INT < 30) return "unknown (needs Android 11+ to read)"
+        return try {
+            val am = c.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val e = am.getHistoricalProcessExitReasons(c.packageName, 0, 8).firstOrNull { it.processName.endsWith(":tts") } ?: return "no record"
+            val sb = StringBuilder("reason=" + e.reason + " status=" + e.status + " " + (e.description ?: ""))
+            if (e.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) try {
+                val raw = e.traceInputStream?.use { it.readBytes() } ?: ByteArray(0)
+                // the tombstone is a binary record: keep only the printable runs that name a library or function
+                val lines = Regex("[\\x20-\\x7e]{8,}").findAll(String(raw, Charsets.ISO_8859_1)).map { it.value }.filter { it.contains(".so") || it.contains("::") || it.contains("signal") || it.contains("Abort") }.distinct().take(14).toList()
+                if (lines.isNotEmpty()) sb.append("\n").append(lines.joinToString("\n") { it.take(160) })
+            } catch (_: Exception) {}
+            sb.toString().take(1500)
+        } catch (_: Exception) { "unreadable" }
+    }
+
+    private fun send(c: Context, m: android.os.Message) {
+        val ctx = c.applicationContext; appCtx = ctx
+        val s = svc
+        if (s != null) { try { s.send(m); return } catch (_: Exception) { svc = null } }
+        queued = m
+        if (!bound) ctx.bindService(android.content.Intent(ctx, TtsService::class.java), conn, Context.BIND_AUTO_CREATE)
+    }
+
+    private fun free() { appCtx?.let { c -> send(c, android.os.Message.obtain(null, TtsService.MSG_FREE)) } }
+
+    fun stop() { try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_STOP)) } catch (_: Exception) {} }
+    fun pause() { try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_PAUSE)) } catch (_: Exception) {} }
+    fun resume() { try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_RESUME)) } catch (_: Exception) {} }
 
     /** Reads [text] aloud. Starts playing after the first sentence is ready. [done] is called when it ends or is stopped (also on error). */
     fun speak(c: Context, text: String, lang: String, hinglish: Boolean, say: (String) -> Unit, done: () -> Unit) {
-        val ctx = c.applicationContext
+        val ctx = c.applicationContext; appCtx = ctx
         var code = norm(lang)
         var body = prepare(text)
         if (hinglish) { Hinglish.load(ctx); body = Hinglish.toDevanagari(body); code = "hi" }   // romanised Hindi is read in Devanagari
         if (code !in LANGS) { done(); return }
-        val sid = voice
-        stop(); idle?.cancel(); cancel = false
-        job = Repo.scope.launch(Dispatchers.Default) {
-            val p = prefs(ctx)
-            try {
-                val t = engine(ctx)
-                p.edit().putBoolean("busy", true).commit()
-                val sr = t.sampleRate()
-                val min = AudioTrack.getMinBufferSize(sr, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
-                val at = AudioTrack.Builder()
-                    .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
-                    .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_FLOAT).setSampleRate(sr).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
-                    .setBufferSizeInBytes(maxOf(min, sr * 4)).setTransferMode(AudioTrack.MODE_STREAM).build()
-                track = at; at.play()
-                var frames = 0L
-                val cfg = GenerationConfig(sid = sid, speed = 1.0f, extra = mapOf("lang" to code))
-                for (chunk in chunks(body)) {
-                    if (cancel) break
-                    t.generateWithConfigAndCallback(chunk, cfg) { s ->
-                        if (cancel) 0 else { at.write(s, 0, s.size, AudioTrack.WRITE_BLOCKING); frames += s.size; 1 }
-                    }
-                }
-                if (!cancel) {   // let the last sentence finish playing
-                    at.stop()
-                    var waited = 0
-                    while (!cancel && at.playbackHeadPosition < frames && waited < 60_000) { delay(100); waited += 100 }
-                }
-                try { at.release() } catch (_: Exception) {}
-                track = null
-            } catch (e: Throwable) {
-                say("Natural voice failed. Using your phone's voice next time.")
-                free(); try { track?.release() } catch (_: Exception) {}; track = null
-            } finally {
-                p.edit().remove("busy").commit()
-                done()
-                idle = Repo.scope.launch { delay(90_000); if (job?.isActive != true) free() }   // give the memory back when not in use
-            }
+        stop()
+        doneCb?.let { it() }          // an earlier reading that was replaced
+        doneCb = done; sayCb = say
+        lastCrash = ""
+        prefs(ctx).edit().putBoolean("busy", true).apply()
+        val threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
+        val m = android.os.Message.obtain(null, TtsService.MSG_SPEAK).apply {
+            replyTo = replies
+            data = android.os.Bundle().apply { putString("dir", dir(ctx).absolutePath + "/"); putStringArrayList("chunks", ArrayList(chunks(body))); putString("lang", code); putInt("sid", voice); putInt("threads", threads) }
         }
+        send(ctx, m)
     }
 
     /** Emoji and symbols confuse the model; links are not read out. */

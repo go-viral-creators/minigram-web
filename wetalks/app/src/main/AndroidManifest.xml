@@ -57,6 +57,7 @@
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.files" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+        <service android:name=".voice.TtsService" android:exported="false" android:process=":tts" />
         <service android:name=".voice.PlaybackService" android:exported="false" android:foregroundServiceType="mediaPlayback" />
         <receiver android:name=".data.NotifReceiver" android:exported="false" />
         <receiver android:name=".data.BootReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter></receiver>
