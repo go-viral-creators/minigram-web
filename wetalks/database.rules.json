@@ -227,8 +227,8 @@
     "media": {
       "$id": {
         ".read": "auth != null",
-        ".write": "auth != null && ((!data.exists() && newData.child('from').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('from').val() === auth.uid))",
-        ".validate": "!newData.exists() || (newData.hasChildren(['from','mime','data']) && newData.child('data').isString() && newData.child('data').val().length <= 1800000)"
+        ".write": "auth != null && data.exists() && !newData.exists() && data.child('from').val() === auth.uid",
+        ".validate": "!newData.exists()"
       }
     }
   }

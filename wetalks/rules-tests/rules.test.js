@@ -112,12 +112,11 @@ test('channel handles are unique', async () => {
   await assertFails(set(ref(db(B), 'channel_handles/x'), 'cY'));
 });
 
-test('media: write once as yourself, size capped', async () => {
-  await assertSucceeds(set(ref(db(A), 'media/m1'), { from: A, mime: 'image/jpeg', data: 'abc' }));
-  await assertFails(set(ref(db(A), 'media/m1'), { from: A, mime: 'image/jpeg', data: 'zzz' }));
-  await assertFails(set(ref(db(A), 'media/m2'), { from: B, mime: 'image/jpeg', data: 'abc' }));
-  await assertFails(set(ref(db(A), 'media/m3'), { from: A, mime: 'image/jpeg', data: 'a'.repeat(1900000) }));
+test('media: new files can no longer be written to the database (they go to the media server); old ones stay readable', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'media/m1'), { from: A, mime: 'image/jpeg', data: 'abc' }); });
+  await assertFails(set(ref(db(A), 'media/m9'), { from: A, mime: 'image/jpeg', data: 'abc' }));
   await assertSucceeds(get(ref(db(B), 'media/m1')));
+  await assertFails(get(ref(anon(), 'media/m1')));
 });
 
 test('blocks are private to their owner', async () => {
@@ -195,11 +194,10 @@ test('deleting a whole DM for both people', async () => {
   await assertFails(remove(ref(db(A), 'messages/g1')));            // not for groups
 });
 
-test('media: only the uploader can delete it', async () => {
-  await assertSucceeds(set(ref(db(A), 'media/x1'), { from: A, mime: 'image/jpeg', data: 'abc' }));
+test('media: only the uploader can delete an old file', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'media/x1'), { from: A, mime: 'image/jpeg', data: 'abc' }); });
   await assertFails(remove(ref(db(B), 'media/x1')));
   await assertSucceeds(remove(ref(db(A), 'media/x1')));
-  await assertSucceeds(set(ref(db(A), `messages/${AB}/big`), { from: A, ts: 1, type: 'link', body: 'x'.repeat(50000) }));
 });
 
 test('calls: only the two people see the signalling, nobody can ring as someone else', async () => {

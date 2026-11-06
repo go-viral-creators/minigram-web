@@ -1,5 +1,11 @@
 RewriteEngine On
+# keep the Authorization header (some shared servers drop it)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^api/v1/ api/index.php [L]
 RewriteRule ^(c|u)/ /index.html [L]
 <Files "assetlinks.json">
   Header set Content-Type "application/json"
 </Files>
+<FilesMatch "\.(json|log)$">
+  Header set X-Content-Type-Options "nosniff"
+</FilesMatch>

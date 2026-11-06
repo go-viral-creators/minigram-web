@@ -13,8 +13,8 @@ android {
         applicationId = "com.kafisir.wetalks"
         minSdk = 28
         targetSdk = 35
-        versionCode = 21
-        versionName = "1.10.1"
+        versionCode = 22
+        versionName = "1.11.0"
     }
     val ksFile = rootProject.file("keystore.properties")
     signingConfigs {

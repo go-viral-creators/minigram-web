@@ -666,7 +666,7 @@ object Repo {
             up["messages/${ref.id}/$id"] = null; up["pins/${ref.id}/$id"] = null
             try {
                 val snap = db.getReference("messages/${ref.id}/$id").get().await()
-                if (snap.exists() && snap.str("from") == uid) decrypt(ref, rawOf(snap)).mediaId?.takeIf { it.isNotEmpty() }?.let { up["media/$it"] = null }
+                if (snap.exists() && snap.str("from") == uid) decrypt(ref, rawOf(snap)).mediaId?.takeIf { it.isNotEmpty() }?.let { removeMedia(it) }
             } catch (_: Exception) {}
         }
         db.reference.updateChildren(up).await()
@@ -706,7 +706,7 @@ object Repo {
             val snap = db.getReference("messages/${ref.id}").get().await()
             for (c in snap.children) if (c.str("from") == uid) {
                 val id = try { decrypt(ref, rawOf(c)).mediaId } catch (_: Exception) { null }
-                if (!id.isNullOrEmpty()) try { db.getReference("media/$id").removeValue().await() } catch (_: Exception) {}
+                if (!id.isNullOrEmpty()) removeMedia(id)
             }
         } catch (_: Exception) {}
         val up = HashMap<String, Any?>()
@@ -734,7 +734,7 @@ object Repo {
                 val snap = db.getReference("messages/${ref.id}").get().await()
                 for (c in snap.children) if (c.str("from") == uid) {
                     val id = try { decrypt(ref, rawOf(c)).mediaId } catch (_: Exception) { null }
-                    if (!id.isNullOrEmpty()) try { db.getReference("media/$id").removeValue().await() } catch (_: Exception) {}
+                    if (!id.isNullOrEmpty()) removeMedia(id)
                 }
             } catch (_: Exception) {}
             up["messages/${ref.id}"] = null; up["pins/${ref.id}"] = null
@@ -796,11 +796,17 @@ object Repo {
     suspend fun uploadMedia(ref: ChatRef, bytes: ByteArray, mime: String): String {
         val kv = if (ref.kind == Kind.GROUP) (group(ref.id).value?.kv ?: 1) else 0
         val key = chatKey(ref, kv)
-        val data = if (key == null) Crypto.b64(bytes) else Crypto.seal(key, bytes)
-        val id = db.getReference("media").push().key!!
-        db.getReference("media/$id").setValue(hashMapOf("from" to uid, "mime" to mime, "data" to data)).await()
-        DataPrefs.addUp(data.length.toLong())
+        // encrypted here on the phone; the media server only ever sees ciphertext
+        val sealed = if (key == null) bytes else Crypto.sealBytes(key, bytes)
+        val id = MediaApi.upload(ref.id, sealed, mime)
+        DataPrefs.addUp(sealed.size.toLong())
         return id
+    }
+
+    /** Deletes a file (own uploads only): files from before the move are still in the database, new ones are on the media server. */
+    private suspend fun removeMedia(id: String) {
+        if (id.isEmpty()) return
+        if (MediaApi.isRemote(id)) MediaApi.delete(id) else try { db.getReference("media/$id").removeValue().await() } catch (_: Exception) {}
     }
 
     private val mediaCache = object : android.util.LruCache<String, ByteArray>(24 * 1024 * 1024) { override fun sizeOf(k: String, v: ByteArray) = v.size }
@@ -809,7 +815,7 @@ object Repo {
         mediaCache.get(id)?.let { return it }
         var s = DataPrefs.getDisk(id)
         if (s == null) {
-            s = db.getReference("media/$id/data").get().await().getValue(String::class.java) ?: return null
+            s = (if (MediaApi.isRemote(id)) MediaApi.download(id)?.let { Crypto.b64(it) } else db.getReference("media/$id/data").get().await().getValue(String::class.java)) ?: return null
             DataPrefs.addDown(s.length.toLong()); DataPrefs.putDisk(id, s)
         }
         val bytes = try {
