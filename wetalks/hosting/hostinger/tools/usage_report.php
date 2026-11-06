@@ -15,6 +15,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 $o = getopt('', ['store:', 'json', 'top::', 'plan-gb::', 'other-used-gb::', 'reserve-gb::', 'help']);
 if (isset($o['help']) || empty($o['store'])) { fwrite(STDERR, "usage: php usage_report.php --store=/path/to/wt_store [--json] [--top=15] [--plan-gb=20 --other-used-gb=X --reserve-gb=Y]\n"); exit(isset($o['help']) ? 0 : 2); }
 $store = rtrim((string)$o['store'], '/');
+if (basename($store) !== 'wt_store') { fwrite(STDERR, "refusing: the folder must be named wt_store (safety check)\n"); exit(2); }
 if (!is_dir($store . '/f')) { fwrite(STDERR, "no media folder at $store/f\n"); exit(2); }
 $top = max(1, (int)($o['top'] ?? 15));
 $now = time();
@@ -23,6 +24,7 @@ $R = ['files' => 0, 'bytes' => 0, 'kinds' => [], 'users' => [], 'age' => ['<7d' 
       'perday' => [], 'data_without_meta' => [0, 0], 'meta_without_data' => 0, 'part_files' => [0, 0], 'bad_meta' => 0, 'dirs' => 0, 'entries' => 0, 'layout' => ['flat' => 0, 'sharded' => 0]];
 
 /** one media folder: data files + <id>.json */
+function mask_uid(string $u): string { return strlen($u) > 10 ? substr($u, 0, 6) . '…' . substr($u, -3) : $u; }
 function scan_dir(string $dir, bool $sharded, array &$R, int $now): void {
     $names = @scandir($dir);
     if ($names === false) return;
@@ -31,6 +33,7 @@ function scan_dir(string $dir, bool $sharded, array &$R, int $now): void {
         if ($n === '.' || $n === '..') continue;
         $R['entries']++;
         $p = $dir . '/' . $n;
+        if (is_link($p)) continue;                                     // never follow links out of the store
         if (is_dir($p)) { $R['dirs']++; if (!$sharded && preg_match('/^[0-9a-f]{2}$/', $n)) scan_dir($p, true, $R, $now); continue; }
         if (str_ends_with($n, '.part')) { $R['part_files'][0]++; $R['part_files'][1] += (int)@filesize($p); continue; }
         if (str_ends_with($n, '.json')) {
@@ -40,7 +43,7 @@ function scan_dir(string $dir, bool $sharded, array &$R, int $now): void {
         }
         if (!preg_match('/^x[a-f0-9]{32}$/', $n)) continue;
         $size = (int)@filesize($p);
-        $meta = @json_decode((string)@file_get_contents($p . '.json'), true);
+        $meta = @json_decode((string)@file_get_contents($p . '.json', false, null, 0, 65536), true);   // metadata is tiny: a hard cap on what is read
         $R['layout'][$sharded ? 'sharded' : 'flat']++;
         if (!is_array($meta)) {
             if (isset($set[$n . '.json'])) $R['bad_meta']++; else { $R['data_without_meta'][0]++; $R['data_without_meta'][1] += $size; }
@@ -62,7 +65,7 @@ scan_dir($store . '/f', false, $R, $now);
 $drift = []; $counterTotal = 0; $counterUsers = 0;
 foreach ((array)@scandir($store . '/q') as $n) {
     if ($n === '.' || $n === '..' || $n === false) continue;
-    $v = (int)trim((string)@file_get_contents($store . '/q/' . $n)); $counterTotal += $v; $counterUsers++;
+    $v = (int)trim((string)@file_get_contents($store . '/q/' . $n, false, null, 0, 32)); $counterTotal += $v; $counterUsers++;
     $real = $R['users'][$n][1] ?? 0;
     if ($v !== $real) $drift[$n] = [$v, $real];
 }
@@ -104,10 +107,10 @@ $report = [
     'generated_utc' => gmdate('c'), 'store' => $store, 'read_only' => true,
     'media' => ['files' => $R['files'], 'bytes' => $R['bytes'], 'by_kind' => $R['kinds'], 'layout_files' => $R['layout'], 'age_buckets_files_bytes' => $R['age']],
     'users' => ['count' => count($R['users']), 'p50' => $pct(.5), 'p90' => $pct(.9), 'p99' => $pct(.99), 'max' => $sizes ? end($sizes) : 0,
-                'over_100MB' => $over(100), 'over_300MB' => $over(300), 'over_1GB' => $over(1024), 'over_2GB' => $over(2048), 'top' => array_slice($R['users'], 0, $top, true)],
+                'over_100MB' => $over(100), 'over_300MB' => $over(300), 'over_1GB' => $over(1024), 'over_2GB' => $over(2048), 'top' => (function () use ($R, $top) { $o = []; foreach (array_slice($R['users'], 0, $top, true) as $u => $v) $o[mask_uid((string)$u)] = $v; return $o; })()],
     'growth' => ['bytes_per_day_last_14d_avg' => (int)$perDayAvg, 'days_with_uploads' => count($R['perday']), 'by_day' => $R['perday']],
     'integrity' => ['data_without_meta_files_bytes' => $R['data_without_meta'], 'meta_without_data' => $R['meta_without_data'], 'unreadable_meta' => $R['bad_meta'],
-                    'part_files_count_bytes' => $R['part_files'], 'counter_users' => $counterUsers, 'counter_total_bytes' => $counterTotal, 'counter_drift_users' => count($drift), 'counter_drift_sample' => array_slice($drift, 0, 10, true)],
+                    'part_files_count_bytes' => $R['part_files'], 'counter_users' => $counterUsers, 'counter_total_bytes' => $counterTotal, 'counter_drift_users' => count($drift), 'counter_drift_sample' => (function () use ($drift) { $o = []; foreach (array_slice($drift, 0, 10, true) as $u => $v) $o[mask_uid((string)$u)] = $v; return $o; })()],
     'inodes_estimate' => $inodes, 'acl_cache' => ['files' => $aclFiles, 'bytes' => $aclBytes, 'older_than_10min' => $aclOld], 'rate_files' => $rateFiles,
     'store_non_media_bytes' => $other,
     'server_disk_NOTE' => 'disk_total/free describe the whole server disk on many shared hosts, NOT your plan quota: do not use them as the plan limit',
@@ -118,7 +121,7 @@ $report = [
 if (isset($o['json'])) { echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n"; exit(0); }
 
 function h(int|float $b): string { foreach (['B', 'KB', 'MB', 'GB', 'TB'] as $i => $u) { if ($b < 1024 || $u === 'TB') return ($i ? number_format($b, 1) : (string)(int)$b) . ' ' . $u; $b /= 1024; } return ''; }
-function mask(string $u): string { return strlen($u) > 10 ? substr($u, 0, 6) . '…' . substr($u, -3) : $u; }
+function mask(string $u): string { return mask_uid($u); }
 echo "WeTalks media usage report (READ-ONLY)  ", $report['generated_utc'], "\nstore: $store\n\n";
 echo "MEDIA   files: ", number_format($R['files']), "   total: ", h($R['bytes']), "   layout: flat ", $R['layout']['flat'], " / sharded ", $R['layout']['sharded'], "\n";
 foreach ($R['kinds'] as $k => $v) echo sprintf("  %-10s %8s files  %10s\n", $k, number_format($v[0]), h($v[1]));
