@@ -245,12 +245,24 @@ object NeuralTts {
             if (e.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE) try {
                 val raw = e.traceInputStream?.use { it.readBytes() } ?: ByteArray(0)
                 // the tombstone is a binary record: keep only the printable runs that name a library or function
-                val lines = Regex("[\\x20-\\x7e]{8,}").findAll(String(raw, Charsets.ISO_8859_1)).map { it.value }.filter { it.contains(".so") || it.contains("::") || it.contains("signal") || it.contains("Abort") }.distinct().take(14).toList()
-                if (lines.isNotEmpty()) sb.append("\n").append(lines.joinToString("\n") { it.take(160) })
+                val runs = Regex("[\\x20-\\x7e]{6,}").findAll(String(raw, Charsets.ISO_8859_1)).map { it.value.trim() }.distinct().toList()
+                // the line that explains an abort comes first ("terminating with uncaught exception ..."), then our own libraries, then the rest
+                val key = Regex("(?i)terminat|exception|abort|what\\(\\)|assert|error|fail|invalid|sherpa|onnx|Ort::|cannot|not found|unsupported")
+                val first = runs.filter { key.containsMatchIn(it) && !it.contains("art::") }.take(8)
+                val libs = runs.filter { (it.contains("wetalks") || it.contains("sherpa") || it.contains("onnxruntime")) && it !in first }.take(6)
+                sb.append("\n[tombstone]\n").append((first + libs).joinToString("\n") { it.take(220) })
             } catch (_: Exception) {}
-            sb.toString().take(1500)
+            sb.append("\n[log]\n").append(ownLog())
+            sb.toString().take(2600)
         } catch (_: Exception) { "unreadable" }
     }
+
+    /** The last log lines this app wrote about the voice engine (an app may read its own log; the engine writes how far it got before it died). */
+    private fun ownLog(): String = try {
+        val p = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "1200"))
+        val keep = Regex("WeTts|sherpa|onnx|Ort|libc|terminat|uncaught|Fatal signal|abort", RegexOption.IGNORE_CASE)
+        p.inputStream.bufferedReader().readLines().filter { keep.containsMatchIn(it) }.takeLast(14).joinToString("\n") { it.substringAfter(": ", it).take(200) }
+    } catch (e: Exception) { "no log (" + e.javaClass.simpleName + ")" }
 
     private fun send(c: Context, m: android.os.Message) {
         val ctx = c.applicationContext; appCtx = ctx

@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Message
+import android.util.Log
 import android.os.Messenger
 import com.k2fsa.sherpa.onnx.GenerationConfig
 import com.k2fsa.sherpa.onnx.OfflineTts
@@ -59,8 +60,9 @@ class TtsService : Service() {
         val cfg = OfflineTtsConfig(model = OfflineTtsModelConfig(supertonic = OfflineTtsSupertonicModelConfig(
             durationPredictor = dir + "duration_predictor.int8.onnx", textEncoder = dir + "text_encoder.int8.onnx", vectorEstimator = dir + "vector_estimator.int8.onnx",
             vocoder = dir + "vocoder.int8.onnx", ttsJson = dir + "tts.json", unicodeIndexer = dir + "unicode_indexer.bin", voiceStyle = dir + "voice.bin"),
-            numThreads = threads, debug = false, provider = "cpu"), maxNumSentences = 1)
-        return OfflineTts(config = cfg).also { tts = it }
+            numThreads = threads, debug = true, provider = "cpu"), maxNumSentences = 1)
+        Log.i("WeTts", "creating engine: threads=$threads dir=$dir")
+        return OfflineTts(config = cfg).also { tts = it; Log.i("WeTts", "engine ready, sampleRate=" + it.sampleRate() + " speakers=" + it.numSpeakers()) }
     }
 
     private fun start(dir: String, chunks: List<String>, lang: String, sid: Int, threads: Int) {
@@ -83,7 +85,18 @@ class TtsService : Service() {
                 val cfg = GenerationConfig(sid = sid, speed = 1.0f, extra = mapOf("lang" to lang))
                 for (chunk in chunks) {
                     if (cancel) break
-                    t.generateWithConfigAndCallback(chunk, cfg) { s -> if (cancel) 0 else { at.write(s, 0, s.size, AudioTrack.WRITE_BLOCKING); frames += s.size; 1 } }
+                    Log.i("WeTts", "generate sid=$sid lang=$lang chars=" + chunk.length + " text=" + chunk.take(60))
+                    // an exception thrown inside this callback would cross into native code and abort the process: catch it, stop, and report it afterwards
+                    var cbError: Throwable? = null
+                    t.generateWithConfigAndCallback(chunk, cfg) { s ->
+                        try {
+                            if (cancel) 0 else {
+                                val w = at.write(s, 0, s.size, AudioTrack.WRITE_BLOCKING)
+                                if (w < 0) { cbError = IllegalStateException("AudioTrack.write returned $w"); 0 } else { frames += w; 1 }
+                            }
+                        } catch (e: Throwable) { cbError = e; 0 }
+                    }
+                    cbError?.let { throw it }
                 }
                 if (!cancel) {   // let the last sentence finish playing
                     at.stop()
