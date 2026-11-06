@@ -532,6 +532,12 @@ object Repo {
         }
     }
 
+    /** One message by id (for the preview of a reply whose original is older than the messages loaded in the chat). Null when it cannot be read. */
+    suspend fun messageOnce(ref: ChatRef, id: String): Msg? = try {
+        val s = db.getReference("messages/${ref.id}/$id").get().await()
+        if (s.exists()) decrypt(ref, rawOf(s)) else null
+    } catch (_: Exception) { null }
+
     fun rawMessages(ref: ChatRef, limit: Int): Flow<List<Raw>> = callbackFlow {
         val q = db.getReference("messages/${ref.id}").orderByKey().limitToLast(limit)
         val l = object : ValueEventListener {

@@ -527,6 +527,7 @@ fun ChatScreen(ref: ChatRef) {
             }
             val rev = msgs.reversed()
             val rows = remember(msgs) { groupAlbums(rev) }
+            val quoteCache = remember(ref) { mutableStateMapOf<String, Msg>() }
             val imageIds = remember(msgs) { msgs.filter { it.type == "image" && !it.pending && !it.deleted && !it.mediaId.isNullOrEmpty() }.map { it.mediaId!! } }
             CompositionLocalProvider(LocalSelecting provides selecting) {
             LazyColumn(Modifier.fillMaxSize(), state = listState, reverseLayout = true, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
@@ -537,6 +538,10 @@ fun ChatScreen(ref: ChatRef) {
                     if (i == rows.size - 1 && msgs.size >= limit) LaunchedEffect(limit) { limit += 40 }
                     val mine = m.from == me
                     val sel = g.all { it.id in selected }
+                    // the original of a reply: from the loaded messages, or fetched on its own when it is older than those
+                    val rid = m.rid
+                    val quoteMsg = rev.firstOrNull { it.id == rid } ?: rid?.let { quoteCache[it] }
+                    if (quoteMsg == null && rid != null) LaunchedEffect(rid) { quoteCache[rid] = Repo.messageOnce(ref, rid) ?: Msg(rid, "", 0L, "text", "", deleted = true) }
                     Column {
                         if (older == null || dayLabel(older.ts) != dayLabel(m.ts)) DayChip(dayLabel(m.ts))
                         val sameAsOlder = older != null && older.from == m.from && dayLabel(older.ts) == dayLabel(m.ts)
@@ -544,7 +549,7 @@ fun ChatScreen(ref: ChatRef) {
                         Row(Modifier.fillMaxWidth().background(if (sel) We.primary.copy(alpha = .14f) else hl).padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (selecting) Box(Modifier.padding(start = 4.dp, end = 6.dp).size(22.dp).clip(CircleShape).background(if (sel) We.primary else We.line), contentAlignment = Alignment.Center) { if (sel) Icon(Ic.Check, We.onPrimary, 14.dp) }
                             Box(Modifier.weight(1f)) { SwipeReply(enabled = canPost && !m.pending && !m.deleted && !selecting, onReply = { reply = m; editing = null }) {
-                                Bubble(m, mine, ref, rev.firstOrNull { it.id == m.rid }, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
+                                Bubble(m, mine, ref, quoteMsg, showName = ref.kind == Kind.GROUP && !mine && !sameAsOlder,
                                     read = ref.kind == Kind.DM && !saved && peerRead >= m.ts && m.ts > 0, lastInRun = newer == null || newer.from != m.from, pinned = m.id in pinIds,
                                     album = album, allImages = imageIds,
                                     onClick = { if (m.pending) { outActions = Repo.outgoing.firstOrNull { "out_" + it.id == m.id } } else if (selecting) { if (sel) selected.removeAll(g.map { it.id }.toSet()) else g.forEach { x -> if (x.id !in selected) selected.add(x.id) } } else if (m.unreadable) unreadableInfo = true },
@@ -793,8 +798,8 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                         .combinedClickable(onClick = { if (selectingNow) onLong() else m.rid?.let(onQuote) }, onLongClick = onLong)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
                         Column(Modifier.padding(8.dp, 5.dp)) {
-                            Text(if (quoted == null) "Reply" else if (quoted.from == Repo.uid) "You" else nameOf(quoted.from, ""), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
-                            Text(if (quoted == null) "Tap to find the original message" else if (quoted.deleted) "Deleted message" else previewText(quoted.type, quoted.text), color = fg.copy(alpha = .75f), style = T.small, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(if (quoted == null || quoted.from.isEmpty()) "Reply" else if (quoted.from == Repo.uid) "You" else nameOf(quoted.from, ""), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold))
+                            Text(if (quoted == null) "Loading…" else if (quoted.deleted) "Original message is not available" else previewText(quoted.type, quoted.text), color = fg.copy(alpha = .75f), style = T.small, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
