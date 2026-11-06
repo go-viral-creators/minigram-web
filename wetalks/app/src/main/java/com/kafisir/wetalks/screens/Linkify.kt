@@ -36,27 +36,28 @@ private fun findHits(text: String): List<Hit> {
     return hits.sortedBy { it.s }
 }
 
+/** Adds [text] to the builder with links, e-mail addresses and phone numbers turned into tappable spans. */
+fun AnnotatedString.Builder.appendLinkified(text: String, ctx: android.content.Context, accent: Color) {
+    var last = 0
+    val style = TextLinkStyles(SpanStyle(color = accent, textDecoration = TextDecoration.Underline))
+    for (h in findHits(text)) {
+        append(text.substring(last, h.s))
+        val shown = text.substring(h.s, h.e)
+        val action: () -> Unit = when (h.kind) {
+            0 -> { { Nav.push(RBrowser(if (shown.startsWith("http", true)) shown else "https://$shown")) } }
+            1 -> { { try { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$shown")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { Nav.say("No e-mail app found") } } }
+            else -> { { try { ctx.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + shown.filter { it.isDigit() || it == '+' })).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { Nav.say("No phone app found") } } }
+        }
+        withLink(LinkAnnotation.Clickable("l", style) { action() }) { append(shown) }
+        last = h.e
+    }
+    append(text.substring(last))
+}
+
 /** Turns links, e-mail addresses and phone numbers into tappable spans. */
 @Composable
 fun linkified(text: String, @Suppress("UNUSED_PARAMETER") color: Color = Color.Unspecified): AnnotatedString {
     val ctx = LocalContext.current
     val accent = We.primary
-    return remember(text, accent) {
-        buildAnnotatedString {
-            var last = 0
-            val style = TextLinkStyles(SpanStyle(color = accent, textDecoration = TextDecoration.Underline))
-            for (h in findHits(text)) {
-                append(text.substring(last, h.s))
-                val shown = text.substring(h.s, h.e)
-                val action: () -> Unit = when (h.kind) {
-                    0 -> { { Nav.push(RBrowser(if (shown.startsWith("http", true)) shown else "https://$shown")) } }
-                    1 -> { { try { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$shown")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { Nav.say("No e-mail app found") } } }
-                    else -> { { try { ctx.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + shown.filter { it.isDigit() || it == '+' })).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { Nav.say("No dialer found") } } }
-                }
-                withLink(LinkAnnotation.Clickable("l", style) { action() }) { append(shown) }
-                last = h.e
-            }
-            append(text.substring(last))
-        }
-    }
+    return remember(text, accent) { buildAnnotatedString { appendLinkified(text, ctx, accent) } }
 }

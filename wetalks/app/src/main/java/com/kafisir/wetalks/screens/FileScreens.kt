@@ -146,12 +146,17 @@ fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val out = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id } else null
-    val thumb = remember(m.thumb, m.id, out) { out?.thumb ?: if (m.thumb.isNotEmpty()) try { Pics.decode(Crypto.unb64(m.thumb)) } catch (_: Exception) { null } else null }
+    val localFile = remember(m.mediaId, m.name) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).takeIf { f -> f.exists() && f.length() > 0 } } }
+    // videos sent before previews existed (or received ones): take the picture and length from the copy on this phone
+    val info by produceState<FileKit.VideoInfo?>(null, localFile, m.thumb) { if (localFile != null && (m.thumb.isEmpty() || m.dur == 0)) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { FileKit.videoInfoOf(ctx, localFile) } }
+    val thumb = remember(m.thumb, m.id, out, info) { out?.thumb ?: if (m.thumb.isNotEmpty()) try { Pics.decode(Crypto.unb64(m.thumb)) } catch (_: Exception) { null } else info?.thumb?.let { Pics.decode(it) } }
+    val seconds = if (m.dur > 0) m.dur else info?.seconds ?: 0
     var progress by remember(m.id) { mutableFloatStateOf(-1f) }
     val local = remember(m.mediaId, m.name) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).let { f -> f.exists() && f.length() > 0 } } == true }
     val busy = (out != null && !out.failed) || progress >= 0f
     val shown = if (out != null) out.progress else progress.coerceAtLeast(0f)
-    val ratio = if (m.w > 0 && m.h > 0) (m.w.toFloat() / m.h).coerceIn(.6f, 1.8f) else 1.6f
+    val vw = if (m.w > 0) m.w else info?.w ?: 0; val vh = if (m.h > 0) m.h else info?.h ?: 0
+    val ratio = if (vw > 0 && vh > 0) (vw.toFloat() / vh).coerceIn(.6f, 1.8f) else 1.6f
     fun play() {
         if (m.pending || progress >= 0f) return
         scope.launch {
@@ -174,7 +179,7 @@ fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
             }
             Row(Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Ic.Video, Color.White, 13.dp); Spacer(Modifier.width(4.dp))
-                Text((if (m.dur > 0) "%d:%02d".format(m.dur / 60, m.dur % 60) else "Video") + (if (!local && !m.pending && m.size > 0) " · " + FileKit.size(m.size) else ""), color = Color.White, style = T.tiny)
+                Text((if (seconds > 0) "%d:%02d".format(seconds / 60, seconds % 60) else "Video") + (if (!local && !m.pending && m.size > 0) " · " + FileKit.size(m.size) else ""), color = Color.White, style = T.tiny)
             }
         }
     }

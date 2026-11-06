@@ -73,7 +73,7 @@ fun NaturalVoicesScreen() {
 private fun testNow(ctx: android.content.Context, text: String, id: String, flag: (Boolean) -> Unit) {
     flag(true)
     Speaker.onState = { if (Speaker.speakingId == null) flag(false) }
-    Speaker.speak(ctx, id, text, "") { Nav.say(it) }
+    Speaker.speak(ctx, id, text, "", { Nav.say(it) }, "Natural voice test")
 }
 
 @Composable

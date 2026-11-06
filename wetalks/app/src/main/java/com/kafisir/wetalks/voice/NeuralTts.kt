@@ -217,6 +217,8 @@ object NeuralTts {
     private fun free() { try { tts?.release() } catch (_: Throwable) {}; tts = null }
 
     fun stop() { cancel = true; try { track?.pause(); track?.flush() } catch (_: Exception) {} }
+    fun pause() { try { track?.pause() } catch (_: Exception) {} }
+    fun resume() { try { track?.play() } catch (_: Exception) {} }
 
     /** Reads [text] aloud. Starts playing after the first sentence is ready. [done] is called when it ends or is stopped (also on error). */
     fun speak(c: Context, text: String, lang: String, hinglish: Boolean, say: (String) -> Unit, done: () -> Unit) {

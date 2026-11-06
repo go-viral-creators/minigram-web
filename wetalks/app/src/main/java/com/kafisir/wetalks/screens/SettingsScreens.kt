@@ -129,7 +129,7 @@ fun AboutScreen() {
         TopBar("About", onBack = { Nav.pop() })
         Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Logo(96.dp); Spacer(Modifier.height(14.dp))
-            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.14.1", color = We.text2, style = T.body)
+            Text("WeTalks", color = We.text, style = T.h1); Text("Version 1.15.0", color = We.text2, style = T.body)
             Spacer(Modifier.height(20.dp))
             Text("Private messaging with groups and channels. Direct chats and groups are end-to-end encrypted with X25519 + AES-256-GCM; your keys stay on your phone.", color = We.text2, style = T.body, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }

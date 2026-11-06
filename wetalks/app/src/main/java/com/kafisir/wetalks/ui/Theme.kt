@@ -72,14 +72,16 @@ object UiPrefs {
     val customVer = mutableIntStateOf(0)
     val compact = androidx.compose.runtime.mutableStateOf(false)
     val linkPreview = androidx.compose.runtime.mutableStateOf(true)
+    val markdown = androidx.compose.runtime.mutableStateOf(true)
     var dir: java.io.File? = null
     private fun sp(c: Context) = c.getSharedPreferences("wt_ui", Context.MODE_PRIVATE)
     fun load(c: Context) { val s = sp(c); accent.intValue = s.getInt("accent", 0); textScale.floatValue = s.getFloat("tscale", 1f); bubble.intValue = s.getInt("bubble", 16); wallpaper.intValue = s.getInt("wall", 0)
-        bubbleStyle.intValue = s.getInt("bstyle", 0); dim.floatValue = s.getFloat("dim", 0f); blur.intValue = s.getInt("blur", 0); compact.value = s.getBoolean("compact", false); linkPreview.value = s.getBoolean("linkprev", true); dir = c.filesDir }
+        bubbleStyle.intValue = s.getInt("bstyle", 0); dim.floatValue = s.getFloat("dim", 0f); blur.intValue = s.getInt("blur", 0); compact.value = s.getBoolean("compact", false); linkPreview.value = s.getBoolean("linkprev", true); markdown.value = s.getBoolean("md", true); dir = c.filesDir }
     fun setBubbleStyle(c: Context, v: Int) { bubbleStyle.intValue = v; sp(c).edit().putInt("bstyle", v).apply() }
     fun setDim(c: Context, v: Float) { dim.floatValue = v; sp(c).edit().putFloat("dim", v).apply() }
     fun setBlur(c: Context, v: Int) { blur.intValue = v; sp(c).edit().putInt("blur", v).apply() }
     fun setCompact(c: Context, v: Boolean) { compact.value = v; sp(c).edit().putBoolean("compact", v).apply() }
+    fun setMarkdown(c: Context, v: Boolean) { markdown.value = v; sp(c).edit().putBoolean("md", v).apply() }
     fun setLinkPreview(c: Context, v: Boolean) { linkPreview.value = v; sp(c).edit().putBoolean("linkprev", v).apply() }
     fun setAccent(c: Context, i: Int) { accent.intValue = i; sp(c).edit().putInt("accent", i).apply() }
     fun setTextScale(c: Context, v: Float) { textScale.floatValue = v; sp(c).edit().putFloat("tscale", v).apply() }

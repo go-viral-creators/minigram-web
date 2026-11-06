@@ -174,6 +174,7 @@ fun Main() {
                 RAbout -> AboutScreen()
                 is RImage -> ImageViewer(r.ref, r.mediaId)
                 is RNaturalVoices -> com.kafisir.wetalks.screens.NaturalVoicesScreen()
+                is RHtml -> com.kafisir.wetalks.screens.HtmlPreviewScreen(r.html)
                 is RServices -> com.kafisir.wetalks.screens.ServiceInboxScreen()
                 is RVideo -> com.kafisir.wetalks.screens.VideoPlayerScreen(r.path, r.title)
                 RPhotoEdit -> PhotoEditorScreen()
@@ -196,4 +197,6 @@ fun Main() {
 private fun BoxScope.VoiceOverlay() {
     if (com.kafisir.wetalks.voice.VoicePlayer.currentId != null && Nav.stack.lastOrNull() !is RPhotoEdit)
         MiniPlayer(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 62.dp))
+    else if (com.kafisir.wetalks.voice.Speaker.reading && Nav.stack.lastOrNull() !is RPhotoEdit)
+        ReadAloudBar(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 62.dp))
 }

@@ -104,3 +104,22 @@ fun MiniPlayer(modifier: Modifier = Modifier) {
         IconBtn(Ic.Close, We.text2, { VoicePlayer.stop() }, 18.dp, Modifier.size(38.dp))
     }
 }
+
+
+/** The bar shown while a message is being read aloud: pause / play and stop, from any screen. */
+@Composable
+fun ReadAloudBar(modifier: Modifier = Modifier) {
+    if (!com.kafisir.wetalks.voice.Speaker.reading) return
+    val sp = com.kafisir.wetalks.voice.Speaker
+    Row(modifier.padding(horizontal = 10.dp).fillMaxWidth().height(46.dp).clip(RoundedCornerShape(23.dp)).background(We.surface).padding(start = 6.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(34.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { sp.toggle() }), contentAlignment = Alignment.Center) {
+            Icon(if (sp.paused) Ic.Play else Ic.Pause2, We.onPrimary, 18.dp)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(sp.label, color = We.text, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), maxLines = 1)
+            Text(if (sp.paused) "Paused" else "Reading aloud…", color = We.text2, style = T.tiny, maxLines = 1)
+        }
+        IconBtn(Ic.Close, We.text2, { sp.stop() }, 18.dp, Modifier.size(38.dp))
+    }
+}

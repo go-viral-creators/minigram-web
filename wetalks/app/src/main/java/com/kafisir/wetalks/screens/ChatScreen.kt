@@ -27,6 +27,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -104,6 +105,12 @@ fun speechLabel(lang: String, text: String): String? {
     val hits = w.count { it in HINGLISH && it !in setOf("to", "main", "ho", "hu", "per", "par", "ab", "se") }.let { it + w.count { x -> x in setOf("main", "per", "par", "ab", "se", "to", "ho", "hu") } / 2 }
     return if (hits * 100 / w.size >= 18) "Hinglish (Hindi)" else null
 }
+/** Plain text with tappable links, or Markdown when the message uses it and the setting is on. */
+@Composable
+fun FormattedText(text: String, color: Color, style: androidx.compose.ui.text.TextStyle) {
+    if (UiPrefs.markdown.value && Markdown.hasFormatting(text)) MarkdownText(text, color, style) else Text(linkified(text, color), color = color, style = style)
+}
+
 /** Some recognisers return Every Word Capitalised; turn that into normal sentence case. */
 fun tidyTranscript(t: String): String {
     val words = t.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
@@ -157,6 +164,24 @@ fun ChatScreen(ref: ChatRef) {
     val tfs = rememberTextFieldState()
     val input = tfs.text.toString()
     fun setInput(v: String) = tfs.setTextAndPlaceCursorAtEnd(v)
+    var fmtBar by remember { mutableStateOf(false) }
+    // formatting helpers for the composer: wrap the selection (or put the cursor between the marks)
+    fun fmtWrap(open: String, close: String = open) {
+        tfs.edit {
+            val a = selection.min; val b = selection.max
+            val chosen = asCharSequence().subSequence(a, b).toString()
+            replace(a, b, open + chosen + close)
+            selection = if (chosen.isEmpty()) androidx.compose.ui.text.TextRange(a + open.length) else androidx.compose.ui.text.TextRange(a + open.length, a + open.length + chosen.length)
+        }
+    }
+    fun fmtLines(prefix: (Int) -> String) {
+        tfs.edit {
+            val txt = asCharSequence().toString()
+            val ls = txt.lastIndexOf('\n', selection.min - 1) + 1
+            val neu = txt.substring(ls, selection.max).split("\n").mapIndexed { i, l -> prefix(i) + l }.joinToString("\n")
+            replace(ls, selection.max, neu); selection = androidx.compose.ui.text.TextRange(ls + neu.length)
+        }
+    }
     var menuMsg by remember { mutableStateOf<Msg?>(null) }
     var attach by remember { mutableStateOf(false) }
     var stickers by remember { mutableStateOf(false) }
@@ -494,6 +519,15 @@ fun ChatScreen(ref: ChatRef) {
                     IconBtn(Ic.Close, We.text2, { dismissedUrl = p.url; typedPreview = null }, 20.dp)
                 }
             }
+            if (fmtBar && UiPrefs.markdown.value && rec == null) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                @Composable fun F(label: String, bold: Boolean = false, italic: Boolean = false, mono: Boolean = false, onClick: () -> Unit) =
+                    Box(Modifier.clip(RoundedCornerShape(10.dp)).background(We.primary.copy(alpha = .12f)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp), contentAlignment = Alignment.Center) {
+                        Text(label, color = We.primary, style = T.small.copy(fontWeight = if (bold) FontWeight.ExtraBold else FontWeight.Medium, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal, fontFamily = if (mono) androidx.compose.ui.text.font.FontFamily.Monospace else null))
+                    }
+                F("B", bold = true) { fmtWrap("**") }; F("I", italic = true) { fmtWrap("*") }; F("S") { fmtWrap("~~") }; F("</>", mono = true) { fmtWrap("`") }
+                F("{ }", mono = true) { fmtWrap("```\n", "\n```") }; F("❝") { fmtLines { "> " } }; F("• List") { fmtLines { "- " } }; F("1. List") { fmtLines { "${it + 1}. " } }
+                F("Link") { fmtWrap("[", "](https://)") }; F("Spoiler") { fmtWrap("||") }
+            }
             Box {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.Bottom) {
                     if (rec != null) {
@@ -507,6 +541,7 @@ fun ChatScreen(ref: ChatRef) {
                                     lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
                                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences))
                             }
+                            if (textOk && UiPrefs.markdown.value) IconBtn(Ic.Type, if (fmtBar) We.primary else We.text2, { fmtBar = !fmtBar }, 22.dp, Modifier.size(40.dp))
                             if (stickerOk) IconBtn(Ic.Smile, We.text2, { stickers = true }, 22.dp, Modifier.size(40.dp)) else Spacer(Modifier.width(10.dp))
                         }
                     }
@@ -554,7 +589,7 @@ fun ChatScreen(ref: ChatRef) {
             onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e); menuMsg = null },
             onReply = { reply = m; editing = null; menuMsg = null },
             onCopy = { (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("message", m.text)); menuMsg = null; toast("Copied") },
-            speakText = speakTextOf(m), onSpeak = { menuMsg = null; com.kafisir.wetalks.voice.Speaker.speak(ctx, m.id, speakTextOf(m), I18n.speechLang, ::toast) },
+            speakText = speakTextOf(m), onSpeak = { menuMsg = null; com.kafisir.wetalks.voice.Speaker.speak(ctx, m.id, speakTextOf(m), I18n.speechLang, ::toast, title) },
             onSaveFile = if (m.type in listOf("video", "audio", "file") && !m.pending) ({
                 menuMsg = null
                 scope.launch { try { val f = Repo.fetchFile(m) {}; toast(if (FileKit.saveToDownloads(ctx, f, m.name, FileKit.mimeOf(FileKit.extOf(m.name)))) "Saved to Downloads/WeTalks" else "Could not save") } catch (e: Exception) { toast(e.message ?: "Could not save") } }
@@ -689,10 +724,10 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.type == "gif" -> GifBody(m, ref, onLong)
                     m.type == "call" -> CallBody(m, mine, fg)
                     m.type == "link" && m.link != null -> {
-                        Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
+                        FormattedText(m.text, fg, T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
                         LinkCard(m.link, fg, onLong)
                     }
-                    else -> Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
+                    else -> FormattedText(m.text, fg, T.body.copy(fontSize = (15 * scale).sp, lineHeight = (21 * scale).sp))
                 }
                 if (!isSticker) notes.forEach { n ->
                     Column(Modifier.padding(top = 6.dp).then(if (m.type == "image") Modifier.padding(horizontal = 12.dp) else Modifier)) {

@@ -157,6 +157,9 @@ object FileKit {
     }
 
     class VideoInfo(val seconds: Int, val w: Int, val h: Int, val thumb: ByteArray?)
+    private val infoCache = object : android.util.LruCache<String, VideoInfo>(40) {}
+    /** Same as [videoInfo] for a file already on the phone; remembered so scrolling the chat stays smooth. */
+    fun videoInfoOf(ctx: Context, f: File): VideoInfo = infoCache.get(f.absolutePath) ?: videoInfo(ctx, Uri.fromFile(f)).also { if (it.thumb != null || it.seconds > 0) infoCache.put(f.absolutePath, it) }
     /** Length, size and a small preview picture of a video (the picture travels inside the encrypted message, like WhatsApp's preview). */
     fun videoInfo(ctx: Context, uri: Uri): VideoInfo {
         val r = android.media.MediaMetadataRetriever()

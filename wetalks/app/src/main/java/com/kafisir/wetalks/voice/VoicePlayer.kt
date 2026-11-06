@@ -38,7 +38,7 @@ object VoicePlayer {
     fun toggle(ctx: Context, chat: ChatRef, m: Msg, who: String) {
         appCtx = ctx.applicationContext
         if (currentId == m.id && mp != null) { if (playing) pause() else resume(); return }
-        stop()
+        stop(); Speaker.stop()
         Repo.scope.launch {
             loadingId = m.id
             val bytes = try { m.mediaId?.let { Repo.loadMedia(chat, it) } } catch (e: Exception) { null }

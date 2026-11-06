@@ -21,6 +21,7 @@ data object RBlocked : Route
 data object RAbout : Route
 data class RAddMembers(val gid: String) : Route
 data class RImage(val ref: ChatRef, val mediaId: String) : Route
+data class RHtml(val html: String) : Route
 object RServices : Route
 object RNaturalVoices : Route
 data class RVideo(val path: String, val title: String) : Route

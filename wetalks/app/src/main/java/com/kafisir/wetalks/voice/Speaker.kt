@@ -5,6 +5,10 @@ import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.kafisir.wetalks.ui.Markdown
 import java.util.Locale
 
 /**
@@ -19,6 +23,19 @@ object Speaker {
     @Volatile var speakingId: String? = null
     var onState: (() -> Unit)? = null
 
+    // what the player bar and the media notification show
+    var reading by mutableStateOf(false); private set
+    var paused by mutableStateOf(false); private set
+    var label by mutableStateOf("Reading aloud"); private set
+    private var neural = false
+    private var sysChunks: List<String> = emptyList()
+    @Volatile private var sysIdx = 0
+    private var sysId = ""
+    private var appCtx: Context? = null
+    private fun notifyService() { appCtx?.let { PlaybackService.sync(it) } }
+
+    private fun finish() { speakingId = null; reading = false; paused = false; neural = false; notifyService(); onState?.invoke() }
+
     private fun engine(ctx: Context, then: () -> Unit) {
         val t = tts
         if (t != null && ready) { then(); return }
@@ -28,31 +45,59 @@ object Speaker {
             ready = status == TextToSpeech.SUCCESS
             if (ready) {
                 tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(id: String?) {}
-                    override fun onDone(id: String?) { if (id != null && id.endsWith("#last")) { speakingId = null; onState?.invoke() } }
-                    @Deprecated("") override fun onError(id: String?) { speakingId = null; onState?.invoke() }
+                    override fun onStart(id: String?) { val i = id?.substringAfterLast('#')?.toIntOrNull(); if (i != null) sysIdx = i else if (id?.endsWith("#last") == true) sysIdx = (sysChunks.size - 1).coerceAtLeast(0) }
+                    override fun onDone(id: String?) { if (id != null && id.endsWith("#last") && !paused) finish() }
+                    @Deprecated("") override fun onError(id: String?) { if (!paused) finish() }
                 })
                 pending?.invoke()
-            } else { tts = null; speakingId = null }
+            } else { tts = null; finish() }
             pending = null
         }
     }
 
-    fun stop() { try { tts?.stop() } catch (_: Exception) {}; NeuralTts.stop(); speakingId = null; onState?.invoke() }
+    fun stop() {
+        try { tts?.stop() } catch (_: Exception) {}; NeuralTts.stop()
+        if (reading || speakingId != null) finish()
+    }
 
-    /** Returns a short message when the voice for the language is missing (and offers to install it), else null. */
-    fun speak(ctx: Context, id: String, text: String, appLang: String, say: (String) -> Unit) {
+    fun pause() {
+        if (!reading || paused) return
+        paused = true
+        if (neural) NeuralTts.pause() else try { tts?.stop() } catch (_: Exception) {}     // the phone's engine has no pause: it restarts from the current sentence
+        notifyService()
+    }
+    fun resume() {
+        if (!reading || !paused) return
+        paused = false
+        if (neural) NeuralTts.resume() else speakSys(sysIdx)
+        notifyService()
+    }
+    fun toggle() { if (paused) resume() else pause() }
+
+    private fun speakSys(from: Int) {
+        val t = tts ?: return
+        val parts = sysChunks; if (parts.isEmpty()) return
+        t.stop()
+        for (i in from.coerceIn(0, parts.lastIndex)..parts.lastIndex)
+            t.speak(parts[i], if (i == from) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, sysId + (if (i == parts.lastIndex) "#last" else "#$i"))
+    }
+
+    /** Reads [text] aloud. A voice note and the reader never play at the same time. */
+    fun speak(ctx: Context, id: String, text: String, appLang: String, say: (String) -> Unit, title: String = "") {
         if (speakingId == id) { stop(); return }
-        val clean = text.replace(Regex("https?://\\S+"), " link ").replace(Regex("\\s+"), " ").trim()
+        appCtx = ctx.applicationContext
+        val clean = Markdown.plain(text).replace(Regex("https?://\\S+"), " link ").replace(Regex("\\s+"), " ").trim()
         if (clean.isEmpty()) return
+        VoicePlayer.stop(); stop()
+        label = title.ifEmpty { "Reading aloud" }
         val locEarly = detect(clean, appLang)
         // natural (downloaded) voice when the person turned it on and it covers this language; otherwise the phone's own voice
         if (NeuralTts.usable()) {
             Hinglish.load(ctx)
             val hing = Hinglish.looksHinglish(clean)
             if (hing || NeuralTts.supports(locEarly.language)) {
-                speakingId = id; onState?.invoke()
-                NeuralTts.speak(ctx, clean, locEarly.language, hing, say) { if (speakingId == id) { speakingId = null; onState?.invoke() } }
+                neural = true; speakingId = id; reading = true; paused = false; notifyService(); onState?.invoke()
+                NeuralTts.speak(ctx, clean, locEarly.language, hing, say) { if (speakingId == id) finish() }
                 return
             }
         }
@@ -70,11 +115,10 @@ object Speaker {
                 t.language = loc
             } else t.voice = voice
             t.setSpeechRate(0.97f); t.setPitch(1.0f)
-            speakingId = id; onState?.invoke()
-            // the engine refuses very long text in one go: speak sentence-sized chunks
-            val parts = chunks(clean)
-            t.stop()
-            parts.forEachIndexed { i, p -> t.speak(p, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, id + (if (i == parts.lastIndex) "#last" else "#$i")) }
+            neural = false; speakingId = id; reading = true; paused = false; sysId = id; sysIdx = 0
+            sysChunks = chunks(clean)          // the engine refuses very long text in one go: sentence-sized chunks, which also lets us pause
+            notifyService(); onState?.invoke()
+            speakSys(0)
         }
     }
 
