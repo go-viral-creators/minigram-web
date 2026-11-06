@@ -634,7 +634,10 @@ object Repo {
         var failed by androidx.compose.runtime.mutableStateOf(false)
         var error by androidx.compose.runtime.mutableStateOf("")
         var work: (suspend () -> Unit)? = null
+        /** The id of the real message once it is being written, so the chat can hide this bubble the instant the real one appears. */
+        var msgId by androidx.compose.runtime.mutableStateOf("")
     }
+    class OutgoingTag(val o: Outgoing) : kotlin.coroutines.AbstractCoroutineContextElement(OutgoingTag) { companion object Key : kotlin.coroutines.CoroutineContext.Key<OutgoingTag> }
     val outgoing = androidx.compose.runtime.mutableStateListOf<Outgoing>()
 
     /** Adds the bubble immediately, then does the slow work (processing, upload, send). The bubble disappears when the real message arrives. */
@@ -642,7 +645,7 @@ object Repo {
         o.work = work
         if (o !in outgoing) outgoing.add(o)
         o.failed = false
-        scope.launch {
+        scope.launch(OutgoingTag(o)) {
             try { work(); outgoing.remove(o); if (o.type != "text") com.kafisir.wetalks.ui.Sfx.play("done") }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { o.failed = true; o.error = e.message ?: "Could not send"; com.kafisir.wetalks.ui.Nav.say(o.error) }
@@ -675,6 +678,7 @@ object Repo {
             if (key == null) slim else Crypto.sealText(key, slim)
         } else body
         val mid = db.getReference("messages/${ref.id}").push().key!!
+        kotlin.coroutines.coroutineContext[OutgoingTag]?.o?.msgId = mid
         val up = HashMap<String, Any?>()
         up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid, "fwd" to fwd)
         fanOut(ref, up, type, listBody, preview)

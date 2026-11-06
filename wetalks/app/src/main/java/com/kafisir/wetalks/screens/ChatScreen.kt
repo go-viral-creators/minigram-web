@@ -168,7 +168,9 @@ fun ChatScreen(ref: ChatRef) {
     }
     var hideTick by remember { mutableIntStateOf(0) }
     var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }
-    val outs = Repo.outgoing.filter { it.ref.id == ref.id }
+    val realIds = remember(msgsRaw) { msgsRaw.asSequence().map { it.id }.toHashSet() }
+    // a "sending" bubble disappears the moment its real message shows up (the message arrives before the upload work has finished returning)
+    val outs = Repo.outgoing.filter { it.ref.id == ref.id && !(it.msgId.isNotEmpty() && it.msgId in realIds) }
     val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h, name = o.name, size = o.size, album = o.album) }
     val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
@@ -280,7 +282,11 @@ fun ChatScreen(ref: ChatRef) {
     LaunchedEffect(highlightId) { if (highlightId != null) { delay(3200); highlightId = null } }
     // new message arrives or I send one: show it (unless the reader has scrolled far up through history)
     val newestId = msgs.lastOrNull()?.id
+    var seenNewest by remember(ref) { mutableStateOf<String?>(null) }
     LaunchedEffect(newestId) {
+        // the first look at the chat (opening it, or coming back from a photo / profile) keeps the saved position; only a message that arrives afterwards scrolls
+        val before = seenNewest; seenNewest = newestId
+        if (before == null) return@LaunchedEffect
         val last = msgs.lastOrNull() ?: return@LaunchedEffect
         if (jumpReq != null) return@LaunchedEffect
         if (last.from == me || listState.firstVisibleItemIndex <= 6) listState.animateScrollToItem(0)
