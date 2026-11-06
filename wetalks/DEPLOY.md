@@ -51,3 +51,7 @@ firebase deploy --only hosting --project wetalks-78e5a                          
 * API code: `hosting/hostinger/api/` (lib, media, dev, service). Data lives outside the web root in `wt_store/` (SQLite, encrypted-file store, relay login).
 * `FILES_ENABLED` in `lib.php` and `Premium.files` in the app switch video/audio/documents on together.
 * Support email on the site: `WT_SUPPORT_EMAIL=you@example.com python3 tools/site/build.py ...`
+
+## Natural voices (TTS) pack
+* Pack: Kokoro-82M int8 (Apache 2.0) + espeak-ng data, zipped and hosted at `/models/tts/kokoro-int8-v1.zip` with `/models/tts/manifest.json` (url, sha256, sizes). The app downloads it on request, verifies the hash and unpacks safely.
+* Engine: sherpa-onnx 1.12.40 Android libs in `app/src/main/jniLibs` (its ONNX Runtime is renamed `libonnxruntime_tts.so` with patchelf so it never clashes with our minimal `libonnxruntime.so`). Kotlin API: `com.k2fsa.sherpa.onnx` (Tts.kt, Apache 2.0).

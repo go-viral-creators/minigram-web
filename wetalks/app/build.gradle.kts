@@ -13,8 +13,8 @@ android {
         applicationId = "com.kafisir.wetalks"
         minSdk = 28
         targetSdk = 35
-        versionCode = 24
-        versionName = "1.13.0"
+        versionCode = 25
+        versionName = "1.14.0"
     }
     val ksFile = rootProject.file("keystore.properties")
     signingConfigs {
@@ -44,7 +44,7 @@ android {
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
         // our minimal ONNX Runtime (2 MB instead of 17 MB) replaces the full one inside the AAR
-        jniLibs { pickFirsts += listOf("**/libonnxruntime.so", "**/libonnxruntime4j_jni.so") }
+        jniLibs { pickFirsts += listOf("**/libonnxruntime.so", "**/libonnxruntime4j_jni.so"); useLegacyPackaging = true }
     }
 }
 
@@ -72,6 +72,7 @@ dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("io.getstream:stream-webrtc-android:1.3.10")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.24.3")
+    testImplementation("org.json:json:20240303")
     testImplementation("com.microsoft.onnxruntime:onnxruntime:1.24.3")
     implementation("com.google.zxing:core:3.5.3")
     implementation("androidx.media:media:1.7.0")

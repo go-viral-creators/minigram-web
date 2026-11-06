@@ -43,7 +43,7 @@ import com.kafisir.wetalks.ui.*
 import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
-    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this) }
+    override fun onCreate() { super.onCreate(); com.kafisir.wetalks.data.CrashLog.install(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -173,6 +173,7 @@ fun Main() {
                 RBlocked -> BlockedScreen()
                 RAbout -> AboutScreen()
                 is RImage -> ImageViewer(r.ref, r.mediaId)
+                is RNaturalVoices -> com.kafisir.wetalks.screens.NaturalVoicesScreen()
                 is RServices -> com.kafisir.wetalks.screens.ServiceInboxScreen()
                 is RVideo -> com.kafisir.wetalks.screens.VideoPlayerScreen(r.path, r.title)
                 RPhotoEdit -> PhotoEditorScreen()

@@ -38,16 +38,23 @@ object Speaker {
         }
     }
 
-    fun stop() { try { tts?.stop() } catch (_: Exception) {}; speakingId = null; onState?.invoke() }
+    fun stop() { try { tts?.stop() } catch (_: Exception) {}; NeuralTts.stop(); speakingId = null; onState?.invoke() }
 
     /** Returns a short message when the voice for the language is missing (and offers to install it), else null. */
     fun speak(ctx: Context, id: String, text: String, appLang: String, say: (String) -> Unit) {
         if (speakingId == id) { stop(); return }
         val clean = text.replace(Regex("https?://\\S+"), " link ").replace(Regex("\\s+"), " ").trim()
         if (clean.isEmpty()) return
+        val locEarly = detect(clean, appLang)
+        // natural (downloaded) voice when the person turned it on and it covers this language; otherwise the phone's own voice
+        if (NeuralTts.usable() && (NeuralTts.supports(locEarly.language) || locEarly.variant == "hinglish")) {
+            speakingId = id; onState?.invoke()
+            NeuralTts.speak(ctx, clean, locEarly.language, locEarly.variant == "hinglish", say) { if (speakingId == id) { speakingId = null; onState?.invoke() } }
+            return
+        }
         engine(ctx) {
             val t = tts ?: return@engine
-            val loc = detect(clean, appLang)
+            val loc = Locale(locEarly.language, locEarly.country)
             val voice = best(t, loc)
             if (voice == null) {
                 val r = t.isLanguageAvailable(loc)
@@ -108,7 +115,7 @@ object Speaker {
         val scores = listOf("hi" to score(hinglish), "es" to score(es), "fr" to score(fr), "de" to score(de), "pt" to score(pt), "it" to score(it))
         val best = scores.maxByOrNull { it.second }!!
         if (best.second >= 2 && best.second * 100 / maxOf(1, w.size) >= 15) return when (best.first) {
-            "hi" -> Locale.forLanguageTag("en-IN")   // romanised Hindi reads best with an Indian-English voice
+            "hi" -> Locale.Builder().setLanguage("en").setRegion("IN").setVariant("hinglish").build()   // romanised Hindi: the natural Hindi voice, or an Indian-English phone voice
             "es" -> Locale.forLanguageTag("es-ES"); "fr" -> Locale.FRANCE; "de" -> Locale.GERMANY; "pt" -> Locale.forLanguageTag("pt-BR"); else -> Locale.ITALY
         }
         val fb = fallback.ifEmpty { "en" }

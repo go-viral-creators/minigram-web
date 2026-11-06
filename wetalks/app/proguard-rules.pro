@@ -8,3 +8,7 @@
 -dontwarn org.webrtc.**
 -keep class ai.onnxruntime.** { *; }
 -dontwarn ai.onnxruntime.**
+
+# sherpa-onnx text-to-speech (JNI + Kotlin API, Apache-2.0)
+-keep class com.k2fsa.sherpa.onnx.** { *; }
+-dontwarn com.k2fsa.sherpa.onnx.**

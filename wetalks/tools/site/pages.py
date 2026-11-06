@@ -96,7 +96,7 @@ def features(c):
       ('lock', 'End-to-end encryption', 'X25519 key agreement and AES-256-GCM. Group chats use a shared group key that changes when someone is removed.'),
       ('check', 'Replies, reactions, pins', 'Swipe a message to reply, react with animated emoji, pin important messages, forward, edit and delete for everyone.'),
       ('globe', 'Translate &amp; transcribe', 'Translate any message into your language and read a transcript of voice notes. Hindi, Hinglish and English work out of the box.'),
-      ('mic', 'Read aloud', 'Tap Listen on a message, caption or transcript and the app reads it in the right language using your phone\'s voices.'),
+      ('mic', 'Read aloud, naturally', 'Tap Listen on a message, caption or transcript and it is read in the right language. Use your phone\'s voice, or download our optional human-like voices (English, Hindi, Hinglish, Spanish, French) that run entirely on your phone.'),
       ('bell', 'Notifications you control', 'Reply, mark as read or mute right from the notification. Calls ring even when the app is in the background.'),
       ('eye-off', 'Privacy controls', 'Choose who sees your last seen, online status and phone number. Turn read receipts off. Block anyone.')]) + \
     blk('Calls', [
@@ -196,7 +196,7 @@ def privacy(c):
 <li><strong>Developer portal:</strong> if you use it, your email, your app names and API key fingerprints (never the keys themselves) and usage counts.</li>
 <li><strong>Service messages:</strong> messages from apps that use our API are stored in your service inbox until you delete them.</li></ul>
 <h2>What we do not do</h2><ul><li>We do not sell your data and we show no ads.</li><li>We do not read your end-to-end encrypted content and cannot give it to anyone.</li><li>We do not upload your contacts unless you choose to find friends by phone number, and then only a hash is used.</li></ul>
-<h2>Services that help us run WeTalks</h2><ul><li><strong>Google Firebase</strong> for sign-in, the message database and notifications.</li><li><strong>Hostinger</strong> for this website, encrypted file storage and the developer API.</li><li><strong>Online translation and speech engines</strong>, only when you ask to translate a message or transcribe a voice note. That single piece of text or audio is sent to the engine.</li></ul>
+<h2>Services that help us run WeTalks</h2><ul><li><strong>Google Firebase</strong> for sign-in, the message database and notifications.</li><li><strong>Hostinger</strong> for this website, encrypted file storage and the developer API.</li><li><strong>Online translation and speech engines</strong>, only when you ask to translate a message or transcribe a voice note. That single piece of text or audio is sent to the engine.</li><li><strong>Natural voices</strong> are an optional download from our server. After that, reading aloud happens on your phone and the text is not sent anywhere.</li></ul>
 <h2>Your choices</h2><ul><li>Control last seen, online status, phone number visibility and read receipts in Privacy &amp; security.</li><li>Turn off or block service messages at any time.</li><li>Delete messages for yourself or for everyone, and clear a chat's history.</li><li>Ask us to delete your account and associated data.</li></ul>
 <h2>Security</h2><p>See the <a href="/security.html">security page</a> for how we protect data and the honest limits of that protection.</p>
 <h2>Children</h2><p>WeTalks is not intended for children under 13.</p>

@@ -227,6 +227,7 @@ fun MeScreen() {
             var stay by remember { mutableStateOf(com.kafisir.wetalks.data.ConnectService.enabled(ctx)) }
             Row2(Ic.Phone, "Stay connected for calls", "Keeps a small notification so calls can ring even when the app is closed", trailing = { Toggle(stay) { stay = it; com.kafisir.wetalks.data.ConnectService.setEnabled(ctx, it) } })
             var msgN by remember { mutableStateOf(com.kafisir.wetalks.data.Notifier.enabled(ctx)) }
+            Row2(Ic.Speaker, "Natural voices", if (com.kafisir.wetalks.voice.NeuralTts.usable()) "On · human-like reading aloud" else "Download a human-like voice for Listen", onClick = { Nav.push(RNaturalVoices) })
             Row2(Ic.Chat, "Message notifications", "Show new messages in the notification bar with Reply, Mark as read and Mute", trailing = { Toggle(msgN) { msgN = it; com.kafisir.wetalks.data.Notifier.setEnabled(ctx, it) } })
             if (android.os.Build.VERSION.SDK_INT >= 34 && !(ctx.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).canUseFullScreenIntent())
                 Row2(Ic.Phone, "Allow full-screen calls", "Android needs this so incoming calls can open over the lock screen", onClick = { try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:" + ctx.packageName))) } catch (_: Exception) {} })
