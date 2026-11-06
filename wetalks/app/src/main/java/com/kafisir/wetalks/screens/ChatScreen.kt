@@ -164,7 +164,7 @@ fun ChatScreen(ref: ChatRef) {
     var loaded by remember(ref) { mutableStateOf(Repo.cachedMessages(ref.id) != null) }
     val msgsRaw by produceState<List<Msg>>(Repo.cachedMessages(ref.id) ?: emptyList(), ref, limit) {
         launch { try { Repo.chatKey(ref) } catch (_: Exception) {} }          // the encryption key loads while the messages load, not after them
-        Repo.rawMessages(ref, limit).collect { raws -> val l = raws.map { Repo.decrypt(ref, it) }; value = l; Repo.putMessages(ref.id, l); loaded = true }
+        Repo.rawMessages(ref, limit).collect { raws -> val l = Repo.decryptAll(ref, raws); value = l; Repo.putMessages(ref.id, l); loaded = true }
     }
     var hideTick by remember { mutableIntStateOf(0) }
     var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }

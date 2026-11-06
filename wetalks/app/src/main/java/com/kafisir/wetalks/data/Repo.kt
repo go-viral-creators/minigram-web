@@ -128,7 +128,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { inboxWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
+    private fun detachAll() { inboxWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -339,7 +339,7 @@ object Repo {
             val k = kotlinx.coroutines.withContext(Dispatchers.Default) { Crypto.passKey(pass, Crypto.unb64(s.str("s")), s.lng("i").toInt()) }
             val priv = Crypto.open(k, s.str("c"))
             Crypto.install(app, priv)
-            dmKeys.clear(); groupKeys.clear()
+            dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear()
             db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await()
             keyConflict.value = false
             true
@@ -457,25 +457,30 @@ object Repo {
         return k
     }
 
-    private suspend fun groupKey(gid: String, kv: Int): ByteArray? {
+    /** Key versions the server had no usable key for (a member added after a key rotation never gets the older keys): remember that for a minute instead of asking again for every message. */
+    private val groupKeyMiss = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private fun missed(ck: String) = groupKeyMiss.put(ck, System.currentTimeMillis()).let { null as ByteArray? }
+
+    private suspend fun groupKey(gid: String, kv: Int, forRead: Boolean = false): ByteArray? {
         val ck = "$gid:$kv"
         groupKeys[ck]?.let { return it }
         // kept on this phone (wrapped with the hardware key): a group opens at once after the app was closed, without asking the server again
         try { gkeyPrefs.getString(ck, null)?.let { w -> val k = Crypto.unwrapForDevice(w); groupKeys[ck] = k; return k } } catch (_: Exception) {}
+        if (forRead) groupKeyMiss[ck]?.let { if (System.currentTimeMillis() - it < 60_000) return null }
         val s = db.getReference("group_keys/$gid/$kv/$uid").get().await()
-        if (!s.exists()) return null
+        if (!s.exists()) return missed(ck)
         val by = s.str("by"); val ct = s.str("ct")
         // the sender may have reinstalled since: try their current key and the older ones they published
         val pks = LinkedHashSet<String>()
         userOnce(by)?.pk?.takeIf { it.isNotEmpty() }?.let { pks += it }
         try { db.getReference("users/$by/pkh").get().await().children.forEach { c -> c.getValue(String::class.java)?.let { pks += it } } } catch (_: Exception) {}
         pks += seenPrefs.getStringSet("g:$by", emptySet()).orEmpty()
-        if (pks.isEmpty()) return null
+        if (pks.isEmpty()) return missed(ck)
         val me = Crypto.keys(app)
         for (pk in pks) {
             try { val k = Crypto.open(Crypto.shared(me.priv, me.pub, Crypto.unb64(pk)), ct); groupKeys[ck] = k; try { gkeyPrefs.edit().putString(ck, Crypto.wrapForDevice(k)).apply() } catch (_: Exception) {}; seenPrefs.edit().putStringSet("g:$by", pks.toSet()).apply(); return k } catch (_: Exception) {}
         }
-        return null
+        return missed(ck)
     }
 
     private val repaired = HashSet<String>()
@@ -490,6 +495,12 @@ object Repo {
         if (g.members[uid] != "admin") return false
         val members = g.members.keys.toList()
         val have = groupKey(gid, g.kv)
+        if (have == null && !force) {
+            // never mint a new key version just because opening the key failed this time (slow network, sender's key not loaded yet): only when I really have no entry
+            val hasEntry = try { db.getReference("group_keys/$gid/${g.kv}/$uid").get().await().exists() } catch (_: Exception) { return false }
+            if (hasEntry) return false
+        }
+        groupKeyMiss.clear()
         val up = HashMap<String, Any?>()
         if (have != null) {
             wrapFor(up, gid, g.kv, have, members)
@@ -504,9 +515,9 @@ object Repo {
         return true
     }
 
-    suspend fun chatKey(ref: ChatRef, kv: Int = 0): ByteArray? = when (ref.kind) {
+    suspend fun chatKey(ref: ChatRef, kv: Int = 0, forRead: Boolean = false): ByteArray? = when (ref.kind) {
         Kind.DM -> dmKey(ref.peer!!)
-        Kind.GROUP -> groupKey(ref.id, if (kv > 0) kv else (group(ref.id).value?.kv ?: groupVersion(ref.id)))
+        Kind.GROUP -> groupKey(ref.id, if (kv > 0) kv else (group(ref.id).value?.kv ?: groupVersion(ref.id)), forRead)
         Kind.CHANNEL -> null
     }
 
@@ -557,16 +568,34 @@ object Repo {
         awaitClose { q.removeEventListener(l) }
     }
 
+    // decrypted text of messages already opened (a message never changes under the same body): a new reaction or read tick does not decrypt the whole chat again
+    private val plainCache = object : LinkedHashMap<String, String>(256, .75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<String, String>?) = size > 1500 }
+
+    /**
+     * Decrypts a snapshot of messages. For a group the few key versions used by these messages are fetched once up front,
+     * so a chat with 50 messages costs one lookup per key version, not one per message.
+     */
+    suspend fun decryptAll(ref: ChatRef, raws: List<Raw>): List<Msg> {
+        if (ref.kind == Kind.GROUP) {
+            val cur = group(ref.id).value?.kv ?: try { groupVersion(ref.id) } catch (_: Exception) { 1 }
+            raws.asSequence().filter { !it.deleted }.map { if (it.kv > 0) it.kv else cur }.distinct().forEach { v -> try { groupKey(ref.id, v, forRead = true) } catch (_: Exception) {} }
+        }
+        return raws.map { decrypt(ref, it) }
+    }
+
     suspend fun decrypt(ref: ChatRef, r: Raw): Msg {
         if (r.deleted) return Msg(r.id, r.from, r.ts, r.type, "", deleted = true, rid = r.rid)
         var plain: String
         var bad = false
         if (ref.kind == Kind.CHANNEL) plain = r.body
         else {
-            val opened: String? = try {
+            val pk = ref.id + "/" + r.id + "/" + r.body.length + "/" + r.body.hashCode()
+            val hit = synchronized(plainCache) { plainCache[pk] }
+            val opened: String? = hit ?: try {
                 if (ref.kind == Kind.DM) openDm(ref.peer!!, r.body)
-                else chatKey(ref, r.kv)?.let { k -> try { Crypto.openText(k, r.body) } catch (e: Exception) { null } }
+                else chatKey(ref, r.kv, forRead = true)?.let { k -> try { Crypto.openText(k, r.body) } catch (e: Exception) { null } }
             } catch (e: Exception) { null }
+            if (opened != null && hit == null) synchronized(plainCache) { plainCache[pk] = opened }
             plain = opened ?: ""; if (opened == null) bad = true
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
