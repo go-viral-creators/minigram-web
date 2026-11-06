@@ -615,6 +615,14 @@ object Repo {
         db.getReference("messages/${ref.id}/$id").updateChildren(mapOf("body" to body, "edited" to true)).await()
     }
 
+    /** Changes only the caption of a photo; the picture itself stays. An empty text removes the caption. */
+    suspend fun editCaption(ref: ChatRef, m: Msg, newCaption: String) {
+        val j = org.json.JSONObject().put("m", m.mediaId).put("c", newCaption.trim())
+        if (m.mime.isNotEmpty()) j.put("mime", m.mime)
+        if (m.w > 0) j.put("w", m.w); if (m.h > 0) j.put("h", m.h)
+        editMessage(ref, m.id, j.toString())
+    }
+
     /** Removes the messages for everybody, as if they never existed (and their own uploaded media with them). */
     suspend fun deleteMessages(ref: ChatRef, ids: List<String>) {
         if (ids.isEmpty()) return

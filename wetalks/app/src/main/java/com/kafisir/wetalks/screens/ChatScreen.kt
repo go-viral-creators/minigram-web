@@ -203,7 +203,7 @@ fun ChatScreen(ref: ChatRef) {
         if (last.from == me || listState.firstVisibleItemIndex <= 6) listState.animateScrollToItem(0)
     }
     LaunchedEffect(input) { if (ref.kind != Kind.CHANNEL && !saved) { if (input.isNotEmpty()) { Repo.setTyping(ref, true); delay(3000) }; Repo.setTyping(ref, false) } }
-    DisposableEffect(ref) { onDispose { Repo.setTyping(ref, false) } }
+    DisposableEffect(ref) { onDispose { Repo.setTyping(ref, false); com.kafisir.wetalks.voice.Speaker.stop() } }
     // the link preview is built while the person is still typing, so it is ready the moment they press send
     val typedUrl = remember(input, editing) { if (UiPrefs.linkPreview.value && editing == null) LinkPreviews.firstUrl(input) else null }
     LaunchedEffect(typedUrl) {
@@ -228,12 +228,12 @@ fun ChatScreen(ref: ChatRef) {
     }
 
     fun sendText() {
-        val t = tfs.text.toString().trim(); if (t.isEmpty()) return
+        val t = tfs.text.toString().trim(); if (t.isEmpty() && editing?.type != "image") return
         val e = editing; val r = reply
         tfs.clearText(); editing = null; reply = null
         Repo.scope.launch {
             try {
-                if (e != null) Repo.editMessage(ref, e.id, t)
+                if (e != null) { if (e.type == "image") Repo.editCaption(ref, e, t) else Repo.editMessage(ref, e.id, t) }
                 else {
                     val url = if (UiPrefs.linkPreview.value) LinkPreviews.firstUrl(t) else null
                     val ready = typedPreview?.takeIf { it.url == url }
@@ -514,6 +514,7 @@ fun ChatScreen(ref: ChatRef) {
             onReact = { e -> Repo.react(ref, m.id, if (m.reactions[me] == e) null else e); menuMsg = null },
             onReply = { reply = m; editing = null; menuMsg = null },
             onCopy = { (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("message", m.text)); menuMsg = null; toast("Copied") },
+            onSpeak = { menuMsg = null; com.kafisir.wetalks.voice.Speaker.speak(ctx, m.id, m.text, I18n.speechLang, ::toast) },
             onPin = { Repo.setPin(ref, m.id, m.id !in pinIds); menuMsg = null },
             onForward = { forwarding = listOf(m); menuMsg = null },
             onEdit = { editing = m; reply = null; setInput(m.text); menuMsg = null },
@@ -817,7 +818,7 @@ private fun StickerBody(payload: String) {
 // ---------------------------------------------------------------------------------------------------- long-press menu
 @Composable
 private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean, pinned: Boolean, mine: Boolean, onDismiss: () -> Unit, onReact: (String) -> Unit,
-                        onReply: () -> Unit, onCopy: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit) {
+                        onReply: () -> Unit, onCopy: () -> Unit, onSpeak: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true, usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }, contentAlignment = Alignment.Center) {
             Column(Modifier.padding(horizontal = 20.dp).widthIn(max = 340.dp).pointerInput(Unit) { awaitEachGesture { awaitFirstDown().consume() } }, horizontalAlignment = Alignment.Start) {
@@ -829,11 +830,12 @@ private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean
                 Spacer(Modifier.height(10.dp))
                 Column(Modifier.clip(RoundedCornerShape(18.dp)).background(We.surface).width(250.dp).padding(vertical = 6.dp)) {
                     if (canReply) MenuRow(Ic.Reply, "Reply", onClick = onReply)
-                    if ((m.type == "text" || m.type == "link") && m.text.isNotEmpty()) MenuRow(Ic.Copy, "Copy text", onClick = onCopy)
+                    if ((m.type == "text" || m.type == "link" || m.type == "image") && m.text.isNotEmpty()) MenuRow(Ic.Copy, if (m.type == "image") "Copy caption" else "Copy text", onClick = onCopy)
+                    if ((m.type == "text" || m.type == "link" || m.type == "image") && m.text.isNotEmpty()) MenuRow(Ic.Speaker, if (com.kafisir.wetalks.voice.Speaker.speakingId == m.id) "Stop listening" else "Listen", onClick = onSpeak)
                     if (canPin) MenuRow(Ic.Pin, if (pinned) "Unpin" else "Pin", onClick = onPin)
                     if (m.type == "image" || m.type == "gif") MenuRow(Ic.Download, "Save to gallery", onClick = onSave)
                     MenuRow(Ic.Forward, "Forward", onClick = onForward)
-                    if (mine && m.type == "text") MenuRow(Ic.Edit, "Edit", onClick = onEdit)
+                    if (mine && (m.type == "text" || m.type == "image")) MenuRow(Ic.Edit, if (m.type == "image") (if (m.text.isEmpty()) "Add caption" else "Edit caption") else "Edit", onClick = onEdit)
                     onTranscribe?.let { MenuRow(Ic.Audio, "Transcribe", onClick = it) }
                     onTranslate?.let { MenuRow(Ic.Globe, "Translate", onClick = it) }
                     onTranslateTo?.let { MenuRow(Ic.Globe, "Translate to…", onClick = it) }
