@@ -5,3 +5,4 @@ local.properties
 keystore.properties
 *adminsdk*.json
 service-account*.json
+.firebase/
