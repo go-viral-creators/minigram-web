@@ -221,7 +221,7 @@ fun ChatScreen(ref: ChatRef) {
             peerUser == null -> null
             peerUser.online -> "online"
             peerUser.showLastSeen && peerUser.lastSeen > 0 -> "last seen " + timeShort(peerUser.lastSeen)
-            else -> "encrypted chat"
+            else -> peerUser.username.takeIf { it.isNotEmpty() }?.let { "@$it" } ?: "tap for info"
         }
         ref.kind == Kind.GROUP -> group?.let { "${it.members.size} members" }
         else -> channel?.let { "${it.subCount} subscribers" }
@@ -616,7 +616,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
     val scale = UiPrefs.textScale.floatValue
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start, modifier = Modifier.widthIn(max = 300.dp)) {
-            Column(Modifier.then(if (isSticker) Modifier else Modifier.bubbleLook(mine, shape))
+            Column(Modifier.then(if (!isSticker && m.type != "image" && !m.deleted && (quoted != null || m.rid != null)) Modifier.width(IntrinsicSize.Max) else Modifier).then(if (isSticker) Modifier else Modifier.bubbleLook(mine, shape))
                 .combinedClickable(onClick = onClick, onLongClick = onLong).then(if (isSticker || m.type == "image") Modifier else Modifier.padding(start = 13.dp, end = 13.dp, top = 8.dp, bottom = 7.dp))) {
                 if (showName) { val u by Repo.user(m.from).collectAsState(); Text(u?.name ?: "", color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold), modifier = if (m.type == "image") Modifier.padding(10.dp, 6.dp, 10.dp, 0.dp) else Modifier) }
                 if (m.fwd != null) Row(Modifier.padding(bottom = 4.dp).then(if (m.type == "image") Modifier.padding(10.dp, 6.dp, 10.dp, 0.dp) else Modifier), verticalAlignment = Alignment.CenterVertically) {
@@ -624,7 +624,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     Text("Forwarded from " + nameOf(m.fwd, "someone"), color = We.primary, style = T.small.copy(fontWeight = FontWeight.SemiBold, fontStyle = FontStyle.Italic), maxLines = 1)
                 }
                 if ((quoted != null || m.rid != null) && !m.deleted) {
-                    Row(Modifier.then(if (m.type == "image") Modifier.width(254.dp).padding(8.dp) else Modifier.padding(bottom = 6.dp)).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
+                    Row(Modifier.then(if (m.type == "image") Modifier.width(262.dp).padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 2.dp) else Modifier.fillMaxWidth().padding(bottom = 6.dp)).clip(RoundedCornerShape(8.dp)).background(We.primary.copy(alpha = .12f)).height(IntrinsicSize.Min)
                         .combinedClickable(onClick = { m.rid?.let(onQuote) }, onLongClick = onLong)) {
                         Box(Modifier.width(3.dp).fillMaxHeight().background(We.primary))
                         Column(Modifier.padding(8.dp, 5.dp)) {
@@ -720,8 +720,8 @@ private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Co
     val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) } == true) || remember { DataPrefs.mayAutoDownload() }
     val bmp by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, m.mediaId, allowed) { if (allowed) m.mediaId?.let { id -> Repo.loadMedia(ref, id)?.let { value = Pics.decode(it) } } }
     val hasCap = m.text.isNotEmpty()
-    Column(Modifier.width(254.dp)) {
-        Box(Modifier.padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong)) {
+    Column(Modifier.width(262.dp)) {
+        Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong)) {
             val b = bmp ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
             if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field).combinedClickable(onClick = { manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
             else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1.2f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
@@ -818,8 +818,8 @@ private fun StickerBody(payload: String) {
 @Composable
 private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean, pinned: Boolean, mine: Boolean, onDismiss: () -> Unit, onReact: (String) -> Unit,
                         onReply: () -> Unit, onCopy: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(Unit) { awaitEachGesture { awaitFirstDown(); val u = awaitPointerEvent(); if (u.changes.all { it.changedToUp() }) onDismiss() } }, contentAlignment = Alignment.Center) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true, usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }, contentAlignment = Alignment.Center) {
             Column(Modifier.padding(horizontal = 20.dp).widthIn(max = 340.dp).pointerInput(Unit) { awaitEachGesture { awaitFirstDown().consume() } }, horizontalAlignment = Alignment.Start) {
                 if (ref.kind != Kind.CHANNEL || true) Row(Modifier.clip(RoundedCornerShape(30.dp)).background(We.surface).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     Anim.reactions.forEach { e ->
