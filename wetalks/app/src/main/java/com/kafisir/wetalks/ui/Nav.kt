@@ -42,6 +42,7 @@ object Nav {
     var pendingReply: String? = null
     var jumpTo: String? = null
     val pendingLink = mutableStateOf<String?>(null)
+    val pendingChat = mutableStateOf<ChatRef?>(null)
     /** Opens the chat and scrolls to (and highlights) one message. */
     fun openChatAt(ref: ChatRef, mid: String) {
         jumpTo = mid

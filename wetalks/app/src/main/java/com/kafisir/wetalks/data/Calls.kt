@@ -466,7 +466,9 @@ object Calls {
         channel()
         val n = NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle("Incoming " + (if (video) "video" else "voice") + " call")
             .setContentText("WeTalks").setCategory(NotificationCompat.CATEGORY_CALL).setPriority(NotificationCompat.PRIORITY_MAX).setOngoing(true).setAutoCancel(false)
-            .setContentIntent(openIntent()).setFullScreenIntent(openIntent(), true).build()
+            .setContentIntent(openIntent()).setFullScreenIntent(openIntent(), true).setTimeoutAfter(55_000)
+            .addAction(0, "Decline", PendingIntent.getBroadcast(app, 11, Intent(app, NotifReceiver::class.java).setAction(Notifier.ACT_DECLINE).setPackage(app.packageName), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            .addAction(0, "Answer", openIntent()).build()
         try { (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(77, n) } catch (_: SecurityException) {}
     }
     private fun cancelNotification() { try { (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(77) } catch (_: Exception) {} }

@@ -158,7 +158,7 @@ fun ChatScreen(ref: ChatRef) {
     val listState = rememberLazyListState()
     fun toast(m: String) = Nav.say(m)
 
-    LaunchedEffect(msgs.size, ref) { Repo.markRead(ref) }
+    LaunchedEffect(msgs.size, ref) { Repo.markRead(ref); com.kafisir.wetalks.data.Notifier.cancel(ref.id) }
     val animOn = UiPrefs.wallpaper.intValue >= AWalls.BASE || Bubbles.animated(UiPrefs.bubbleStyle.intValue)
     LaunchedEffect(animOn) { while (animOn) androidx.compose.runtime.withFrameNanos { Clock.t = (it / 1_000_000_000.0 % 3600.0).toFloat() } }
     // jump to a message (picked from the shared-media lists, or the original of a reply) and flash it so it is easy to spot

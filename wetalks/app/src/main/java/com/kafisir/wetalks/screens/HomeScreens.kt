@@ -226,6 +226,10 @@ fun MeScreen() {
             Row2(Ic.Shield, "Privacy & security", "Last seen, read receipts, blocked users", onClick = { Nav.push(RPrivacy) })
             var stay by remember { mutableStateOf(com.kafisir.wetalks.data.ConnectService.enabled(ctx)) }
             Row2(Ic.Phone, "Stay connected for calls", "Keeps a small notification so calls can ring even when the app is closed", trailing = { Toggle(stay) { stay = it; com.kafisir.wetalks.data.ConnectService.setEnabled(ctx, it) } })
+            var msgN by remember { mutableStateOf(com.kafisir.wetalks.data.Notifier.enabled(ctx)) }
+            Row2(Ic.Chat, "Message notifications", "Show new messages in the notification bar with Reply, Mark as read and Mute", trailing = { Toggle(msgN) { msgN = it; com.kafisir.wetalks.data.Notifier.setEnabled(ctx, it) } })
+            if (android.os.Build.VERSION.SDK_INT >= 34 && !(ctx.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).canUseFullScreenIntent())
+                Row2(Ic.Phone, "Allow full-screen calls", "Android needs this so incoming calls can open over the lock screen", onClick = { try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, android.net.Uri.parse("package:" + ctx.packageName))) } catch (_: Exception) {} })
             Row2(Ic.Bell, "Allow background activity", "Open the battery settings: choose 'No restrictions' (and allow Autostart on Xiaomi / Oppo / Vivo phones)", onClick = {
                 try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))) } catch (_: Exception) {}
             })

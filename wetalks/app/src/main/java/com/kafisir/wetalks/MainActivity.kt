@@ -55,9 +55,16 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
         enableEdgeToEdge()
         setShowWhenLocked(true); setTurnScreenOn(true)
         intent?.data?.let { Nav.pendingLink.value = it.toString() }
+        openChatFrom(intent)
         setContent { WeTheme { App() } }
     }
-    override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); intent.data?.let { Nav.pendingLink.value = it.toString() } }
+    override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); intent.data?.let { Nav.pendingLink.value = it.toString() }; openChatFrom(intent) }
+    /** Tapping a message notification opens that chat. */
+    private fun openChatFrom(i: android.content.Intent?) {
+        val cid = i?.getStringExtra("cid")?.takeIf { it.isNotEmpty() } ?: return
+        Nav.pendingChat.value = com.kafisir.wetalks.data.ChatRef(cid, com.kafisir.wetalks.data.Kind.values().getOrElse(i.getIntExtra("kind", 0)) { com.kafisir.wetalks.data.Kind.DM }, i.getStringExtra("peer")?.ifEmpty { null })
+        com.kafisir.wetalks.data.Notifier.cancel(cid)
+    }
 }
 
 @Composable
@@ -83,9 +90,11 @@ fun App() {
             LaunchedEffect(uid, me) { if (me == true) {
                 // incoming calls first: nothing else may stop the phone from ringing
                 try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
-                com.kafisir.wetalks.data.ConnectService.sync(ctxApp)
+                com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp)
                 try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
+            val pendChat by Nav.pendingChat
+            LaunchedEffect(pendChat, me) { if (me == true && pendChat != null) { val c = pendChat!!; Nav.pendingChat.value = null; Nav.stack.clear(); Nav.push(RChat(c)) } }
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
             // the first resume often happens before the profile check has finished, so also go online as soon as it has
             LaunchedEffect(me) { if (me == true) { Repo.watchConnection(); if (com.kafisir.wetalks.data.Calls.foreground) Repo.setOnline(true) } }

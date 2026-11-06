@@ -44,7 +44,7 @@ class ConnectService : Service() {
         try { ServiceCompat.startForeground(this, ID, n, if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING else 0) }
         catch (e: Exception) { stopSelf(); return START_NOT_STICKY }
         // the process may have been restarted by the system with no screen: re-attach the listeners
-        try { if (Repo.uid.isNotEmpty()) { Calls.listen(); Repo.watchBlocks(); Repo.watchPrivacy() } } catch (_: Exception) {}
+        try { if (Repo.uid.isNotEmpty()) { Calls.listen(); Repo.watchBlocks(); Repo.watchPrivacy(); Notifier.start(this) } } catch (_: Exception) {}
         return START_STICKY
     }
 }
