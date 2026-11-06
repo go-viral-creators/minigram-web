@@ -100,3 +100,10 @@ Simulated = sandbox PHP built-in server, local disk, locally signed test JWTs. S
 1. Staging subdomain + folder + separate `wt_store` + Firebase TEST project (details in the chat message).
 2. How the read-only usage report should be run on production (options in the chat message), and the plan numbers for the budget (hPanel *Disk usage*).
 3. Approval of this revised design (especially §1.1: no server-side permanent deletion in Phase 1).
+
+---
+## 10. Changes after the second review (owner requirements)
+1. **Usage report is run by Claude, not manually.** Audit done (static review: no write/exec/network/lock calls; symlinks never followed; metadata reads capped; ids masked; refuses a folder not named `wt_store`; 14/14 simulated checks). Execution path found: the Hostinger API has no shell, so the only way is *temporary upload of the script + one one-shot account cron job whose output is read back, then the cron is deleted*. This touches production (adds then removes a cron entry and leaves/blanks one inert file), so it waits for the owner's explicit go-ahead. Findings so far (read-only API): the account hosts **19 websites** (wetalks is a subdomain at `.../domains/fireclashpro.com/public_html/wetalks`), so the 20 GB is shared with all of them; `wt_store` is a sibling of `public_html` (not web reachable).
+2. **Cleanup is driven by acknowledgements, not by age** (see BACKUP_AND_RETENTION_DESIGN.md §7). The Phase 1 `pending` / `committed` states stay; a new per-member `ack` is added later. User media is never deleted by Phase 1.
+3. **Backup is Google Drive (appDataFolder), not local.** The earlier "local backup" idea is dropped. A local *Archive* is only the restore target.
+4. **Global cap and quota stay unchanged in Phase 1** and are set from the usage report numbers, never a fixed percentage.
