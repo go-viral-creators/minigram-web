@@ -1,0 +1,126 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>API documentation · WeTalks</title><meta name="description" content="WeTalks API reference: authentication, messages, one-time codes, errors, limits and examples in curl, Node.js, Python and PHP."><meta name="theme-color" content="#1f6feb"><link rel="canonical" href="https://wetalks.fireclashpro.com/developers/docs.html">
+<meta property="og:type" content="website"><meta property="og:site_name" content="WeTalks"><meta property="og:title" content="API documentation · WeTalks"><meta property="og:description" content="WeTalks API reference: authentication, messages, one-time codes, errors, limits and examples in curl, Node.js, Python and PHP."><meta property="og:url" content="https://wetalks.fireclashpro.com/developers/docs.html"><meta property="og:image" content="https://wetalks.fireclashpro.com/assets/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/assets/img/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/assets/css/site.css">
+<script>try{var t=localStorage.getItem('wt-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script></head><body><a class="skip" href="#main">Skip to content</a><header class="nav"><div class="container nav-in">
+<a class="brand" href="/"><img src="/assets/img/icon-64.png" width="34" height="34" alt="">WeTalks</a>
+<nav class="links" id="navLinks" aria-label="Main"><a href="/features.html">Features</a><a href="/security.html">Security</a><a href="/developers/" aria-current="page">Developers</a><a href="/download.html">Download</a><a href="/faq.html">FAQ</a></nav>
+<div class="nav-actions"><a class="btn-primary sm hide-sm" href="/download.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg> Download</a>
+<button class="icon-btn theme-btn" id="themeBtn" type="button" aria-label="Switch light or dark theme"><span class="moon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span><span class="sun"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg></span></button>
+<button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="navLinks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button></div></div></header><main id="main"><div class="page-head"><div class="container"><span class=eyebrow>API reference v1</span><h1 style="font-size:clamp(1.9rem,5.5vw,2.8rem)">API documentation</h1><p>Everything you need to send messages and verification codes through WeTalks.</p></div></div>
+<section><div class="container prose" style="max-width:860px"><div class="row" style="margin-bottom:22px;gap:6px"><a class="btn sm" href="#intro">Overview</a> <a class="btn sm" href="#auth">Authentication</a> <a class="btn sm" href="#messages">Messages</a> <a class="btn sm" href="#otp">Codes (OTP)</a> <a class="btn sm" href="#usage">Usage</a> <a class="btn sm" href="#errors">Errors</a> <a class="btn sm" href="#limits">Limits</a> <a class="btn sm" href="#security">Security tips</a> <a class="btn sm" href="#changelog">Changelog</a> </div>
+<h2 id="intro">Overview</h2><p>The WeTalks API lets your server send a message or a verification code to a person who uses WeTalks. Messages appear in the person's <strong>Service messages</strong> inbox in the app, labelled with your app's name, and trigger a notification.</p>
+<div class="tablewrap"><table><tbody><tr><td>Base URL</td><td><code>https://wetalks.fireclashpro.com/api/v1</code></td></tr><tr><td>Format</td><td>JSON over HTTPS. Send <code>Content-Type: application/json</code>.</td></tr><tr><td>Auth</td><td>API key in the <code>Authorization</code> header</td></tr><tr><td>Recipient</td><td>A WeTalks username, with or without <code>@</code></td></tr></tbody></table></div>
+<div class="note">Service messages are delivered to the person's inbox, not into an end-to-end encrypted chat, because your server (not their phone) creates the content. See <a href="/security.html">Security</a>.</div>
+
+<h2 id="auth">Authentication</h2><p>Create an app in the <a href="/developers/portal.html">developer portal</a>, then create an API key. Keys start with <code>wt_live_</code> and are shown <strong>once</strong>. Send the key on every request:</p>
+<div class="codebox"><pre>Authorization: Bearer wt_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</pre></div>
+<p>Keep keys on your server. Never put one in a mobile app or website code. If a key leaks, revoke it in the portal and it stops working immediately. Test the key with:</p>
+<h3 id="ping"><span class="method m-get">GET</span><code>/ping</code></h3><p>Checks that your key works and returns your app.</p><div data-tabs><div class="tabs" role="tablist"><button class="tab" type="button" role="tab" aria-selected="true" data-lang="curl">curl</button></div><div class="tabpanel" data-lang="curl"><div class="codebox"><pre>curl https://wetalks.fireclashpro.com/api/v1/ping -H "Authorization: Bearer $WETALKS_KEY"</pre></div></div></div><p class="muted" style="margin-top:.6em"><strong>Response</strong></p><div class="codebox"><pre>{
+  "ok": true,
+  "app": { "id": "app_1a2b3c4d5e6f", "name": "Acme Shop", "verified": false }
+}</pre></div>
+
+<h2 id="messages">Send a message</h2>
+<h3 id="messages"><span class="method m-post">POST</span><code>/messages</code></h3><p>Delivers a message to one person. They get a notification and can find it in Service messages.</p><div class="tablewrap"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>to</code></td><td>string, required</td><td>WeTalks username, e.g. <code>@asha</code></td></tr><tr><td><code>text</code></td><td>string, required</td><td>The message, 1 to 500 characters</td></tr><tr><td><code>title</code></td><td>string</td><td>Short heading, up to 60 characters</td></tr><tr><td><code>kind</code></td><td>string</td><td><code>info</code> (default), <code>alert</code> or <code>followup</code></td></tr><tr><td><code>link</code></td><td>string</td><td>Optional <code>https://</code> link, up to 200 characters. People are asked before it opens.</td></tr></tbody></table></div><div data-tabs><div class="tabs" role="tablist"><button class="tab" type="button" role="tab" aria-selected="true" data-lang="curl">curl</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="node">Node.js</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="python">Python</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="php">PHP</button></div><div class="tabpanel" data-lang="curl"><div class="codebox"><pre>curl -X POST https://wetalks.fireclashpro.com/api/v1/messages \
+  -H "Authorization: Bearer $WETALKS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to":"@asha","title":"Order shipped","text":"Your order #1234 is on the way","kind":"alert","link":"https://shop.example.com/o/1234"}'</pre></div></div><div class="tabpanel" data-lang="node" hidden><div class="codebox"><pre>const res = await fetch("https://wetalks.fireclashpro.com/api/v1/messages", {
+  method: "POST",
+  headers: { "Authorization": `Bearer ${process.env.WETALKS_KEY}`, "Content-Type": "application/json" },
+  body: JSON.stringify({"to":"@asha","title":"Order shipped","text":"Your order #1234 is on the way","kind":"alert","link":"https://shop.example.com/o/1234"}),
+});
+console.log(res.status, await res.json());</pre></div></div><div class="tabpanel" data-lang="python" hidden><div class="codebox"><pre>import os, requests
+r = requests.post("https://wetalks.fireclashpro.com/api/v1/messages",
+    headers={"Authorization": "Bearer " + os.environ["WETALKS_KEY"]},
+    json={"to":"@asha","title":"Order shipped","text":"Your order #1234 is on the way","kind":"alert","link":"https://shop.example.com/o/1234"})
+print(r.status_code, r.json())</pre></div></div><div class="tabpanel" data-lang="php" hidden><div class="codebox"><pre>$ch = curl_init("https://wetalks.fireclashpro.com/api/v1/messages");
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => ["Authorization: Bearer " . getenv("WETALKS_KEY"), "Content-Type: application/json"],
+  CURLOPT_POSTFIELDS => '{"to":"@asha","title":"Order shipped","text":"Your order #1234 is on the way","kind":"alert","link":"https://shop.example.com/o/1234"}']);
+echo curl_exec($ch);</pre></div></div></div><p class="muted" style="margin-top:.6em"><strong>Response</strong></p><div class="codebox"><pre>{
+  "id": "71144c0c9e261f99",
+  "status": "delivered",
+  "to": "@asha"
+}</pre></div>
+<p>Use <code>followup</code> for things the person asked for (a reminder, a status update). Do not send promotions.</p>
+
+<h2 id="otp">Verification codes (OTP)</h2>
+<p>WeTalks creates the code, delivers it to the person and checks it for you, so you never have to generate, store or protect the code yourself.</p>
+<ol><li>Your user types their WeTalks username in your app.</li><li>You call <code>POST /otp</code>. WeTalks sends a code to their inbox and returns an <code>otp_id</code>.</li><li>The user types the code into your app.</li><li>You call <code>POST /otp/verify</code> with the <code>otp_id</code> and the code. If <code>valid</code> is true, they own that account.</li></ol>
+<h3 id="otp"><span class="method m-post">POST</span><code>/otp</code></h3><p>Sends a one-time code. The response never contains the code.</p><div class="tablewrap"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>to</code></td><td>string, required</td><td>WeTalks username</td></tr><tr><td><code>length</code></td><td>integer</td><td>4 to 8 digits, default 6</td></tr><tr><td><code>ttl</code></td><td>integer</td><td>Seconds the code is valid, 60 to 600, default 300</td></tr></tbody></table></div><div data-tabs><div class="tabs" role="tablist"><button class="tab" type="button" role="tab" aria-selected="true" data-lang="curl">curl</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="node">Node.js</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="python">Python</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="php">PHP</button></div><div class="tabpanel" data-lang="curl"><div class="codebox"><pre>curl -X POST https://wetalks.fireclashpro.com/api/v1/otp \
+  -H "Authorization: Bearer $WETALKS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to":"@asha","length":6,"ttl":300}'</pre></div></div><div class="tabpanel" data-lang="node" hidden><div class="codebox"><pre>const res = await fetch("https://wetalks.fireclashpro.com/api/v1/otp", {
+  method: "POST",
+  headers: { "Authorization": `Bearer ${process.env.WETALKS_KEY}`, "Content-Type": "application/json" },
+  body: JSON.stringify({"to":"@asha","length":6,"ttl":300}),
+});
+console.log(res.status, await res.json());</pre></div></div><div class="tabpanel" data-lang="python" hidden><div class="codebox"><pre>import os, requests
+r = requests.post("https://wetalks.fireclashpro.com/api/v1/otp",
+    headers={"Authorization": "Bearer " + os.environ["WETALKS_KEY"]},
+    json={"to":"@asha","length":6,"ttl":300})
+print(r.status_code, r.json())</pre></div></div><div class="tabpanel" data-lang="php" hidden><div class="codebox"><pre>$ch = curl_init("https://wetalks.fireclashpro.com/api/v1/otp");
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => ["Authorization: Bearer " . getenv("WETALKS_KEY"), "Content-Type: application/json"],
+  CURLOPT_POSTFIELDS => '{"to":"@asha","length":6,"ttl":300}']);
+echo curl_exec($ch);</pre></div></div></div><p class="muted" style="margin-top:.6em"><strong>Response</strong></p><div class="codebox"><pre>{
+  "otp_id": "otp_4e763ad9a89da06026f5",
+  "to": "@asha",
+  "length": 6,
+  "expires_at": "2026-11-06T11:23:51+00:00"
+}</pre></div>
+<h3 id="otp-verify"><span class="method m-post">POST</span><code>/otp/verify</code></h3><p>Checks a code. A code works once, expires after its time-to-live and is locked after 5 wrong tries.</p><div class="tablewrap"><table><thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody><tr><td><code>otp_id</code></td><td>string, required</td><td>The id returned by <code>/otp</code></td></tr><tr><td><code>code</code></td><td>string, required</td><td>The digits the user typed</td></tr></tbody></table></div><div data-tabs><div class="tabs" role="tablist"><button class="tab" type="button" role="tab" aria-selected="true" data-lang="curl">curl</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="node">Node.js</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="python">Python</button><button class="tab" type="button" role="tab" aria-selected="false" data-lang="php">PHP</button></div><div class="tabpanel" data-lang="curl"><div class="codebox"><pre>curl -X POST https://wetalks.fireclashpro.com/api/v1/otp/verify \
+  -H "Authorization: Bearer $WETALKS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"otp_id":"otp_4e763ad9a89da06026f5","code":"123456"}'</pre></div></div><div class="tabpanel" data-lang="node" hidden><div class="codebox"><pre>const res = await fetch("https://wetalks.fireclashpro.com/api/v1/otp/verify", {
+  method: "POST",
+  headers: { "Authorization": `Bearer ${process.env.WETALKS_KEY}`, "Content-Type": "application/json" },
+  body: JSON.stringify({"otp_id":"otp_4e763ad9a89da06026f5","code":"123456"}),
+});
+console.log(res.status, await res.json());</pre></div></div><div class="tabpanel" data-lang="python" hidden><div class="codebox"><pre>import os, requests
+r = requests.post("https://wetalks.fireclashpro.com/api/v1/otp/verify",
+    headers={"Authorization": "Bearer " + os.environ["WETALKS_KEY"]},
+    json={"otp_id":"otp_4e763ad9a89da06026f5","code":"123456"})
+print(r.status_code, r.json())</pre></div></div><div class="tabpanel" data-lang="php" hidden><div class="codebox"><pre>$ch = curl_init("https://wetalks.fireclashpro.com/api/v1/otp/verify");
+curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_HTTPHEADER => ["Authorization: Bearer " . getenv("WETALKS_KEY"), "Content-Type: application/json"],
+  CURLOPT_POSTFIELDS => '{"otp_id":"otp_4e763ad9a89da06026f5","code":"123456"}']);
+echo curl_exec($ch);</pre></div></div></div><p class="muted" style="margin-top:.6em"><strong>Response</strong></p><div class="codebox"><pre>{ "valid": true }
+
+// or
+{ "valid": false, "reason": "invalid" }   // invalid | expired | used | too_many_attempts</pre></div>
+
+<h2 id="usage">Usage</h2>
+<h3 id="usage"><span class="method m-get">GET</span><code>/usage</code></h3><p>Today's counts and your daily limits.</p><div data-tabs><div class="tabs" role="tablist"><button class="tab" type="button" role="tab" aria-selected="true" data-lang="curl">curl</button></div><div class="tabpanel" data-lang="curl"><div class="codebox"><pre>curl https://wetalks.fireclashpro.com/api/v1/usage -H "Authorization: Bearer $WETALKS_KEY"</pre></div></div></div><p class="muted" style="margin-top:.6em"><strong>Response</strong></p><div class="codebox"><pre>{
+  "date": "2026-11-06",
+  "messages": { "used": 12, "limit": 200 },
+  "otps": { "used": 4, "limit": 100 },
+  "errors": 1
+}</pre></div>
+
+<h2 id="errors">Errors</h2><p>Errors use standard HTTP status codes and a JSON body:</p>
+<div class="codebox"><pre>{ "error": { "code": "user_not_found", "message": "no WeTalks user with that username" } }</pre></div>
+<div class="tablewrap"><table><thead><tr><th>HTTP</th><th>code</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>401</td><td>—</td><td>Missing, malformed, wrong or revoked API key</td></tr>
+<tr><td>403</td><td><code>recipient_not_accepting</code></td><td>The person turned off service messages or blocked your app. Don't retry, ask them to enable it.</td></tr>
+<tr><td>404</td><td><code>user_not_found</code></td><td>No WeTalks user with that username</td></tr>
+<tr><td>422</td><td><code>invalid_text</code>, <code>invalid_kind</code>, <code>invalid_link</code>, <code>invalid_length</code>, <code>invalid_ttl</code></td><td>The request body failed validation. The message explains what to fix.</td></tr>
+<tr><td>429</td><td><code>daily_limit</code>, <code>recipient_limit</code>, <code>recipient_busy</code></td><td>A limit was reached. Check the <code>Retry-After</code> header.</td></tr></tbody></table></div>
+
+<h2 id="limits">Limits (free plan)</h2><div class="tablewrap"><table><tbody>
+<tr><td>Requests per key</td><td>120 per minute</td></tr><tr><td>Messages per app</td><td>200 per day</td></tr><tr><td>Codes per app</td><td>100 per day</td></tr>
+<tr><td>Per person, per app</td><td>10 messages per day, 5 codes per hour</td></tr><tr><td>Per person, all apps</td><td>30 service messages per day</td></tr>
+<tr><td>Apps / keys</td><td>3 apps per developer, 3 active keys per app</td></tr><tr><td>Text</td><td>500 characters (title 60, link 200)</td></tr></tbody></table></div>
+<p>Need more? Tell us what you are building and we will raise your limits.</p>
+
+<h2 id="security">Security tips</h2><ul><li>Store the key in an environment variable or secret manager, never in source control or client code.</li><li>Use one key per environment and revoke keys you no longer need.</li><li>Always verify codes on your server, never in the browser or app.</li><li>Tell users never to share codes, and never ask for a WeTalks password.</li><li>Rate limit the "send code" button in your own product to avoid annoying people.</li></ul>
+<h2 id="changelog">Changelog</h2><div class="tablewrap"><table><tbody><tr><td>v1 · Nov 2026</td><td>First release: <code>/ping</code>, <code>/usage</code>, <code>/messages</code>, <code>/otp</code>, <code>/otp/verify</code>. Developer portal with apps, keys, usage and logs.</td></tr></tbody></table></div>
+<p class="muted">Coming next: webhooks, higher limits, verified-app badges.</p></div></section></main><footer><div class="container foot"><div><a class="brand" href="/"><img src="/assets/img/icon-64.png" width="34" height="34" alt="">WeTalks</a>
+<p class="muted" style="margin:.8em 0 .4em;color:var(--muted)">Private messaging with calls, groups, channels and photos. End-to-end encrypted.</p><small>Support email coming soon</small></div>
+<div><h4>Product</h4><a href="/features.html">Features</a><a href="/security.html">Security</a><a href="/download.html">Download</a><a href="/faq.html">FAQ</a></div>
+<div><h4>Developers</h4><a href="/developers/">Overview</a><a href="/developers/docs.html">API docs</a><a href="/developers/portal.html">Developer portal</a></div>
+<div><h4>Legal</h4><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms of use</a><small>© 2026 WeTalks</small></div></div></footer>
+<script src="/assets/js/site.js" defer></script></body></html>

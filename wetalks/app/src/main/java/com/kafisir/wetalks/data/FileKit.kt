@@ -146,9 +146,39 @@ object FileKit {
     }
 
     /** Where a decrypted copy lives while it is being viewed. */
-    fun cacheDir(ctx: Context) = File(ctx.cacheDir, "fx").apply { mkdirs() }
+    /** Downloaded and sent files are kept (like WhatsApp) so they open instantly and never need downloading twice. Unopened for 30 days = removed. */
+    fun cacheDir(ctx: Context) = File(ctx.filesDir, "files").apply { mkdirs() }
     fun cachedFile(ctx: Context, id: String, name: String) = File(File(cacheDir(ctx), id.takeLast(40)).apply { mkdirs() }, cleanName(name))
-    fun sweep(ctx: Context) { try { val cut = System.currentTimeMillis() - 24 * 3600_000L; cacheDir(ctx).walkBottomUp().forEach { if (it.isFile && it.lastModified() < cut) it.delete() else if (it.isDirectory && it.list().isNullOrEmpty() && it != cacheDir(ctx)) it.delete() } } catch (_: Exception) {} }
+    fun sweep(ctx: Context) { try { val cut = System.currentTimeMillis() - 30L * 24 * 3600_000L; cacheDir(ctx).walkBottomUp().forEach { if (it.isFile && it.lastModified() < cut) it.delete() else if (it.isDirectory && it.list().isNullOrEmpty() && it != cacheDir(ctx)) it.delete() } } catch (_: Exception) {} }
+
+    /** A copy of a file the person just sent, stored under the server id, so their own video plays without downloading. */
+    fun keepSent(ctx: Context, id: String, name: String, uri: Uri) {
+        try { val out = cachedFile(ctx, id, name); ctx.contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(out).use { o -> i.copyTo(o) } } } catch (_: Exception) {}
+    }
+
+    class VideoInfo(val seconds: Int, val w: Int, val h: Int, val thumb: ByteArray?)
+    /** Length, size and a small preview picture of a video (the picture travels inside the encrypted message, like WhatsApp's preview). */
+    fun videoInfo(ctx: Context, uri: Uri): VideoInfo {
+        val r = android.media.MediaMetadataRetriever()
+        return try {
+            r.setDataSource(ctx, uri)
+            val dur = (r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L) / 1000
+            var w = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+            var h = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+            val rot = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            if (rot == 90 || rot == 270) { val t = w; w = h; h = t }
+            var thumb: ByteArray? = null
+            val frame = r.getFrameAtTime(minOf(1_000_000L, dur * 500_000L), android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            if (frame != null) {
+                val sc = 400f / maxOf(frame.width, frame.height)
+                val bmp = if (sc < 1f) android.graphics.Bitmap.createScaledBitmap(frame, (frame.width * sc).toInt().coerceAtLeast(1), (frame.height * sc).toInt().coerceAtLeast(1), true) else frame
+                var q = 70
+                do { val bo = java.io.ByteArrayOutputStream(); bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, q, bo); thumb = bo.toByteArray(); q -= 15 } while (thumb!!.size > 28_000 && q > 20)
+                if (thumb!!.size > 28_000) thumb = null
+            }
+            VideoInfo(dur.toInt(), w, h, thumb)
+        } catch (e: Exception) { VideoInfo(0, 0, 0, null) } finally { try { r.release() } catch (_: Exception) {} }
+    }
 
     fun size(n: Long): String = when { n >= 1024 * 1024 -> String.format("%.1f MB", n / 1048576.0); n >= 1024 -> (n / 1024).toString() + " KB"; else -> "$n B" }
 

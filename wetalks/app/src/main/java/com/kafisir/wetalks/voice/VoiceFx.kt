@@ -22,7 +22,10 @@ import kotlin.math.sqrt
 
 /** User switches for the voice-note pipeline, plus the shared DeepFilterNet3 engine. */
 /** Paid ("WeTalks Plus") features stay switched off until this is true. */
-object Premium { const val unlocked = false }
+object Premium {
+    const val unlocked = false     // AI noise remover + auto-cut
+    const val files = false        // sending video, audio and documents (needs server storage, so it is a Plus feature / coming soon)
+}
 
 object VoiceFx {
     /** AI background-noise removal and auto-cut silence are Plus features; "Voice enhance" (EQ + volume normalisation) is free. */

@@ -6,3 +6,4 @@ keystore.properties
 *adminsdk*.json
 service-account*.json
 .firebase/
+hosting/public/download/*.apk

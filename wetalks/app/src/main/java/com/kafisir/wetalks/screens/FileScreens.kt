@@ -137,3 +137,45 @@ fun VideoPlayerScreen(path: String, title: String) {
         }
     }
 }
+
+
+/** A video in the chat looks like WhatsApp's: a preview picture with a play button and the length. Tap to play. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val out = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id } else null
+    val thumb = remember(m.thumb, m.id, out) { out?.thumb ?: if (m.thumb.isNotEmpty()) try { Pics.decode(Crypto.unb64(m.thumb)) } catch (_: Exception) { null } else null }
+    var progress by remember(m.id) { mutableFloatStateOf(-1f) }
+    val local = remember(m.mediaId, m.name) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).let { f -> f.exists() && f.length() > 0 } } == true }
+    val busy = (out != null && !out.failed) || progress >= 0f
+    val shown = if (out != null) out.progress else progress.coerceAtLeast(0f)
+    val ratio = if (m.w > 0 && m.h > 0) (m.w.toFloat() / m.h).coerceIn(.6f, 1.8f) else 1.6f
+    fun play() {
+        if (m.pending || progress >= 0f) return
+        scope.launch {
+            try {
+                progress = 0f
+                val f = Repo.fetchFile(m) { progress = it }
+                progress = -1f
+                Nav.push(RVideo(f.absolutePath, m.name))
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e
+            } catch (e: Exception) { progress = -1f; Nav.say(e.message ?: "Could not open the video") }
+        }
+    }
+    Box(Modifier.width(254.dp).padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { play() }, onLongClick = onLong)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(ratio).background(Color(0xFF16202E))) {
+            if (thumb != null) androidx.compose.foundation.Image(thumb, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            Box(Modifier.align(Alignment.Center).size(54.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+                if (out?.failed == true) Icon(Ic.Alert, Color.White, 26.dp)
+                else if (busy) androidx.compose.material3.CircularProgressIndicator(progress = { shown.coerceIn(0.04f, 1f) }, modifier = Modifier.size(38.dp), color = Color.White, strokeWidth = 3.dp, trackColor = Color(0x44FFFFFF))
+                else Icon(if (local || m.pending) Ic.Play else Ic.Download, Color.White, 28.dp)
+            }
+            Row(Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Ic.Video, Color.White, 13.dp); Spacer(Modifier.width(4.dp))
+                Text((if (m.dur > 0) "%d:%02d".format(m.dur / 60, m.dur % 60) else "Video") + (if (!local && !m.pending && m.size > 0) " · " + FileKit.size(m.size) else ""), color = Color.White, style = T.tiny)
+            }
+        }
+    }
+}

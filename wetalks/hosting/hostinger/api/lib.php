@@ -204,3 +204,5 @@ function fake_net(string $method, string $url, ?array $body): array {
     }
     return ['code' => 404, 'body' => null];
 }
+
+const FILES_ENABLED = false;     // video, audio and documents are "coming soon with Plus": switched on here (and in the app) when budget allows

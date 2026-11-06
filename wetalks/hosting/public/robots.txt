@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /c/
+Disallow: /u/
+Sitemap: https://wetalks.fireclashpro.com/sitemap.xml

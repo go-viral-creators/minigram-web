@@ -2,10 +2,27 @@ RewriteEngine On
 # keep the Authorization header (some shared servers drop it)
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 RewriteRule ^api/v1/ api/index.php [L]
-RewriteRule ^(c|u)/ /index.html [L]
+RewriteRule ^(c|u)/ /link.html [L]
+RewriteRule ^developers/?$ /developers/index.html [L]
+
 <Files "assetlinks.json">
   Header set Content-Type "application/json"
 </Files>
-<FilesMatch "\.(json|log)$">
+<FilesMatch "\.apk$">
+  ForceType application/vnd.android.package-archive
+  Header set Content-Disposition "attachment"
   Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 day"
+  ExpiresByType application/javascript "access plus 1 day"
+  ExpiresByType image/png "access plus 7 days"
+  ExpiresByType font/woff2 "access plus 30 days"
+</IfModule>

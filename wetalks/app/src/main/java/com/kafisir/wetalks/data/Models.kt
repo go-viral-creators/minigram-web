@@ -41,7 +41,7 @@ data class Msg(
     val reactions: Map<String, String> = emptyMap(), val unreadable: Boolean = false, val pending: Boolean = false,
     val wave: List<Int> = emptyList(),
     val link: LinkPreview? = null, val mime: String = "", val w: Int = 0, val h: Int = 0, val fwd: String? = null,
-    val name: String = "", val size: Long = 0, val fkey: String = "",          // video | audio | file messages
+    val name: String = "", val size: Long = 0, val fkey: String = "", val thumb: String = "",          // video | audio | file messages
 )
 
 /** Preview card fetched by the sender and sent inside the encrypted message. */

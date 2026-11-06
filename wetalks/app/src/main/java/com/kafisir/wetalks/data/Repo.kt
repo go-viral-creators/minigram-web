@@ -539,7 +539,7 @@ object Repo {
             plain = opened ?: ""; if (opened == null) bad = true
         }
         var mediaId: String? = null; var dur = 0; var text = plain; var wave: List<Int> = emptyList()
-        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0; var fname = ""; var fsize = 0L; var fkey = ""
+        var link: LinkPreview? = null; var mime = ""; var w = 0; var h = 0; var fname = ""; var fsize = 0L; var fkey = ""; var fthumb = ""
         if (!bad && r.type in listOf("image", "voice", "gif", "link", "call", "video", "audio", "file")) {
             try {
                 val j = org.json.JSONObject(plain)
@@ -548,13 +548,13 @@ object Repo {
                     "link" -> { text = j.optString("t"); link = LinkPreview(j.optString("u"), j.optString("ti"), j.optString("d"), j.optString("i")) }
                     else -> {
                         mediaId = j.optString("m"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
-                        if (r.type == "video" || r.type == "audio" || r.type == "file") { fname = FileKit.cleanName(j.optString("n")); fsize = j.optLong("s"); fkey = j.optString("k"); mime = FileKit.mimeOf(FileKit.extOf(fname)) }
+                        if (r.type == "video" || r.type == "audio" || r.type == "file") { fname = FileKit.cleanName(j.optString("n")); fsize = j.optLong("s"); fkey = j.optString("k"); fthumb = j.optString("th"); mime = FileKit.mimeOf(FileKit.extOf(fname)) }
                         j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
                     }
                 }
             } catch (e: Exception) { bad = true }
         }
-        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey)
+        return Msg(r.id, r.from, r.ts, r.type, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb)
     }
 
     /** Opens a DM body with whichever candidate key works (AES-GCM tells us which one is right). */
@@ -869,7 +869,8 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ forward
     /** Video / audio / document: check, encrypt with a fresh key, upload from disk, then send the message that carries the key. */
-    suspend fun sendFile(ref: ChatRef, uri: android.net.Uri, p: FileKit.Picked, rid: String?, fwd: String?, onProgress: (Float) -> Unit) {
+    suspend fun sendFile(ref: ChatRef, uri: android.net.Uri, p: FileKit.Picked, rid: String?, fwd: String?, onProgress: (Float) -> Unit, info: FileKit.VideoInfo? = null) {
+        if (!com.kafisir.wetalks.voice.Premium.files) throw IllegalStateException("Video, audio and documents are coming soon with WeTalks Plus")
         val ctx = app
         val key = FileKit.newKey()
         val tmp = java.io.File(ctx.cacheDir, "up_" + System.nanoTime() + ".enc")
@@ -877,6 +878,9 @@ object Repo {
             val plain = withContext(Dispatchers.IO) { FileKit.encryptPicked(ctx, uri, p, key, tmp) { onProgress(it * 0.25f) } }
             val id = MediaApi.uploadFile(ref.id, tmp, p.kind, p.ext, p.mime) { onProgress(0.25f + it * 0.75f) }
             val j = org.json.JSONObject().put("m", id).put("k", Crypto.b64(key)).put("n", p.name).put("s", plain).put("mime", p.mime)
+            if (info != null) { j.put("d", info.seconds).put("w", info.w).put("h", info.h); if (info.thumb != null) j.put("th", Crypto.b64(info.thumb)) }
+            // the sender already has the file: keep a copy under the new id so opening it later never needs a download
+            withContext(Dispatchers.IO) { FileKit.keepSent(ctx, id, p.name, uri) }
             send(ref, p.kind, j.toString(), rid, when (p.kind) { "video" -> "Video"; "audio" -> "Audio"; else -> "Document" }, fwd)
         } finally { tmp.delete() }
     }
@@ -903,7 +907,8 @@ object Repo {
             "video", "audio", "file" -> {
                 val f = fetchFile(m) {}
                 val ext = FileKit.extOf(m.name)
-                sendFile(to, android.net.Uri.fromFile(f), FileKit.Picked(m.name, ext, m.type, FileKit.mimeOf(ext), f.length()), null, orig) {}
+                val uri = android.net.Uri.fromFile(f)
+                sendFile(to, uri, FileKit.Picked(m.name, ext, m.type, FileKit.mimeOf(ext), f.length()), null, orig, {}, if (m.type == "video") FileKit.videoInfo(app, uri) else null)
             }
             "text" -> send(to, "text", m.text, null, m.text.take(90), orig)
             "sticker" -> send(to, "sticker", m.text, null, "Sticker", orig)

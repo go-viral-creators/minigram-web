@@ -3,7 +3,8 @@
     "public": "hosting/public",
     "ignore": [
       "firebase.json",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "download/*.apk"
     ],
     "headers": [
       {
@@ -19,11 +20,11 @@
     "rewrites": [
       {
         "source": "/c/**",
-        "destination": "/index.html"
+        "destination": "/link.html"
       },
       {
         "source": "/u/**",
-        "destination": "/index.html"
+        "destination": "/link.html"
       }
     ]
   },

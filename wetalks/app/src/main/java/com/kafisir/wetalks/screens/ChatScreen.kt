@@ -284,10 +284,15 @@ fun ChatScreen(ref: ChatRef) {
 
     // ---------------- files (video / audio / documents, max 30 MB) and the camera
     fun sendPickedFile(uri: Uri, wanted: String?) {
+        if (!com.kafisir.wetalks.voice.Premium.files) { toast("Video, audio and documents are coming soon with WeTalks Plus"); return }
         val p = try { FileKit.check(ctx, uri, wanted) } catch (e: IllegalArgumentException) { toast(e.message ?: "This file can't be sent"); return }
         val replyId = reply?.id; reply = null
-        val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, p.kind, name = p.name, size = p.size)
-        Repo.runOutgoing(o) { Repo.sendFile(ref, uri, p, replyId, null) { o.progress = it } }
+        scope.launch {
+            val info = if (p.kind == "video") kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { FileKit.videoInfo(ctx, uri) } else null
+            val o = Repo.Outgoing(java.util.UUID.randomUUID().toString(), ref, p.kind, dur = info?.seconds ?: 0, w = info?.w ?: 0, h = info?.h ?: 0,
+                thumb = info?.thumb?.let { Pics.decode(it) }, name = p.name, size = p.size)
+            Repo.runOutgoing(o) { Repo.sendFile(ref, uri, p, replyId, null, { o.progress = it }, info) }
+        }
     }
     val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { u: Uri? -> if (u != null) sendPickedFile(u, "video") }
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { u: Uri? -> if (u != null) sendPickedFile(u, "audio") }
@@ -534,9 +539,10 @@ fun ChatScreen(ref: ChatRef) {
     if (attach) Sheet({ attach = false }) {
         if (imageOk) SheetItem(Ic.Camera, "Camera") { attach = false; if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) launchCamera() else camPerm.launch(Manifest.permission.CAMERA) }
         if (imageOk) SheetItem(Ic.Image, "Photos") { attach = false; photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
-        if (imageOk) SheetItem(Ic.Video, "Video (max 30 MB)") { attach = false; videoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) }
-        if (imageOk) SheetItem(Ic.Audio, "Audio file (max 30 MB)") { attach = false; audioPicker.launch(arrayOf("audio/*")) }
-        if (imageOk) SheetItem(Ic.File, "Document (max 30 MB)") { attach = false; docPicker.launch(arrayOf("*/*")) }
+        val fl = com.kafisir.wetalks.voice.Premium.files
+        if (imageOk) SheetItem(Ic.Video, if (fl) "Video (max 30 MB)" else "Video · coming soon with Plus") { attach = false; if (fl) videoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)) else toast("Video is coming soon with WeTalks Plus") }
+        if (imageOk) SheetItem(Ic.Audio, if (fl) "Audio file (max 30 MB)" else "Audio file · coming soon with Plus") { attach = false; if (fl) audioPicker.launch(arrayOf("audio/*")) else toast("Audio files are coming soon with WeTalks Plus") }
+        if (imageOk) SheetItem(Ic.File, if (fl) "Document (max 30 MB)" else "Document · coming soon with Plus") { attach = false; if (fl) docPicker.launch(arrayOf("*/*")) else toast("Documents are coming soon with WeTalks Plus") }
         if (stickerOk) SheetItem(Ic.Smile, "Sticker") { attach = false; stickers = true }
     }
     if (stickers) StickerSheet({ stickers = false }) { payload ->
@@ -677,7 +683,8 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                     m.unreadable -> Text("🔒 Locked with an older encryption key. Tap for details", color = fg.copy(alpha = .6f), style = T.body.copy(fontStyle = FontStyle.Italic))
                     m.type == "image" -> ImageBody(m, ref, mine, read, fg, pinned, onLong)
                     m.type == "voice" -> VoiceBody(m, ref, fg)
-                    m.type == "video" || m.type == "audio" || m.type == "file" -> FileBody(m, ref, mine, fg, onLong)
+                    m.type == "video" -> VideoCard(m, ref, onLong)
+                    m.type == "audio" || m.type == "file" -> FileBody(m, ref, mine, fg, onLong)
                     m.type == "sticker" -> StickerBody(m.text)
                     m.type == "gif" -> GifBody(m, ref, onLong)
                     m.type == "call" -> CallBody(m, mine, fg)

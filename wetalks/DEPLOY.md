@@ -39,3 +39,15 @@ firebase database:update /config/maintenance --project wetalks-78e5a --force --d
 * Never commit or share `*adminsdk*.json`, `*.jks`, `keystore.properties` (all git-ignored). Rotate a key if it was ever pasted anywhere.
 * Only the Firebase console / CLI (admin) can change `config/`; the app can only read it.
 * Push messages contain no text, names or media – only "msg"/"call" and a chat id.
+
+## Website + developer API (Hostinger, wetalks.fireclashpro.com)
+```bash
+python3 tools/site/build.py --apk dist/WeTalks-vX-arm64.apk     # builds hosting/public from hosting/site + tools/site/pages.py
+# get a temporary upload URL with the Hostinger MCP (hosting_files_generate-upload-url), then:
+URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/hostinger/api wetalks/api   # PHP API
+URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/public wetalks              # website (+ download/*.apk)
+firebase deploy --only hosting --project wetalks-78e5a                                   # web.app mirror (deep links)
+```
+* API code: `hosting/hostinger/api/` (lib, media, dev, service). Data lives outside the web root in `wt_store/` (SQLite, encrypted-file store, relay login).
+* `FILES_ENABLED` in `lib.php` and `Premium.files` in the app switch video/audio/documents on together.
+* Support email on the site: `WT_SUPPORT_EMAIL=you@example.com python3 tools/site/build.py ...`

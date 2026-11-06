@@ -13,6 +13,7 @@ if ($method === 'POST' && $path === 'media') {
     $kind = strtolower((string)($_SERVER['HTTP_X_KIND'] ?? 'image'));
     if (!isset(KINDS[$kind])) fail(400, 'unknown kind');
     $K = KINDS[$kind];
+    if (in_array($kind, ['video', 'audio', 'file'], true) && !FILES_ENABLED && !getenv('WT_FILES')) fail(403, 'coming_soon: video, audio and documents are not available yet');
     if ($len > $K['max'] * 1024 * 1024 + OVERHEAD) fail(413, 'file too large for this type (max ' . $K['max'] . ' MB)');
     $mimeIn = strtolower(trim((string)($_SERVER['HTTP_X_MIME'] ?? '')));
     if ($mimeIn !== '' && !preg_match($K['mime'], $mimeIn)) fail(415, 'type not allowed');
