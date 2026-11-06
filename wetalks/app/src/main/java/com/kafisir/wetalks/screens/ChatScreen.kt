@@ -294,21 +294,22 @@ fun ChatScreen(ref: ChatRef) {
 
     // ---------------- translate / transcribe (messages only change on this phone)
     /** Voice message -> text (language detected automatically). Returns the text, or null after showing the error. */
-    suspend fun transcribeNow(m: Msg): String? {
-        txNotes[m.id] = BubbleNote("Transcribing…", "", true)
+    suspend fun transcribeNow(m: Msg, show: Boolean = true): String? {
+        if (show) txNotes[m.id] = BubbleNote("Transcribing…", "", true)
         return try {
             val bytes = m.mediaId?.let { Repo.loadMedia(ref, it) } ?: throw IllegalStateException("Could not load the voice message")
             val o = com.kafisir.wetalks.voice.Transcriber.transcribe(ctx, bytes, I18n.speechLang.ifEmpty { null })
             val nm = I18n.languages.firstOrNull { it.code.substringBefore('-') == o.lang.substringBefore('-') }?.english ?: o.lang
-            txNotes[m.id] = BubbleNote("Transcript · $nm", o.text, false); o.text
-        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { txNotes.remove(m.id); toast(e.message ?: "Could not transcribe"); null }
+            if (show) txNotes[m.id] = BubbleNote("Transcript · $nm", o.text, false)
+            o.text
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { if (show) txNotes.remove(m.id); toast(e.message ?: "Could not transcribe"); null }
     }
     fun doTranslate(m: Msg, to: String) {
         trNotes[m.id] = BubbleNote("Translating…", "", true)
         Repo.scope.launch {
             try {
-                // a voice message is transcribed first (language detected automatically), then translated into the chosen language
-                val src = if (m.type == "voice") (txNotes[m.id]?.takeIf { !it.loading && it.text.isNotEmpty() }?.text ?: transcribeNow(m)) else m.text
+                // translating a voice message needs its text, but that text is only used behind the scenes; the transcript itself shows only when the person taps Transcribe
+                val src = if (m.type == "voice") (txNotes[m.id]?.takeIf { !it.loading && it.text.isNotEmpty() }?.text ?: transcribeNow(m, show = false)) else m.text
                 if (src.isNullOrBlank()) { trNotes.remove(m.id); return@launch }
                 val r = Translator.translate(src, to)
                 trNotes[m.id] = BubbleNote("Translated from " + I18n.languages.firstOrNull { it.code == r.detected }?.english.orEmpty().ifEmpty { "another language" } + " to " + I18n.byCode(to).english, r.text, false)
