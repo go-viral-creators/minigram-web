@@ -1,0 +1,197 @@
+# Synthetic, hand-written normal messages in Roman Hindi (Hinglish), including tricky ones. One per line.
+Bhai aaj raat dinner pe aa raha hai?
+OTP aaya kya? Mere paas abhi tak nahi aaya.
+Bank ka message aaya hai: kisi ke saath bhi apna OTP, PIN ya CVV share na karein.
+SBI reminder: Apna OTP kisi ko na batayein. Bank kabhi aapka PIN ya password nahi maangta.
+Aapka OTP 482913 hai. Ye kisi ko mat batana. 10 minute tak valid hai.
+Mummy maine bijli ka bill online bhar diya hai, office jane ki zaroorat nahi.
+Ye dekh yaar https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Yaha aa jao: https://maps.app.goo.gl/AbC123xyz
+5 minute me location bhej dunga.
+Kal ki class ke notes bhej do na please.
+Delivery wala bahar gate pe khada hai, call kar raha hai.
+Mera Amazon ka parcel aa gaya, blue headphones the.
+Flipkart pe is weekend sale hai, phone cover lena hai.
+Naya job mubarak ho! Friday ko party karte hain.
+Job offer mil gaya! 12 LPA salary hai, 1 tarikh ko join karna hai.
+HR ne bola kal subah 11 baje interview hai, original documents le aana.
+Kal bank jaake KYC update karna hai, aadha din lag jayega.
+Papa bank se loan EMI ka call aaya tha, Monday ko bhar dunga.
+Kiraya de diya? Makan malik pooch raha hai.
+Dukan ka account number bhej do, sofa ke paise transfer kar dunga.
+Maine tumhe GPay se 500 rupaye bheje hain, check karo.
+Pizza ke 300 rupaye wapas kar dena jab ho sake, jaldi nahi hai.
+Bill split kar lete hain? 450 rupaye har ek ke aate hain.
+Zara check karo payment hua ki nahi? Mere side pending dikha raha hai.
+Restaurant me card decline ho gaya, tu pay kar dega? Abhi wapas bhej deta hu.
+App se 20% discount code mila hai, bag lene ke liye use kare?
+Mera referral code use kar, dono ko 100 rupaye milenge.
+Recharge ke liye thanks bhai, agle hafte wapas kar dunga.
+Mall me jooton par 50% off hai, chalein?
+Mela me lottery wala stall bahut funny tha, har game haar gaya.
+Mere cousin ne quiz competition me inaam jeeta!
+Cricket match Mumbai jeet gayi, kya match tha!
+Reminder: aapka AnyDesk session hamari IT team ke saath 4 baje hai, ticket number 4471.
+Presentation ke liye Zoom pe screen share kar sakte ho? Slides dikhani hain.
+Meeting se pehle Zoom ka update install kar lena, audio bug theek ho gaya hai.
+Team call me screen share karke code samjha dunga.
+Office wifi ka password kya hai? Bhool gaya.
+Netflix ka password aur logo ko mat batana, account lock ho jayega.
+Tune Instagram ka password kyun badla? Mai login nahi kar paa raha.
+Password manager me saare login save hain, bahut kaam ka hai.
+Bank me PIN code bhool gaya, branch jaana padega.
+Is message ko group me pin kar do please.
+Tumhare area ka pin code kya hai? Courier bhejna hai.
+Mera ATM card block ho gaya hai, kal bank jaana padega.
+Debit card kho gaya, app se block kar diya.
+Station tak lift de dega 6 baje?
+Janamdin mubarak ho! Naya saal bahut accha ho.
+Exam registration ke liye Aadhaar card lana mat bhoolna.
+Aaj Aadhaar kendra band hai, kal jaunga.
+Kal PAN ko Aadhaar se link kiya, 2 minute lage.
+Income tax filing ki last date 31 July hai, tumne file kiya?
+Aaj income tax refund aa gaya, finally!
+Tax season bahut tension wala hai, is saal CA madad kar raha hai.
+Ye article dekho https://www.thehindu.com/news/national/story.ece
+https://hi.wikipedia.org/wiki/मुंबई
+Google Doc ka link ye raha: https://docs.google.com/document/d/1AbCdEf/edit
+Call ka Zoom link: https://us02web.zoom.us/j/123456789
+Google Meet join karo: https://meet.google.com/abc-defg-hij
+Mera portfolio https://github.com/priya/portfolio pe hai
+Ye reel dekh https://www.instagram.com/reel/Cx1234/
+Mera LinkedIn dekho https://www.linkedin.com/in/rahul-sharma
+Ye recipe try kar https://www.bbcgoodfood.com/recipes/easy-pancakes
+https://www.irctc.co.in pe train book karke PNR bhej do.
+https://www.makemytrip.com pe flight ticket aaj sasti hai.
+Order ye raha https://www.amazon.in/dp/B09XYZ
+Photos share kar di hain https://photos.app.goo.gl/AbCdEfGh
+Drive ka folder ye hai https://drive.google.com/drive/folders/1xyz
+Hamari shaadi ka card https://wedding.example.com/rahul-priya pe hai
+Form ka chhota link https://forms.gle/AbCdEf123
+Team ka result https://bit.ly/results-team-2024 slide 3 dekho
+Mummy ki recipe ka PDF https://tinyurl.com/mom-recipe-pdf
+Invoice ka PDF bhej sakte ho?
+Meeting ke baad call karta hu.
+Kaha ho? Hum cafe me tumhara intezaar kar rahe hain.
+Aapko aur parivar ko Diwali ki shubhkamnaye!
+Project file shaam tak share kar dena please.
+Apni location share kar, mai park ke paas hu.
+Excel sheet mujhe bhi share kar do.
+Trip ki photos bhej do yaar!
+Ghar pahunch ke bata dena.
+Kal tumhe kitab de dunga.
+Mummy pooch rahi hai Sunday ko lunch pe aa rahe ho?
+Doctor ne do din aaram karne ko kaha hai.
+Result Monday ko aayega.
+Assignment submit kar diya, portal pe success dikha raha hai.
+Is mahine bank balance kam hai, dhyan rakhna padega.
+Bank manager aaj bahut helpful the.
+HDFC me naya savings account khola, process fast tha.
+SBI branch 4 baje band hoti hai, jaldi jaana padega.
+Metro ke paas ATM se cash nikala.
+ATM me phir se cash khatam tha.
+Hamari company backend engineer hire kar rahi hai, apna CV careers@company.com par bhej do.
+Job dhundh rahe ho? Mere dost ki company me opening hai.
+Library me part time job mil gayi, din me 4 ghante.
+Aaj phir work from home, office ka AC kharab hai.
+Wo ghar se kaam karke 50 hazaar mahina kamata hai.
+Weekend pe tuition padhake thode paise kamane ki koshish kar raha hu.
+Investment seminar boring tha, bas mutual fund ki baatein.
+Papa ne 7 percent par FD karwayi hai.
+Bitcoin aaj phir gir gaya, achha hua maine nahi khareeda.
+Har mahine ki 5 tarikh ko 2000 ka SIP kat jata hai.
+Loan approve hua kya? Bank manager ko call karke pooch lo.
+Home loan ki EMI due hai, 3 tarikh ko yaad dilana.
+Aapka order ship ho gaya hai aur Thursday tak aayega. App me track karein.
+Aapka Swiggy order raste me hai, delivery partner Ravi 5 minute door hai.
+Aapki Uber 2 minute me aa rahi hai, driver Suresh, OTP 4821.
+Cab ka OTP 3392 hai, driver aaye to use bata dena.
+Driver ko OTP tabhi batana jab cab me baith jao.
+Parcel lene ke liye delivery wale ko OTP 6621 bata do.
+Parcel ka OTP 1088 hai, rider maangega.
+Aapka Zomato verification code 553201 hai.
+Netflix: kisi ne naye device se sign in kiya. Agar ye aap the to is message ko ignore karein.
+Bank ka time badal gaya hai, ab 10 baje khulta hai.
+Aaj raat club me ladies ke liye free entry!
+Building ke peeche free parking hai.
+Aaj bakery me ek ke saath ek free hai.
+Kal society event me lucky draw hai, coupon le aana.
+Inaam vitran shaam 5 baje school ground me hai.
+Hum dance competition me pehle number par aaye!
+Photo bada dekhne ke liye usspe click karo.
+Game install karna hai? Bahut mazedaar hai.
+App ki apk file attached hai, ye debug build hai.
+Report download karke numbers check kar lo.
+Flight ka refund kal aaya, 7 din lage.
+Dukan wale ne toote mixer ka refund de diya.
+Urgent: form aaj 5 baje se pehle bhar do, office band ho raha hai.
+Jaldi, picture 10 minute me shuru hone wali hai!
+Jaldi kar, train chhoot jayegi!
+Exam form ki last date kal hai, bhar do please.
+Aapka account taiyar hone wala hai, jab shuru karna ho bata dena.
+Meri Facebook id pichle saal hack ho gayi thi, ab zyada dhyan rakhta hu.
+Aaj bank ke naam par ek scam message aaya, bahut pareshan karta hai.
+Fake calls se savdhan raho jo OTP maangte hain. Bank kabhi OTP nahi maangta.
+Savdhan rahna, mere dost ne ajnabi ko UPI PIN batake paise ganwa diye.
+Anjaan links par click mat karna, data chori ho sakta hai.
+Call par kabhi bhi card number ya CVV mat batana, yaad rakhna.
+Chetavani: fake KYC update ka message ghoom raha hai. Ignore karo aur delete kar do.
+Mummy kisi ka call aaya ki maine lottery jeeti hai, maine kaat diya, theek kiya na?
+Police advisory: anjaan callers ko OTP, screen ya remote access share na karein.
+Cyber crime helpline number 1930 hai, apne phone me save kar lo.
+Police chowki bazaar ke paas hai, wahan pooch lenge.
+Naye number se call kar raha hu, purana kho gaya.
+Ye tera naya number hai? Save kar leta hu.
+Shanivar ko community hall me Aadhaar update camp hai.
+Is mahine bijli ka bill 2,340 aaya hai, AC bahut kharcha kar raha hai.
+Bill 10 tarikh tak bharna hai, reminder laga do.
+App ka cashback wallet me aa gaya, sirf 12 rupaye tha.
+Recharge par 50 rupaye cashback mila.
+Checkout par SAVE10 code lagao, discount milega.
+Dukan par QR code scan karke pay kar dunga.
+Wifi se judne ke liye QR scan karo.
+Event entry ka QR code tumhare email me hai.
+Usne petrol pump par pay karne ke liye QR code scan karne ko kaha.
+TV pe code daal kar Prime login kar lo.
+Screen par jo 6 digit code hai wo device pairing ka hai, maine khud kar liya.
+Darwaze ke lock par PIN daalo, pichli baar jaisa hi hai.
+TV par screen mirroring on karo, tumhe photos dikhani hain.
+Aapke dost Rahul ne aapko group me jodne ke liye bulaya hai.
+Is invite link se group join karo https://chat.whatsapp.com/AbCdEfGh123
+Cricket updates ke liye Telegram channel join kiya https://t.me/cricketupdates
+Study group ka Telegram link hai kya?
+Hackathon ka inaam 50,000 rupaye hai, hum koshish karenge.
+Humare rajya me lottery ticket illegal hai shayad.
+Kai dukano me 1 rupaye ka sikka ab nahi chalta.
+Gate par parking ke 10 rupaye do.
+Highway par toll ke 20 rupaye, chhutte rakhna.
+Company ne Diwali gift me Flipkart ka gift card diya.
+Dukan se gift card lekar Rahul ko janamdin par de dena.
+Aaj salary credit ho gayi, finally.
+Mere account statement me kiraya sahi se debit dikha raha hai.
+Shaam tak paisa transfer kar dunga, net banking slow hai.
+Dukan ka UPI ID hai kya? Pay karna hai.
+Tumhara UPI ID rahul@okhdfc hai na? Bhej raha hu.
+Salary advance ke liye bank account number bhej do? HR ko form me chahiye.
+CA ne bank statement aur PAN maanga, maine unhe haath me de diya.
+Customer care ne 20 minute baad phone uthaya.
+Customer care ko call kiya, bole refund 5 working days me aayega.
+Amazon customer service bahut achi thi, phone badal diya.
+Helpline din bhar busy tha.
+Apna order id bata do, main status check karta hu.
+Apna favourite colour bata, tujhe kuch gift karna hai.
+Apna number de do, mai wapas call karunga.
+Resume aur cover letter Friday tak bhej dena.
+Meeting ka link bhej do.
+Gate ka code kya hai? Mai bahar hu.
+Gate code 4521 hai, mummy tumhe andar bhi bula legi.
+Wifi password guest1234 hai, kisi aur ko mat batana.
+Tablet ka lock screen PIN 1234 hai, bachchon ko pata hai.
+Uska naya phone number 4421 par khatam hota hai.
+Bhai mera OTP tere number pe galti se aa gaya hoga, aaya kya? Dekh ke bata.
+Kisi ne mujhe call karke OTP maanga, maine mana kar diya.
+Bhai tune apna UPI PIN badla? Mera abhi bhi purana hi hai.
+Aaj raat 9 baje ka plan pakka hai na?
+Bijli ka bill kal bharna hai, aaj line bahut lambi thi.
+Discount ka code dost ne bheja, 30% off mila.
+Teri salary kab aati hai? Mera kiraya dena hai.
