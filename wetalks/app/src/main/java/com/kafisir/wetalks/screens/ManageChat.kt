@@ -67,6 +67,7 @@ fun GroupSettingsScreen(id: String) {
             Row2(Ic.Pin, "Pin messages", "Let any member pin and unpin", trailing = { Toggle(on("pin", false)) { toggle("pin", it) } })
             SectionLabel("Slow mode")
             SlowModeRow(group.slow) { s -> scope.launch { try { Repo.setSlow(Kind.GROUP, id, s) } catch (e: Exception) { fail(e) } } }
+            if (group.owner == Repo.uid) ExportSwitchRows(id, Kind.GROUP)
             SectionLabel("Group type")
             Row2(Ic.Lock, "Private group", "Only admins can add people. Messages are end-to-end encrypted.")
             SectionLabel("Admins")
@@ -117,6 +118,7 @@ fun ChannelSettingsScreen(id: String) {
                 SectionLabel("Slow mode")
                 SlowModeRow(ch.slow) { s -> scope.launch { try { Repo.setSlow(Kind.CHANNEL, id, s) } catch (e: Exception) { fail(e) } } }
             }
+            ExportSwitchRows(id, Kind.CHANNEL)
             SectionLabel("Admins")
             ch.admins.forEach { uid ->
                 val u by Repo.user(uid).collectAsState()
