@@ -80,7 +80,7 @@ fun CallScreen() {
         if (micOk && camOk) Repo.scope.launch { try { Calls.accept() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not answer") } }
         else { Nav.say("Allow microphone" + (if (Calls.video) " and camera" else "") + " to answer"); Calls.decline() }
     }
-    fun answer() { answerPerms.launch(buildList { add(Manifest.permission.RECORD_AUDIO); if (Calls.video) add(Manifest.permission.CAMERA) }.toTypedArray()) }
+    fun answer() { answerPerms.launch(buildList { add(Manifest.permission.RECORD_AUDIO); if (Calls.video) add(Manifest.permission.CAMERA); addAll(com.kafisir.wetalks.data.CallAudio.extraPermissions(ctx)) }.toTypedArray()) }
     val camPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) Repo.scope.launch { try { Calls.enableVideo() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not start video") } }
         else Nav.say("Camera permission is needed for video")
@@ -109,6 +109,9 @@ fun CallScreen() {
     val bigTrack = if (bigIsLocal) local else remote
     val bigShows = videoMode && bigTrack != null && (!bigIsLocal || Calls.camOn)
 
+    // video calls keep the screen on while the call screen is showing (and give it back afterwards)
+    val hostView = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(videoMode) { hostView.keepScreenOn = videoMode; onDispose { hostView.keepScreenOn = false } }
     androidx.activity.compose.BackHandler(enabled = phase != CallPhase.INCOMING) { Calls.minimized = true }      // Back hides the call, it does not end it
     Box(Modifier.fillMaxSize().background(Navy).onSizeChanged { box = it }.pointerInput(Unit) { detectTapGestures { controls = !controls; touch++ } }) {
         if (bigShows) key(bigIsLocal) { VideoView(bigTrack, mirror = bigIsLocal && Calls.frontCam, overlay = false, Modifier.fillMaxSize()) }
@@ -158,7 +161,7 @@ fun CallScreen() {
             Column(Modifier.navigationBarsPadding().padding(bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                     SmallBtn(if (Calls.muted) Ic.MicOff else Ic.Mic, Calls.muted, "Mute") { Calls.toggleMute(); touch++ }
-                    SmallBtn(Ic.Speaker, Calls.speaker, "Speaker") { Calls.toggleSpeaker(); touch++ }
+                    AudioRouteButton { touch++ }
                     if (videoMode || Calls.video) {
                         SmallBtn(if (Calls.camOn) Ic.Video else Ic.VideoOff, !Calls.camOn, if (Calls.camOn) "Camera" else "Camera off") { if (Calls.localVideo == null) turnVideoOn() else Calls.toggleCamera(); touch++ }
                         SmallBtn(Ic.Rotate, false, "Flip") { Calls.flipCamera(); touch++ }
@@ -353,7 +356,7 @@ fun rememberCallStarter(peer: String): (Boolean) -> Unit {
         if (Calls.phase != CallPhase.IDLE) Nav.say("You're already in a call")
         else {
             wantVideo = v
-            launcher.launch(buildList { add(Manifest.permission.RECORD_AUDIO); if (v) add(Manifest.permission.CAMERA); if (android.os.Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS) }.toTypedArray())
+            launcher.launch(buildList { add(Manifest.permission.RECORD_AUDIO); if (v) add(Manifest.permission.CAMERA); if (android.os.Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS); addAll(com.kafisir.wetalks.data.CallAudio.extraPermissions(ctx)) }.toTypedArray())
         }
     }
 }

@@ -48,20 +48,25 @@ enum class CallPhase { IDLE, OUTGOING, INCOMING, CONNECTING, ACTIVE }
  * ICE candidate is additionally sealed with the chat's end-to-end key, so the database can't swap in its own fingerprints.
  */
 object Calls {
-    var phase by mutableStateOf(CallPhase.IDLE); private set
+    private var phaseState by mutableStateOf(CallPhase.IDLE)
+    var phase: CallPhase get() = phaseState; private set(v) { phaseState = v; CallAudio.onCallState() }        // audio hook: proximity sensor follows the call phase
     var peer by mutableStateOf(""); private set
-    var video by mutableStateOf(false); private set
+    private var videoState by mutableStateOf(false)
+    var video: Boolean get() = videoState; private set(v) { videoState = v; CallAudio.onCallState() }          // audio hook: no proximity sensor in video
     var muted by mutableStateOf(false); private set
     var camOn by mutableStateOf(true); private set
-    var speaker by mutableStateOf(false); private set
+    /** True while the sound goes to the loudspeaker (the route itself lives in [CallAudio]). */
+    val speaker: Boolean get() = CallAudio.route.kind == RouteKind.SPEAKER
     var frontCam by mutableStateOf(true); private set
     var connectedAt by mutableStateOf(0L); private set
     /** The call keeps running while its screen is hidden: a small floating window shows instead, so the person can keep chatting. */
-    var minimized by mutableStateOf(false)
+    private var minimizedState by mutableStateOf(false)
+    var minimized: Boolean get() = minimizedState; set(v) { minimizedState = v; CallAudio.onCallState() }      // audio hook
     var note by mutableStateOf(""); private set
     var localVideo by mutableStateOf<VideoTrack?>(null); private set
     var remoteVideo by mutableStateOf<VideoTrack?>(null); private set
     var foreground = false
+        set(v) { field = v; CallAudio.onCallState() }          // audio hook: proximity lock is let go when the person leaves the app
 
     val egl: EglBase by lazy { EglBase.create() }
 
@@ -87,7 +92,6 @@ object Calls {
     private var finishing = false
     private var ringtone: Ringtone? = null
     private var tone: ToneGenerator? = null
-    private var prevAudioMode = AudioManager.MODE_NORMAL
     private var serverOffset = 0L
     private var incomingListening = false
     @Volatile private var callWritten = false
@@ -227,7 +231,7 @@ object Calls {
     // ------------------------------------------------------------------------------------------ controls
     fun toggleMute() { muted = !muted; audioTrack?.setEnabled(!muted) }
     fun toggleCamera() { camOn = !camOn; videoTrack?.setEnabled(camOn) }
-    fun toggleSpeaker() { applySpeaker(!speaker) }
+    fun toggleSpeaker() { CallAudio.toggleSpeaker() }
     @Volatile private var flipping = false
     /** Front / back camera. Taps while a switch is still running are ignored (that is what made it need several taps before). */
     fun flipCamera() {
@@ -245,10 +249,8 @@ object Calls {
         }
         if (target != null) c.switchCamera(h, target) else c.switchCamera(h)
     }
-    private fun applySpeaker(on: Boolean) {
-        speaker = on
-        (app.getSystemService(Context.AUDIO_SERVICE) as AudioManager).isSpeakerphoneOn = on
-    }
+    /** true = video wants the loudspeaker (a headset in use stays); false = back to the best route. The route picker lives in [CallAudio]. */
+    private fun applySpeaker(on: Boolean) { if (on) CallAudio.onVideo() }
 
     // ------------------------------------------------------------------------------------------ peer connection
     private fun resetFlags() { muted = false; camOn = true; frontCam = true; connectedAt = 0L; remoteSet = false; queuedIce.clear(); finishing = false; remoteVideo = null; localVideo = null }
@@ -494,20 +496,15 @@ object Calls {
         videoTrack?.dispose(); videoTrack = null; videoSource?.dispose(); videoSource = null
         audioTrack?.dispose(); audioTrack = null; audioSource?.dispose(); audioSource = null
         pc?.close(); pc?.dispose(); pc = null
-        val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        am.isSpeakerphoneOn = false; am.mode = prevAudioMode
+        CallAudio.stop()                      // audio hook: mode, route, focus, Bluetooth, proximity lock
         try { app.stopService(Intent(app, CallService::class.java)) } catch (_: Exception) {}
-        key = null; pendingOffer = null; connectedAt = 0L; speaker = false; flipping = false; negSeq = 0; awaitingNeg = -1
+        key = null; pendingOffer = null; connectedAt = 0L; flipping = false; negSeq = 0; awaitingNeg = -1
         if (phase != CallPhase.IDLE) com.kafisir.wetalks.ui.Sfx.callEnd()
         minimized = false; phase = CallPhase.IDLE; note = ""
     }
 
     // ------------------------------------------------------------------------------------------ audio / ring / notifications
-    private fun prepareAudio() {
-        val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        prevAudioMode = am.mode; am.mode = AudioManager.MODE_IN_COMMUNICATION
-        applySpeaker(false)
-    }
+    private fun prepareAudio() { CallAudio.start(app, video) }           // audio hook
 
     private var ringSilencer: android.content.BroadcastReceiver? = null
     /** Like a normal call: pressing the power or a volume button stops the ringing (the call keeps waiting to be answered). */
