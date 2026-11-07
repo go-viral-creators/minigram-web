@@ -409,9 +409,9 @@ fun ChatScreen(ref: ChatRef) {
     fun placeCall(v: Boolean) = startCall(v)
 
     // ---------------- voice recording (hold to record, slide left to cancel, slide up to lock hands-free)
-    var rec by remember { mutableStateOf<Recorder?>(null) }
-    var locked by remember { mutableStateOf(false) }
-    var paused by remember { mutableStateOf(false) }
+    var rec by remember { mutableStateOf<Recorder?>(com.kafisir.wetalks.voice.RecordDraft.take(ref.id)) }   // a paused recording that was kept when this chat was closed
+    var locked by remember { mutableStateOf(rec != null) }
+    var paused by remember { mutableStateOf(rec != null) }
     var willCancel by remember { mutableStateOf(false) }
     var level by remember { mutableFloatStateOf(0f) }
     var secs by remember { mutableIntStateOf(0) }
@@ -422,7 +422,9 @@ fun ChatScreen(ref: ChatRef) {
     val density = ctx.resources.displayMetrics.density
     val cancelPx = 110f * density; val lockPx = 90f * density
     fun endRec(send: Boolean) {
-        val r = rec ?: return; rec = null; locked = false; paused = false; willCancel = false; dragX = 0f; dragY = 0f; levels.clear()
+        val r = rec ?: return
+        com.kafisir.wetalks.voice.RecordSession.fire(ctx, if (!send) com.kafisir.wetalks.voice.RecorderMachine.Event.TRASH else if (locked) com.kafisir.wetalks.voice.RecorderMachine.Event.SEND else com.kafisir.wetalks.voice.RecorderMachine.Event.RELEASE, r.elapsedSec)
+        rec = null; locked = false; paused = false; willCancel = false; dragX = 0f; dragY = 0f; levels.clear()
         if (!send) { r.cancel(); return }
         val replyId = reply?.id; reply = null
         val quick = r.elapsedSec
@@ -436,12 +438,40 @@ fun ChatScreen(ref: ChatRef) {
             Repo.send(ref, "voice", JSONObject().put("m", id).put("d", res.seconds).put("w", JSONArray(res.wave)).toString(), replyId, "Voice message")
         }
     }
-    LaunchedEffect(rec) { while (rec != null) { val r = rec!!; level = r.level(); secs = r.elapsedSec; levels.add(level); if (levels.size > 60) levels.removeAt(0); if (secs >= Recorder.MAX_SECONDS) endRec(true); delay(90) } }
+    // something took the microphone (call, alarm, headset removed, mic failure): pause, keep the audio as a draft in the locked bar
+    fun interrupted(i: com.kafisir.wetalks.voice.RecordSession.Interruption) {
+        val r = rec ?: return
+        r.paused = true
+        val s = com.kafisir.wetalks.voice.RecordSession.fire(ctx, i.event, r.elapsedSec)
+        if (s == com.kafisir.wetalks.voice.RecorderMachine.State.CANCELLED) { endRec(false); toast("Recording stopped. It was too short to keep"); return }
+        locked = true; paused = true; willCancel = false; dragX = 0f; dragY = 0f
+        toast(i.why)
+    }
+    LaunchedEffect(rec) { while (rec != null) { val r = rec!!; com.kafisir.wetalks.voice.RecordSession.poll(ctx, r)?.let { interrupted(it) }; level = r.level(); secs = r.elapsedSec; levels.add(level); if (levels.size > 60) levels.removeAt(0); if (secs >= Recorder.MAX_SECONDS) endRec(true); delay(90) } }
     fun startRec() {
-        rec = Recorder(ctx).also { try { it.start(); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (e: Exception) { rec = null; toast("Could not start recording") } }
+        com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.PRESS, 0)      // takes audio focus, mutes our own sounds and (if allowed) Do Not Disturb
+        rec = Recorder(ctx).also { try { it.start(); haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) } catch (e: Exception) { rec = null; com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.FAILED, 0); toast(if (e is IllegalStateException && e.message != null) e.message!! else "Could not start recording") } }
         locked = false; paused = false; willCancel = false; dragX = 0f; dragY = 0f; levels.clear()
     }
-    val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (!ok) toast("Microphone permission is needed for voice messages") }
+    val micPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (!ok) toast("Microphone permission is needed for this") }   // used by Transcribe; recording has its own flow in RecordPrompts
+    com.kafisir.wetalks.screens.RecordPrompts.Host()
+    // the app goes to the background or the screen turns off: stop using the microphone, keep the audio as a draft
+    val lifeOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifeOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_STOP && rec != null && !paused) interrupted(com.kafisir.wetalks.voice.RecordSession.Interruption(com.kafisir.wetalks.voice.RecorderMachine.Event.BACKGROUND, "Recording paused because WeTalks went to the background. It is saved as a draft.")) }
+        lifeOwner.lifecycle.addObserver(obs)
+        onDispose {
+            lifeOwner.lifecycle.removeObserver(obs)
+            // the chat closes: never leave the microphone running; a recording worth keeping is parked and comes back with the chat
+            val r = rec
+            if (r != null) {
+                r.paused = true
+                val s = com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.CLOSE_CHAT, r.elapsedSec)
+                if (s == com.kafisir.wetalks.voice.RecorderMachine.State.SAVED_DRAFT) com.kafisir.wetalks.voice.RecordDraft.park(ref.id, r) else r.cancel()
+            }
+        }
+    }
+    LaunchedEffect(Unit) { if (rec != null) { com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.OPEN_CHAT, rec!!.elapsedSec); toast("You have an unsent voice message") } }
 
     // ---------------- translate / transcribe (messages only change on this phone)
     /** Voice message -> text (language detected automatically). Returns the text, or null after showing the error. */
@@ -633,7 +663,15 @@ fun ChatScreen(ref: ChatRef) {
             Box {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp), verticalAlignment = Alignment.Bottom) {
                     if (rec != null) {
-                        RecorderBar(secs, levels, locked, paused, willCancel, dragX, cancelPx, onTrash = { endRec(false) }, onPauseToggle = { paused = !paused; rec?.paused = paused })
+                        RecorderBar(secs, levels, locked, paused, willCancel, dragX, cancelPx, onTrash = { endRec(false) }, onPauseToggle = {
+                            val r = rec
+                            if (r != null) {
+                                if (paused) {
+                                    val v = com.kafisir.wetalks.voice.RecordGuard.check(ctx)
+                                    if (!v.allowed) toast(v.message) else { com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.USER_RESUME, r.elapsedSec); paused = false; r.paused = false }
+                                } else { com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.USER_PAUSE, r.elapsedSec); paused = true; r.paused = true }
+                            }
+                        })
                     } else {
                         if (imageOk || stickerOk) IconBtn(Ic.Plus, We.text2, { attach = true }) else Spacer(Modifier.width(10.dp))
                         Row(Modifier.weight(1f).heightIn(min = 46.dp).padding(vertical = 2.dp).clip(RoundedCornerShape(23.dp)).background(We.field).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -654,19 +692,20 @@ fun ChatScreen(ref: ChatRef) {
                     else MicGesture(rec != null, willCancel, level, dragX, dragY,
                         onStart = {
                             if (rec != null) true
-                            else if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { startRec(); rec != null }
-                            else { micPerm.launch(Manifest.permission.RECORD_AUDIO); false }
+                            else if (com.kafisir.wetalks.screens.RecordPrompts.preflight(ctx, ref.id)) { startRec(); rec != null }
+                            else false
                         },
                         onMove = { dx, dy ->
                             if (rec != null && !locked) {
                                 dragX = dx.coerceAtMost(0f); dragY = dy.coerceAtMost(0f)
                                 val cancelNow = dx < -cancelPx
                                 if (cancelNow != willCancel) { willCancel = cancelNow; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) }
-                                if (dy < -lockPx && !willCancel) { locked = true; dragX = 0f; dragY = 0f; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
+                                if (dy < -lockPx && !willCancel) { locked = true; com.kafisir.wetalks.voice.RecordSession.fire(ctx, com.kafisir.wetalks.voice.RecorderMachine.Event.LOCK, secs); dragX = 0f; dragY = 0f; haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
                             }
                         },
                         onUp = { dx -> if (rec != null && !locked) endRec(!willCancel && dx > -cancelPx) })
                 }
+                if (rec != null) com.kafisir.wetalks.screens.RecordPrompts.Hint(Modifier.align(Alignment.TopStart).padding(start = 16.dp).offset(y = (-22).dp))
                 if (rec != null && !locked) LockPill((-dragY / lockPx).coerceIn(0f, 1f), dragY, Modifier.align(Alignment.TopEnd).padding(end = 9.dp).offset(y = (-118).dp))
             }
         }

@@ -74,7 +74,7 @@ object Notifier {
     }
     fun clearServices() { if (!::app.isInitialized) return; try { val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager; nm.activeNotifications.filter { it.id in 9000..13095 }.forEach { nm.cancel(it.id) } } catch (_: Exception) {} }
     fun stop() { job?.cancel(); job = null; svcJob?.cancel(); svcJob = null; svcFirst = true; try { NotificationManagerCompat.from(app).cancelAll() } catch (_: Exception) {}; lines.clear(); convs.clear() }
-    fun cancel(cid: String) { if (!::app.isInitialized) return; try { NotificationManagerCompat.from(app).cancel(cid.hashCode()) } catch (_: Exception) {}; lines.remove(cid) }
+    fun cancel(cid: String) { if (!::app.isInitialized) return; try { NotificationManagerCompat.from(app).cancel(cid.hashCode()) } catch (_: Exception) {}; lines.remove(cid); deferred.remove(cid) }
 
     private fun isOpen(ref: ChatRef) = Calls.foreground && (Nav.stack.lastOrNull() as? RChat)?.ref?.id == ref.id
 
@@ -109,7 +109,13 @@ object Notifier {
         if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CH) == null) nm.createNotificationChannel(NotificationChannel(CH, "Messages", NotificationManager.IMPORTANCE_HIGH).apply { enableVibration(true) })
     }
 
+    // while a voice message is being recorded no sound or buzz may leak into it: the notification waits until the recording ends
+    private val deferred = LinkedHashSet<String>()
+    fun flushDeferred() { val d = deferred.toList(); deferred.clear(); d.forEach { if (!isOpenById(it)) show(it, alert = true) } }
+    private fun isOpenById(cid: String) = Calls.foreground && (Nav.stack.lastOrNull() as? RChat)?.ref?.id == cid
+
     private fun show(cid: String, alert: Boolean) {
+        if (com.kafisir.wetalks.voice.Recording.active) { deferred += cid; return }
         val cv = convs[cid] ?: return; val l = lines[cid] ?: return
         channel()
         val me = Person.Builder().setName("You").build()

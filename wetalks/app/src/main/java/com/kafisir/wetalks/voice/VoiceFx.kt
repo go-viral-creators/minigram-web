@@ -94,6 +94,8 @@ class Recorder(private val ctx: Context) {
     @Volatile private var dfnOk = false
     @Volatile private var running = false
     @Volatile var paused = false
+    /** Set by the capture thread when something went wrong (busy or dead microphone, disk full); the screen reads and clears it. */
+    @Volatile var failure: String? = null
     @Volatile private var samples = 0L
     @Volatile private var lvl = 0f
     var startedAt = 0L; private set
@@ -105,11 +107,17 @@ class Recorder(private val ctx: Context) {
     fun start() {
         val min = AudioRecord.getMinBufferSize(SR, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (min <= 0) throw IllegalStateException("Recording isn't supported on this phone")
-        val r = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, SR, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, SR / 5 * 2))
-        if (r.state != AudioRecord.STATE_INITIALIZED) { r.release(); throw IllegalStateException("Microphone unavailable") }
+        // Source: VOICE_RECOGNITION first (tuned for speech, with little processing, which suits our own noise remover and
+        // loudness steps); VOICE_COMMUNICATION (echo cancelling) and plain MIC are fallbacks when a phone refuses it.
+        var r0: AudioRecord? = null; var source = 0
+        for (s in RecordSource.order()) {
+            val t = try { AudioRecord(s, SR, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, SR / 5 * 2)) } catch (_: Throwable) { null }
+            if (t != null && t.state == AudioRecord.STATE_INITIALIZED) { r0 = t; source = s; break }
+            t?.release()
+        }
+        val r = r0 ?: throw IllegalStateException("Microphone unavailable")
         ar = r
-        try { if (AcousticEchoCanceler.isAvailable()) AcousticEchoCanceler.create(r.audioSessionId)?.enabled = true } catch (_: Throwable) {}
-        try { if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(r.audioSessionId)?.enabled = false } catch (_: Throwable) {}
+        if (source == MediaRecorder.AudioSource.VOICE_COMMUNICATION) try { if (AcousticEchoCanceler.isAvailable()) AcousticEchoCanceler.create(r.audioSessionId)?.enabled = true } catch (_: Throwable) {}
         try { if (AutomaticGainControl.isAvailable()) AutomaticGainControl.create(r.audioSessionId)?.enabled = false } catch (_: Throwable) {}
 
         if (VoiceFx.aiOn()) VoiceFx.engine(ctx)?.let { e ->
@@ -123,18 +131,36 @@ class Recorder(private val ctx: Context) {
                 } catch (_: InterruptedException) {}
             }, "dfn-stream").apply { priority = Thread.NORM_PRIORITY; start() }
         }
+        // the phone's own noise suppressor only when our DeepFilterNet is not running (the two would stack)
+        try { if (NoiseSuppressor.isAvailable()) NoiseSuppressor.create(r.audioSessionId)?.enabled = !dfnOk } catch (_: Throwable) {}
 
         running = true; startedAt = System.currentTimeMillis()
-        r.startRecording()
+        try { r.startRecording() } catch (t: Throwable) { running = false; try { r.release() } catch (_: Throwable) {}; ar = null; raw.delete(); throw IllegalStateException("Microphone unavailable") }
         capture = Thread({
             val buf = ShortArray(SR / 50)          // 20 ms
             val bytes = ByteArray(buf.size * 2)
-            var smooth = 0f; var peak = 0; var count = 0
+            var smooth = 0f; var peak = 0; var count = 0; var bad = 0
+            var open = true                          // false while paused: the microphone is released so the phone (or a call) can have it
             try {
-                java.io.BufferedOutputStream(java.io.FileOutputStream(raw), 1 shl 16).use { out ->
+                java.io.BufferedOutputStream(java.io.FileOutputStream(raw, true), 1 shl 16).use { out ->
                     while (running) {
+                        if (paused) {
+                            if (open) { try { r.stop() } catch (_: Throwable) {}; out.flush(); open = false; lvl = 0f }
+                            try { Thread.sleep(40) } catch (_: InterruptedException) {}
+                            continue
+                        }
+                        if (!open) {
+                            try { r.startRecording(); open = true; bad = 0 } catch (t: Throwable) { failure = "The microphone is busy"; paused = true; continue }
+                            if (r.recordingState != AudioRecord.RECORDSTATE_RECORDING) { failure = "The microphone is busy"; paused = true; open = false; continue }
+                        }
                         val n = r.read(buf, 0, buf.size)
-                        if (n <= 0 || paused) continue
+                        if (n <= 0) {
+                            // a dead or stalled microphone: do not spin forever, keep what was recorded and tell the screen
+                            if (++bad > 100) { failure = "The microphone stopped working. Your recording so far is kept"; paused = true }
+                            try { Thread.sleep(5) } catch (_: InterruptedException) {}
+                            continue
+                        }
+                        bad = 0
                         var sum = 0.0
                         for (i in 0 until n) { val v = buf[i].toInt(); bytes[2 * i] = v.toByte(); bytes[2 * i + 1] = (v shr 8).toByte(); sum += v.toDouble() * v; peak = maxOf(peak, abs(v)) }
                         out.write(bytes, 0, n * 2)
@@ -145,7 +171,7 @@ class Recorder(private val ctx: Context) {
                         if (++count == 5) { synchronized(amps) { amps.add(peak) }; peak = 0; count = 0 }
                     }
                 }
-            } catch (_: Throwable) {}
+            } catch (t: Throwable) { failure = "Could not save the recording (is the phone storage full?)"; paused = true }
         }, "voice-capture").apply { priority = Thread.MAX_PRIORITY; start() }
     }
 
