@@ -33,6 +33,7 @@ data class ChatItem(
     val ref: ChatRef, val lastTs: Long, val lastBody: String, val lastType: String, val lastFrom: String,
     val unread: Long, val pinned: Boolean, val muted: Boolean,
     val archived: Boolean = false, val labels: Set<String> = emptySet(),
+    val lastExp: Long = 0L,        // when the newest message disappears (0 = never), so an expired preview can be hidden at once
 )
 
 /** A chat label (name + one of 12 colours) kept per account; chats carry the ids of their labels. */
@@ -47,6 +48,7 @@ data class Msg(
     val link: LinkPreview? = null, val mime: String = "", val w: Int = 0, val h: Int = 0, val fwd: String? = null,
     val name: String = "", val size: Long = 0, val fkey: String = "", val thumb: String = "",          // video | audio | file messages
     val album: String = "",                                                                                    // photos sent together share this id
+    val exp: Long = 0L,                                                                                        // disappearing messages: server time when it disappears (0 = never)
 )
 
 /** Preview card fetched by the sender and sent inside the encrypted message. */

@@ -29,7 +29,7 @@ object Notifier {
     const val KEY_REPLY = "reply_text"
 
     private class Conv(val ref: ChatRef, val title: String, val group: Boolean)
-    private class Line(val who: String, val ts: Long, val text: String, val mine: Boolean)
+    private class Line(val who: String, val ts: Long, val text: String, val mine: Boolean, val exp: Long = 0L)
     private lateinit var app: Context
     private var job: Job? = null
     private var baseline = false
@@ -84,6 +84,7 @@ object Notifier {
             val id = c.ref.id; val prev = last[id] ?: 0L; last[id] = c.unread
             if (c.unread == 0L) { if (prev > 0) cancel(id); continue }
             if (first || c.unread <= prev) continue
+            if (DisappearRules.isExpired(c.lastExp, Disappear.now())) continue      // it disappeared already
             if (!ChatNotif.shouldNotify(c.ref.kind, c.muted, ChatNotif.mutedUntil(app, id), System.currentTimeMillis()) || c.lastFrom.isEmpty() || c.lastFrom == Repo.uid || isOpen(c.ref)) continue
             val blockedNow = Repo.blockedUsers.value
             if (c.lastFrom in blockedNow || (c.ref.kind == Kind.DM && c.ref.peer in blockedNow)) continue   // blocked people never ring the phone
@@ -101,8 +102,16 @@ object Notifier {
         val title = if (locked) "Locked chat" else if (group) (Repo.group(c.ref.id).value?.name ?: "Group") else who
         convs[c.ref.id] = Conv(c.ref, title, group)
         val l = lines.getOrPut(c.ref.id) { ArrayList() }
-        l.add(Line(who, if (c.lastTs > 0) c.lastTs else System.currentTimeMillis(), text, false)); while (l.size > 8) l.removeAt(0)
+        l.add(Line(who, if (c.lastTs > 0) c.lastTs else System.currentTimeMillis(), text, false, c.lastExp)); while (l.size > 8) l.removeAt(0)
         show(c.ref.id, alert = true)
+        if (c.lastExp > 0) Repo.scope.launch { kotlinx.coroutines.delay(DisappearRules.delayUntil(c.lastExp, Disappear.now()) - DisappearRules.SAFETY_MS); pruneExpired(c.ref.id) }
+    }
+
+    /** A message that disappeared must not stay in the notification shade. */
+    private fun pruneExpired(cid: String) {
+        val l = lines[cid] ?: return
+        l.removeAll { DisappearRules.isExpired(it.exp, Disappear.now()) }
+        if (l.isEmpty()) cancel(cid) else show(cid, alert = false)
     }
 
     private fun channel() { NotifChannels.ensureAll(app) }

@@ -86,14 +86,17 @@ fun Avatar(name: String, photo: String, size: Dp, seed: String = name, square: B
 /** Cobalt app bar: solid blue (dark: slate), white title, status-bar aware. */
 @Composable
 fun TopBar(title: String, onBack: (() -> Unit)? = null, subtitle: String? = null, leading: @Composable (() -> Unit)? = null,
-           titleClick: (() -> Unit)? = null, actions: @Composable () -> Unit = {}) {
+           titleClick: (() -> Unit)? = null, actions: @Composable () -> Unit = {}, subtitleIcon: ImageVector? = null) {
     Row(Modifier.fillMaxWidth().background(We.appBar).statusBarsPadding().height(58.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) IconBtn(Ic.Back, We.onAppBar, onBack)
         else Spacer(Modifier.width(12.dp))
         if (leading != null) { leading(); Spacer(Modifier.width(10.dp)) }
         Column(Modifier.weight(1f).then(if (titleClick != null) Modifier.tap(titleClick) else Modifier)) {
             Text(title, color = We.onAppBar, style = if (subtitle == null) T.title else T.name.copy(fontSize = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (subtitle != null) Text(subtitle, color = We.onAppBar.copy(alpha = .8f), style = T.small.copy(fontSize = 12.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                if (subtitleIcon != null) { Icon(subtitleIcon, We.onAppBar.copy(alpha = .8f), 13.dp); Spacer(Modifier.width(4.dp)) }
+                Text(subtitle, color = We.onAppBar.copy(alpha = .8f), style = T.small.copy(fontSize = 12.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
         actions()
     }

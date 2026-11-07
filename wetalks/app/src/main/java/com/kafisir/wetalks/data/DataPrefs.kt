@@ -49,6 +49,8 @@ object DataPrefs {
     fun getPlain(id: String): ByteArray? = try { pf(id).takeIf { it.exists() }?.also { it.setLastModified(System.currentTimeMillis()) }?.readBytes() } catch (e: Exception) { null }
     fun putPlain(id: String, bytes: ByteArray) { try { val t = File(dir, "p_tmp_" + System.nanoTime()); t.writeBytes(bytes); if (!t.renameTo(pf(id))) t.delete(); trim() } catch (_: Exception) {} }
     fun putDisk(id: String, s: String) { try { f(id).writeText(s); trim() } catch (_: Exception) {} }
+    /** Deletes every cached copy of one media file (a message that disappeared). */
+    fun forget(id: String) { if (!::app.isInitialized) return; try { f(id).delete(); pf(id).delete() } catch (_: Exception) {} }
     fun diskSize(): Long = dir.listFiles()?.sumOf { it.length() } ?: 0L
     fun clearDisk() { dir.listFiles()?.forEach { it.delete() } }
     fun otherSize(): Long = app.cacheDir.walkTopDown().filter { it.isFile && it.parentFile?.name != "media" }.sumOf { it.length() }

@@ -141,7 +141,7 @@ fun titleOf(ref: ChatRef): Triple<String, String, String> {   // name, photo, se
 }
 
 fun previewText(type: String, text: String) = when (type) {
-    "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; "call" -> "Call"; "video" -> "Video"; "audio" -> "Audio"; "file" -> "Document"; else -> if (UiPrefs.markdown.value) Markdown.preview(text) else text
+    "sys" -> text; "image" -> "Photo"; "voice" -> "Voice message"; "sticker" -> "Sticker"; "gif" -> "GIF"; "call" -> "Call"; "video" -> "Video"; "audio" -> "Audio"; "file" -> "Document"; else -> if (UiPrefs.markdown.value) Markdown.preview(text) else text
 }
 
 /** Telegram-style dialog: optionally tick "Also delete for X" to wipe the chat on both phones. */
@@ -184,13 +184,17 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     val saved = c.ref.kind == Kind.DM && c.ref.peer == Repo.uid
     val ob = Repo.outgoing.lastOrNull { it.ref.id == c.ref.id }
     val shownTs = if (ob != null) ob.ts else if (chan != null && chan.lastTs > c.lastTs) chan.lastTs else c.lastTs
-    val preview by produceState("", c.lastBody, c.lastType, chan?.lastPreview, chan?.lastTs) {
+    var expTick by remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(c.lastExp, expTick) { if (c.lastExp > 0) { val d = c.lastExp - com.kafisir.wetalks.data.Disappear.now(); if (d > 0) { kotlinx.coroutines.delay(d + 20); expTick++ } } }
+    val gone = expTick >= 0 && com.kafisir.wetalks.data.DisappearRules.isExpired(c.lastExp, com.kafisir.wetalks.data.Disappear.now())
+    val preview0 by produceState("", c.lastBody, c.lastType, chan?.lastPreview, chan?.lastTs) {
         if (chan != null && c.lastBody.isEmpty()) { value = if (chan.priv) Repo.privPreview(chan.id) else chan.lastPreview; return@produceState }
         value = if (c.lastBody.isEmpty()) "" else {
             val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
-            if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else if (m.type == "call") callLabel(m, c.lastFrom == Repo.uid) else previewText(m.type, m.text))
+            if (m.unreadable) "Encrypted message" else (if (m.type == "gif") (if (m.mime.contains("gif")) "GIF" else "Sticker") else if (m.type == "call") callLabel(m, c.lastFrom == Repo.uid) else if (m.type == "sys") com.kafisir.wetalks.data.DisappearRules.systemTextFor(m.text, Repo.user(c.lastFrom).value?.name.orEmpty(), c.lastFrom == Repo.uid) else previewText(m.type, m.text))
         }
     }
+    val preview = if (gone) "" else preview0
     Row(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLong).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (saved) Box(Modifier.size(52.dp).clip(CircleShape).background(We.primary), contentAlignment = Alignment.Center) { Icon(Ic.Bookmark, We.onPrimary, 26.dp) }
         else Avatar(name, photo, 52.dp, seed)
@@ -207,7 +211,7 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val mine = c.lastFrom == Repo.uid
                 if (ob != null) { Icon(if (ob.failed) Ic.Alert else Ic.Clock, if (ob.failed) We.danger else We.text2, 14.dp); Spacer(Modifier.width(4.dp)) }
-                Text(if (ob != null) "You: " + when (ob.type) { "voice" -> "Voice message"; "image" -> "Photo"; "gif" -> "GIF"; else -> ob.text.ifEmpty { "Sending…" } } else (if (mine && preview.isNotEmpty()) "You: " else "") + preview, color = We.text2, style = T.body.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(if (ob != null) "You: " + when (ob.type) { "voice" -> "Voice message"; "image" -> "Photo"; "gif" -> "GIF"; else -> ob.text.ifEmpty { "Sending…" } } else (if (mine && preview.isNotEmpty() && c.lastType != "sys") "You: " else "") + preview, color = We.text2, style = T.body.copy(fontSize = 14.sp), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (c.muted) { Icon(Ic.BellOff, We.text2, 15.dp); Spacer(Modifier.width(6.dp)) }
                 Badge(c.unread, c.muted)
             }

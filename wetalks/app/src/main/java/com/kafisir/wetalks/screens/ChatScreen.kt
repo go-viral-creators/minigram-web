@@ -169,12 +169,21 @@ fun ChatScreen(ref: ChatRef) {
         Repo.rawMessages(ref, limit).collect { raws -> val l = Repo.decryptAll(ref, raws); value = l; Repo.putMessages(ref.id, l); loaded = true }
     }
     var hideTick by remember { mutableIntStateOf(0) }
+    // disappearing messages: hide each message the moment it expires, and let the database clean-up follow
+    var expTick by remember { mutableIntStateOf(0) }
+    val dis by Disappear.setting(ref.id).collectAsState()
+    var disSheet by remember { mutableStateOf(false) }
+    LaunchedEffect(ref) { Disappear.sweepChat(ref) }
+    LaunchedEffect(msgsRaw, expTick) {
+        val nx = DisappearRules.nextExpiry(msgsRaw.map { it.exp }, Disappear.now())
+        if (nx > 0) { delay((nx - Disappear.now()).coerceAtLeast(0L) + 20); expTick++; Repo.scope.launch { delay(DisappearRules.SAFETY_MS + 600); Disappear.sweepChat(ref) } }
+    }
     var cut by remember(ref) { mutableLongStateOf(Repo.cutoff(ref.id)) }
     val realIds = remember(msgsRaw) { msgsRaw.asSequence().map { it.id }.toHashSet() }
     // a "sending" bubble disappears the moment its real message shows up (the message arrives before the upload work has finished returning)
     val outs = Repo.outgoing.filter { it.ref.id == ref.id && !(it.msgId.isNotEmpty() && it.msgId in realIds) }
     val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h, name = o.name, size = o.size, album = o.album) }
-    val msgs = msgsRaw.filter { hideTick >= 0 && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
+    val msgs = msgsRaw.filter { hideTick >= 0 && expTick >= 0 && !DisappearRules.isExpired(it.exp, Disappear.now()) && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
     val pinIds by remember(ref) { Repo.pins(ref) }.collectAsState(emptyList())
     val peerUser = if (ref.kind == Kind.DM && !saved) Repo.user(ref.peer!!).collectAsState().value else null
@@ -319,6 +328,9 @@ fun ChatScreen(ref: ChatRef) {
         ref.kind == Kind.GROUP -> group?.let { "${it.members.size} members" }
         else -> channel?.let { "${it.subCount} subscribers" }
     }
+
+    val timerSecs = if (dis.exists) dis.secs else 0
+    val subtitleShown: String? = if (selecting || timerSecs <= 0 || typing.isNotEmpty()) subtitle else DisappearRules.label(timerSecs).let { l -> if (subtitle == null) "Disappearing · $l" else "$subtitle · $l" }
 
     /** What "Listen" reads: the translation if one is showing, else the transcript of a voice message, else the text / caption. */
     fun speakTextOf(m: Msg): String {
@@ -521,7 +533,7 @@ fun ChatScreen(ref: ChatRef) {
                 IconBtn(Ic.Forward, We.onAppBar, { forwarding = msgs.filter { it.id in selected } })
                 IconBtn(Ic.Trash, We.onAppBar, { deleting = msgs.filter { it.id in selected } })
             }
-        } else TopBar(title, onBack = { Nav.pop() }, subtitle = subtitle,
+        } else TopBar(title, onBack = { Nav.pop() }, subtitle = subtitleShown, subtitleIcon = if (timerSecs > 0 && !selecting && typing.isEmpty()) Ic.Clock else null,
             leading = { if (saved) Box(Modifier.size(38.dp).clip(CircleShape).background(We.onAppBar.copy(alpha = .2f)), contentAlignment = Alignment.Center) { Icon(Ic.Bookmark, We.onAppBar, 20.dp) } else Avatar(title, photo, 38.dp, seed) },
             titleClick = { if (!saved) when (ref.kind) { Kind.DM -> Nav.push(RProfile(ref.peer!!)); Kind.GROUP -> Nav.push(RGroupInfo(ref.id)); Kind.CHANNEL -> Nav.push(RChannelInfo(ref.id)) } },
             actions = {
@@ -582,6 +594,14 @@ fun ChatScreen(ref: ChatRef) {
                     val album = if (g.size > 1) g.reversed() else emptyList()
                     val older = rows.getOrNull(i + 1)?.first(); val newer = rows.getOrNull(i - 1)?.last()
                     if (i == rows.size - 1 && msgs.size >= limit) LaunchedEffect(limit) { limit += 40 }
+                    if (m.type == "sys") {
+                        Column {
+                            if (older == null || dayLabel(older.ts) != dayLabel(m.ts)) DayChip(dayLabel(m.ts))
+                            SysLine(DisappearRules.systemTextFor(m.text, nameOf(m.from, ""), m.from == me))
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        return@itemsIndexed
+                    }
                     val mine = m.from == me
                     val sel = g.all { it.id in selected }
                     // the original of a reply: from the loaded messages, or fetched on its own when it is older than those
@@ -809,8 +829,10 @@ fun ChatScreen(ref: ChatRef) {
     }
     if (delChat) DeleteChatDialog(ref, title, { delChat = false }) { Nav.pop() }
     if (exportSheet) ExportSheet(ref, title, { exportSheet = false })
+    if (disSheet) DisappearSheet(ref, timerSecs, DisappearRules.mayChange(ref.kind, when (ref.kind) { Kind.DM -> true; Kind.GROUP -> group?.members?.get(me) == "admin"; Kind.CHANNEL -> channel != null && (channel.owner == me || me in channel.admins) })) { disSheet = false }
     if (menu) Sheet({ menu = false }) {
         SheetItem(Ic.Download, "Export chat") { menu = false; exportSheet = true }
+        if (!saved) SheetItem(Ic.Clock, "Disappearing messages" + (if (timerSecs > 0) " · " + DisappearRules.label(timerSecs) else "")) { menu = false; disSheet = true }
         when (ref.kind) {
             Kind.DM -> if (!saved) {
                 SheetItem(Ic.User, "View profile") { menu = false; Nav.push(RProfile(ref.peer!!)) }
