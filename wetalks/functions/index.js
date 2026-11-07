@@ -58,3 +58,13 @@ exports.onCall = onValueCreated({ ref: "/incoming_calls/{uid}/{cid}" }, async (e
   const { uid, cid } = event.params;
   await push(uid, { t: "call", cid }, 45 * 1000).catch(() => {});
 });
+
+// missed call -> tell the person who called, even though their app is closed. The caller (or the person's own app) writes the "missed" line
+// of the call history; this wakes the phone with a high-priority push: who, voice/video, when. The phone builds the notification and its Call back button.
+exports.onMissedCall = onValueCreated({ ref: "/call_log/{uid}/{cid}" }, async (event) => {
+  const { uid, cid } = event.params;
+  const e = event.data.val();
+  if (!e || e.dir !== "in" || e.st !== "missed" || !e.peer) return;
+  if (typeof e.ts === "number" && Date.now() - e.ts > 10 * 60 * 1000) return;           // an old line being re-written: no push
+  await push(uid, { t: "missed", cid, from: String(e.peer), v: e.video ? "1" : "0", ts: String(e.ts || Date.now()) }, 24 * 60 * 60 * 1000).catch(() => {});
+});

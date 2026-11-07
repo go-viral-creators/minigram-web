@@ -128,7 +128,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { twoStepRequired.value = false; twoStepChecked.value = false; inboxWatching = ""; labelsWatching = ""; devWatching = ""; devListWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
+    private fun detachAll() { callLogWatching = ""; callLogQ?.let { try { it.first.removeEventListener(it.second) } catch (_: Exception) {} }; callLogQ = null; callLog.value = emptyList(); twoStepRequired.value = false; twoStepChecked.value = false; inboxWatching = ""; labelsWatching = ""; devWatching = ""; devListWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -330,6 +330,45 @@ object Repo {
         val me = Crypto.keys(app)
         db.getReference("key_backups/$uid").setValue(hashMapOf("s" to Crypto.b64(salt), "i" to iter, "c" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub), "ts" to ServerValue.TIMESTAMP)).await()
     }
+
+    // ------------------------------------------------------------------------------------------ call history
+    val callLog = MutableStateFlow<List<CallEntry>>(emptyList())
+    private var callLogWatching = ""
+    private var callLogQ: Pair<com.google.firebase.database.Query, ValueEventListener>? = null
+    /** My call history (newest 300), live. Written by the call itself; also by the caller when I was unreachable. */
+    fun watchCallLog() {
+        if (uid.isEmpty() || callLogWatching == uid) return
+        callLogWatching = uid
+        val q = db.getReference("call_log/$uid").orderByChild("ts").limitToLast(300)
+        val l = object : ValueEventListener {
+            override fun onDataChange(s: DataSnapshot) {
+                callLog.value = s.children.mapNotNull { c ->
+                    val id = c.key ?: return@mapNotNull null
+                    val peer = c.str("peer"); if (peer.isEmpty()) return@mapNotNull null
+                    CallEntry(id, peer, c.str("dir") == "out", c.bool("video"), c.str("st"), c.lng("ts"), c.lng("dur").toInt())
+                }.sortedByDescending { it.ts }
+            }
+            override fun onCancelled(e: DatabaseError) { explain(e.toException(), "Reading the call history") }
+        }
+        q.addValueEventListener(l); callLogQ = q to l
+    }
+    /** My own line for a call. The call id is the key, so retries and a second finish can only ever update the same single line. */
+    suspend fun logCall(id: String, peer: String, outgoing: Boolean, video: Boolean, st: String, dur: Int, ts: Long) {
+        if (uid.isEmpty() || id.isEmpty()) return
+        try {
+            db.getReference("call_log/$uid/$id").setValue(hashMapOf("peer" to peer, "dir" to if (outgoing) "out" else "in", "st" to st, "ts" to ts.coerceAtMost(System.currentTimeMillis() + 30_000), "video" to video, "dur" to dur.coerceIn(0, 86_400))).await()
+        } catch (e: Exception) { explain(e, "Saving the call history") }
+    }
+    /**
+     * The person I called did not pick up (their app may be closed or offline): leave the "Missed call" in THEIR log from here, so it is waiting
+     * for them when they open the app. The rules allow this only while my ring request for that call still sits in their inbox.
+     */
+    suspend fun leaveMissedCall(to: String, id: String, video: Boolean, ts: Long) {
+        try { db.getReference("call_log/$to/$id").setValue(hashMapOf("peer" to uid, "dir" to "in", "st" to "missed", "ts" to ts.coerceAtMost(System.currentTimeMillis() + 30_000), "video" to video, "dur" to 0)).await() }
+        catch (e: Exception) { android.util.Log.i("WeTalks", "missed-call line for $to not written (they already handled the ring): " + e.message) }
+    }
+    suspend fun deleteCallEntries(ids: Collection<String>) { if (ids.isEmpty()) return; val up = HashMap<String, Any?>(); for (i in ids) up["call_log/$uid/$i"] = null; db.reference.updateChildren(up).await() }
+    suspend fun clearCallLog() { db.getReference("call_log/$uid").removeValue().await() }
 
     // ------------------------------------------------------------------------------------------ errors
     /** Set when the server refused a write to a node this app version needs: the database rules on the server are older than the app. */
@@ -573,7 +612,7 @@ object Repo {
     // blocking is local-first: blocked senders are filtered on this phone
     private val blocked = MutableStateFlow<Set<String>>(emptySet())
     val blockedUsers: StateFlow<Set<String>> get() = blocked
-    fun watchBlocks() { watchLabels(); watchBlocksNow() }
+    fun watchBlocks() { watchLabels(); watchCallLog(); watchBlocksNow() }
     private fun watchBlocksNow() = watch("blocks/$uid") { s -> blocked.value = s.children.mapNotNull { it.key }.toSet() }
     fun block(id: String, on: Boolean) { val r = db.getReference("blocks/$uid/$id"); if (on) r.setValue(true) else r.removeValue() }
 
@@ -967,7 +1006,7 @@ object Repo {
         db.getReference("messages/${ref.id}/$mid").updateChildren(mapOf("type" to "link", "body" to body)).await()
     }
 
-    suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String, fwd: String? = null): String {
+    suspend fun send(ref: ChatRef, type: String, payload: String, rid: String?, preview: String, fwd: String? = null, mid: String? = null): String {
         val slowSecs = checkAllowed(ref, type)
         val kv = if (ref.kind == Kind.GROUP) (group(ref.id).value?.kv ?: groupVersion(ref.id)) else 0
         var key = chatKey(ref, kv)
@@ -981,7 +1020,7 @@ object Repo {
             val slim = try { org.json.JSONObject(payload).apply { remove("i") }.toString() } catch (e: Exception) { payload }
             if (key == null) slim else Crypto.sealText(key, slim)
         } else body
-        val mid = db.getReference("messages/${ref.id}").push().key!!
+        val mid = mid ?: db.getReference("messages/${ref.id}").push().key!!       // a call uses its call id, so the same call can never leave two lines in the chat
         kotlin.coroutines.coroutineContext[OutgoingTag]?.o?.msgId = mid
         val up = HashMap<String, Any?>()
         up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid, "fwd" to fwd)

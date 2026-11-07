@@ -761,3 +761,61 @@ test('call log: declined and cancelled-before-answer, both sides own their line'
   // clearing the whole log is one delete
   await assertSucceeds(remove(ref(db(A), 'call_log/alice')));
 });
+
+// ---- scenario: the full data flow of a call to a receiver whose app is closed / offline, then back online ----
+test('scenario: receiver app killed, then back online: log, chat event, no duplicates', async () => {
+  const id = '-NscenarioCall001';
+  const call = { from: A, to: B, video: true, ts: serverTimestamp(), state: 'ringing', offer: 'sealed' };
+  // alice calls: the call node and the ring request (what Calls.start writes)
+  await assertSucceeds(set(ref(db(A), `calls/${id}`), call));
+  await assertSucceeds(set(ref(db(A), `incoming_calls/bob/${id}`), { from: A, video: true, ts: serverTimestamp() }));
+  // bob's phone never reports ringing. After ~50 s alice's app finishes the call as unanswered and writes: her own line, bob's Missed line, the chat event
+  await assertSucceeds(update(ref(db(A)), { ['calls/' + id + '/state']: 'missed' }));
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${id}`), { peer: B, dir: 'out', st: 'unavailable', ts: Date.now(), video: true, dur: 0 }));
+  await assertSucceeds(set(ref(db(A), `call_log/bob/${id}`), { peer: A, dir: 'in', st: 'missed', ts: Date.now(), video: true, dur: 0 }));
+  const body = JSON.stringify({ v: 1, d: 0, s: 'missed' });
+  const chatEvent = { [`messages/${AB}/${id}`]: { from: A, ts: serverTimestamp(), type: 'call', body, kv: 0 },
+    [`user_chats/alice/${AB}/type`]: 'dm', [`user_chats/alice/${AB}/peer`]: B, [`user_chats/alice/${AB}/lastTs`]: serverTimestamp(), [`user_chats/alice/${AB}/lastFrom`]: A, [`user_chats/alice/${AB}/unread`]: 0,
+    [`user_chats/bob/${AB}/type`]: 'dm', [`user_chats/bob/${AB}/peer`]: A, [`user_chats/bob/${AB}/lastTs`]: serverTimestamp(), [`user_chats/bob/${AB}/lastFrom`]: A, [`user_chats/bob/${AB}/unread`]: increment(1) };
+  await assertSucceeds(update(ref(db(A)), chatEvent));
+  // a second finish (retry) cannot add a second chat line or a second unread: the fixed id makes the whole write fail
+  await assertFails(update(ref(db(A)), chatEvent));
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${id}`), { peer: B, dir: 'out', st: 'unavailable', ts: Date.now(), video: true, dur: 0 }));   // same key: still one line
+  await assertSucceeds(remove(ref(db(A), `calls/${id}`)));                                                  // alice's app cleans the call node 4 s later
+  // bob opens the app much later: the ring request is still waiting, the call node is gone, his Missed line and the chat event are there
+  const bob = db(B);
+  const inc = await get(ref(bob, 'incoming_calls/bob'));  if (!inc.exists() || !inc.val()[id]) throw new Error('ring request missing');
+  await assertFails(get(ref(bob, `calls/${id}`)));       // a deleted call cannot be read at all: the app must treat that as "gone" (this was the bug)
+  const mine = await get(ref(bob, 'call_log/bob'));      if (!mine.exists() || mine.val()[id].st !== 'missed' || mine.val()[id].peer !== A) throw new Error('missed line missing');
+  const chat = await get(ref(bob, `messages/${AB}`));    if (Object.keys(chat.val()).length !== 1) throw new Error('chat should hold exactly one call line');
+  await assertSucceeds(remove(ref(bob, `incoming_calls/bob/${id}`)));                                         // bob's app consumes the request
+  const entries = await get(ref(bob, 'call_log/bob'));   if (Object.keys(entries.val()).length !== 1) throw new Error('exactly one log line expected');
+});
+
+test('scenario: receiver was offline and the caller could not write his line: his own app builds it from the ring request', async () => {
+  const id = '-NscenarioCall002';
+  await assertSucceeds(set(ref(db(A), `incoming_calls/bob/${id}`), { from: A, video: false, ts: serverTimestamp() }));
+  // (alice's app was killed before finishing, so nobody wrote call_log/bob). Bob comes online, reads the request and writes his own Missed line.
+  const inc = (await get(ref(db(B), `incoming_calls/bob/${id}`))).val();
+  await assertSucceeds(set(ref(db(B), `call_log/bob/${id}`), { peer: inc.from, dir: 'in', st: 'missed', ts: inc.ts, video: inc.video, dur: 0 }));
+  await assertSucceeds(remove(ref(db(B), `incoming_calls/bob/${id}`)));
+  await assertSucceeds(set(ref(db(B), `call_log/bob/${id}`), { peer: A, dir: 'in', st: 'missed', ts: inc.ts, video: false, dur: 0 }));   // running it twice leaves one line
+  const n = Object.keys((await get(ref(db(B), 'call_log/bob'))).val()).length; if (n !== 1) throw new Error('one line expected, got ' + n);
+});
+
+test('scenario: declined and cancelled-before-answer give each side exactly one line, nothing planted on the other side', async () => {
+  const dec = '-NscenarioDecl001', can = '-NscenarioCanc001';
+  // declined by bob (online): bob's app took the ring request, so alice can no longer write for him; each writes only his own line
+  await assertSucceeds(set(ref(db(A), `incoming_calls/bob/${dec}`), { from: A, video: false, ts: serverTimestamp() }));
+  await assertSucceeds(remove(ref(db(B), `incoming_calls/bob/${dec}`)));
+  await assertFails(set(ref(db(A), `call_log/bob/${dec}`), { peer: A, dir: 'in', st: 'missed', ts: Date.now() }));
+  await assertSucceeds(set(ref(db(B), `call_log/bob/${dec}`), { peer: A, dir: 'in', st: 'declined', ts: Date.now(), video: false, dur: 0 }));
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${dec}`), { peer: B, dir: 'out', st: 'declined', ts: Date.now(), video: false, dur: 0 }));
+  // cancelled by alice while it rang on bob's phone: bob's app logs Missed for itself, alice logs Cancelled
+  await assertSucceeds(set(ref(db(A), `incoming_calls/bob/${can}`), { from: A, video: true, ts: serverTimestamp() }));
+  await assertSucceeds(remove(ref(db(B), `incoming_calls/bob/${can}`)));
+  await assertSucceeds(set(ref(db(B), `call_log/bob/${can}`), { peer: A, dir: 'in', st: 'missed', ts: Date.now(), video: true, dur: 0 }));
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${can}`), { peer: B, dir: 'out', st: 'cancelled', ts: Date.now(), video: true, dur: 0 }));
+  const b = Object.keys((await get(ref(db(B), 'call_log/bob'))).val()), a = Object.keys((await get(ref(db(A), 'call_log/alice'))).val());
+  if (b.length !== 2 || a.length !== 2) throw new Error('two lines each expected');
+});

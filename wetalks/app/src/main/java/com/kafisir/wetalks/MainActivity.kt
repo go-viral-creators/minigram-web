@@ -45,7 +45,7 @@ import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
     override fun onCreate() { super.onCreate(); if (Application.getProcessName().endsWith(":tts")) return   // the voice engine process needs none of the app
-        com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.data.ChatLock.load(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
+        com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.data.ChatLock.load(this); com.kafisir.wetalks.screens.CallSeen.load(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -72,6 +72,8 @@ class MainActivity : androidx.fragment.app.FragmentActivity() {
     override fun onNewIntent(intent: android.content.Intent) { super.onNewIntent(intent); intent.data?.let { Nav.pendingLink.value = it.toString() }; openChatFrom(intent) }
     /** Tapping a message notification opens that chat. */
     private fun openChatFrom(i: android.content.Intent?) {
+        val cb = i?.getStringExtra("cb_uid")?.takeIf { it.isNotEmpty() }
+        if (cb != null) { Nav.pendingCallback.value = Triple(cb, i.getBooleanExtra("cb_video", false), i.getBooleanExtra("cb_call", false)); return }
         if (i?.getBooleanExtra("services", false) == true) { Nav.pendingServices.value = true; return }
         val cid = i?.getStringExtra("cid")?.takeIf { it.isNotEmpty() } ?: return
         Nav.pendingChat.value = com.kafisir.wetalks.data.ChatRef(cid, com.kafisir.wetalks.data.Kind.values().getOrElse(i.getIntExtra("kind", 0)) { com.kafisir.wetalks.data.Kind.DM }, i.getStringExtra("peer")?.ifEmpty { null })
@@ -110,8 +112,10 @@ fun App() {
                 try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); Repo.registerDevice(); Repo.watchDevice(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             val pendChat by Nav.pendingChat
+            val pendCb by Nav.pendingCallback
             val pendSvc by Nav.pendingServices
             LaunchedEffect(pendSvc, me) { if (me == true && pendSvc) { Nav.pendingServices.value = false; Nav.stack.clear(); Nav.push(RServices) } }
+            LaunchedEffect(pendCb, me, needPin, pinChecked) { if (me == true && pinChecked && !needPin && pendCb != null) { val (u, v, ring) = pendCb!!; Nav.pendingCallback.value = null; Nav.stack.clear(); Nav.tab.intValue = 3; if (ring) Nav.push(RCallBack(u, v)) } }
             LaunchedEffect(pendChat, me) { if (me == true && pendChat != null) { val c = pendChat!!; Nav.pendingChat.value = null; Nav.stack.clear(); Nav.push(RChat(c)) } }
             LaunchedEffect(link, me) { if (me == true && link != null) { val l = link!!; Nav.pendingLink.value = null; try { Repo.resolveLink(l)?.let { Nav.push(it) } } catch (_: Exception) {} } }
             // the first resume often happens before the profile check has finished, so also go online as soon as it has
@@ -201,6 +205,8 @@ fun Main() {
                 RLabels -> com.kafisir.wetalks.screens.LabelsScreen()
                 RDevices -> com.kafisir.wetalks.screens.LinkedDevicesScreen()
                 RTwoStep -> com.kafisir.wetalks.screens.TwoStepScreen()
+                is RCallInfo -> com.kafisir.wetalks.screens.CallInfoScreen(r.peer)
+                is RCallBack -> com.kafisir.wetalks.screens.CallBackScreen(r.uid, r.video)
                 is RQr -> QrScreen(r)
                 RLanguage -> LanguageScreen()
                 is RGroupSettings -> GroupSettingsScreen(r.id)

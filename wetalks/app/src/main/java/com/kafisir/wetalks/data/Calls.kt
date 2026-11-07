@@ -91,6 +91,9 @@ object Calls {
     private var serverOffset = 0L
     private var incomingListening = false
     @Volatile private var callWritten = false
+    private var peerRang = false                  // the other phone reported "ringing" (it was reachable)
+    private var callStartTs = 0L                  // server time the call began (for the call history)
+    private fun serverNow() = System.currentTimeMillis() + serverOffset
     private val pendingIce = ArrayList<String>()
 
     private val servers = listOf(
@@ -101,6 +104,7 @@ object Calls {
             .setUsername("openrelayproject").setPassword("openrelayproject").createIceServer(),
     )
 
+    private const val MISSED_CH = "missed_calls"
     fun init(c: Context) { app = c.applicationContext }
 
     val peerRef get() = ChatRef(Repo.dmId(peer), Kind.DM, peer)
@@ -130,7 +134,7 @@ object Calls {
         offRef.addValueEventListener(offL); offsetL = offRef to offL
         incomingRef = Repo.db.getReference("incoming_calls/${Repo.uid}")
         incomingL = object : ChildEventListener {
-            override fun onChildAdded(s: DataSnapshot, prev: String?) { val id = s.key ?: return; scope.launch { onIncoming(id) } }
+            override fun onChildAdded(s: DataSnapshot, prev: String?) { val id = s.key ?: return; val f = s.child("from").getValue(String::class.java); val v = s.child("video").getValue(Boolean::class.java) ?: false; val t = s.child("ts").getValue(Long::class.java) ?: 0L; scope.launch { onIncoming(id, f, v, t) } }
             override fun onChildChanged(s: DataSnapshot, prev: String?) {}
             override fun onChildRemoved(s: DataSnapshot) {}
             override fun onChildMoved(s: DataSnapshot, prev: String?) {}
@@ -139,18 +143,28 @@ object Calls {
         incomingRef!!.addChildEventListener(incomingL!!)
     }
 
-    private suspend fun onIncoming(id: String) {
+    /**
+     * A ring request arrived. [incFrom]/[incVideo]/[incTs] come from the request itself, so a call that was already over (my phone was off, offline or the app
+     * closed) can still be shown as a Missed call: the request stays in my inbox until I read it.
+     */
+    private suspend fun onIncoming(id: String, incFrom: String?, incVideo: Boolean, incTs: Long) {
         val uid = Repo.uid
         try {
-            val s = Repo.db.getReference("calls/$id").get().await()
+            // The caller deletes the call a few seconds after it ends, and a deleted call cannot be read (the rules look at its from/to). That read failing
+            // used to abort here silently, so a call that ended while this phone was off was never logged and never announced: treat "unreadable" as "gone".
+            val s = try { Repo.db.getReference("calls/$id").get().await() } catch (e: Exception) { null }
             Repo.db.getReference("incoming_calls/$uid/$id").removeValue()
-            if (!s.exists() || s.child("to").getValue(String::class.java) != uid) return
-            val from = s.child("from").getValue(String::class.java) ?: return
-            val ts = s.child("ts").getValue(Long::class.java) ?: 0L
-            if (s.child("state").getValue(String::class.java) != "ringing" || System.currentTimeMillis() + serverOffset - ts > 60_000) return
+            val exists = s?.exists() == true
+            val state = s?.child("state")?.getValue(String::class.java)
+            val from = (s?.child("from")?.getValue(String::class.java) ?: incFrom) ?: return
+            val ts = s?.child("ts")?.getValue(Long::class.java) ?: incTs
+            if (exists && s!!.child("to").getValue(String::class.java) != uid) return
+            val tooOld = serverNow() - ts > 60_000
+            if (!exists || state == "missed" || (state == "ringing" && tooOld)) { if (from !in Repo.blockedUsers.value) recordMissed(id, from, s?.child("video")?.getValue(Boolean::class.java) ?: incVideo, if (ts > 0) ts else serverNow()); return }
+            if (state != "ringing") return                      // answered / declined / ended elsewhere
             if (from in Repo.blockedUsers.value) { setState(id, "declined"); return }
-            if (phase != CallPhase.IDLE) { setState(id, "busy"); return }
-            callId = id; caller = false; peer = from; video = s.child("video").getValue(Boolean::class.java) ?: false
+            if (phase != CallPhase.IDLE) { setState(id, "busy"); recordMissed(id, from, s!!.child("video").getValue(Boolean::class.java) ?: incVideo, ts); return }
+            callId = id; caller = false; peer = from; video = s.child("video").getValue(Boolean::class.java) ?: false; callStartTs = ts; peerRang = true
             pendingOffer = s.child("offer").getValue(String::class.java)
             resetFlags(); minimized = false; phase = CallPhase.INCOMING; note = ""
             key = Repo.chatKey(ChatRef(Repo.dmId(from), Kind.DM, from))
@@ -164,7 +178,7 @@ object Calls {
     suspend fun start(to: String, withVideo: Boolean) {
         if (phase != CallPhase.IDLE) return
         val k = Repo.chatKey(ChatRef(Repo.dmId(to), Kind.DM, to)) ?: throw IllegalStateException("They need to open WeTalks once before you can call them.")
-        key = k; peer = to; video = withVideo; caller = true; resetFlags(); callWritten = false; synchronized(pendingIce) { pendingIce.clear() }; note = "Calling…"; minimized = false; phase = CallPhase.OUTGOING
+        key = k; peer = to; video = withVideo; caller = true; resetFlags(); callWritten = false; peerRang = false; callStartTs = serverNow(); synchronized(pendingIce) { pendingIce.clear() }; note = "Calling…"; minimized = false; phase = CallPhase.OUTGOING
         callId = Repo.db.getReference("calls").push().key!!
         try {
             ensureFactory(); prepareAudio(); startForegroundService()
@@ -208,7 +222,7 @@ object Calls {
     }
 
     fun decline() { if (phase == CallPhase.INCOMING) finish("declined", notifyPeer = true, remote = false) }
-    fun hangUp() { if (phase != CallPhase.IDLE) finish(if (connectedAt > 0) "ended" else if (caller) "missed" else "declined", notifyPeer = true, remote = false) }
+    fun hangUp() { if (phase != CallPhase.IDLE) finish(if (connectedAt > 0) "ended" else if (caller) "missed" else "declined", notifyPeer = true, remote = false, byMe = caller && connectedAt == 0L) }
 
     // ------------------------------------------------------------------------------------------ controls
     fun toggleMute() { muted = !muted; audioTrack?.setEnabled(!muted) }
@@ -380,6 +394,7 @@ object Calls {
         val l = object : ValueEventListener {
             override fun onDataChange(s: DataSnapshot) {
                 if (id != callId) return
+                if (s.child("ringing").getValue(Boolean::class.java) == true) peerRang = true
                 if (caller && phase == CallPhase.OUTGOING && s.child("ringing").getValue(Boolean::class.java) == true && note != "Ringing…") note = "Ringing…"
                 val st = s.child("state").getValue(String::class.java) ?: if (s.exists()) return else "ended"
                 if (caller && st == "accepted" && !remoteSet && phase == CallPhase.OUTGOING) {
@@ -402,18 +417,67 @@ object Calls {
 
     private fun setState(id: String, st: String) { Repo.db.getReference("calls/$id/state").setValue(st) }
 
+    // ------------------------------------------------------------------------------------------ missed calls (also for calls that ended while this phone was off)
+    private val missedPrefs get() = app.getSharedPreferences("wt_missed", Context.MODE_PRIVATE)
+    private fun alreadyNotified(id: String) = missedPrefs.getStringSet("ids", emptySet()).orEmpty().contains(id)
+    private fun markNotified(id: String) { val s = missedPrefs.getStringSet("ids", emptySet()).orEmpty().toMutableList().also { it.add(id) }.takeLast(100).toSet(); missedPrefs.edit().putStringSet("ids", s).apply() }
+
+    /** A call that ended before this phone could answer it: write the line (if the caller did not already) and tell the person once. */
+    private suspend fun recordMissed(id: String, from: String, video: Boolean, ts: Long) {
+        val uid = Repo.uid
+        try {
+            val ref = Repo.db.getReference("call_log/$uid/$id")
+            if (!ref.get().await().exists()) Repo.logCall(id, from, false, video, "missed", 0, ts)
+        } catch (_: Exception) {}
+        if (serverNow() - ts < 24 * 3_600_000L) notifyMissed(from, video, ts, id)
+    }
+
+    private fun missedChannel() {
+        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(MISSED_CH) == null) nm.createNotificationChannel(NotificationChannel(MISSED_CH, "Missed calls", NotificationManager.IMPORTANCE_HIGH).apply { enableVibration(true) })
+    }
+
+    /** "Missed video call · 10:42 am" from the person, with a Call back button. Shown once per call. */
+    fun notifyMissed(from: String, video: Boolean, ts: Long, id: String) {
+        if (alreadyNotified(id)) return
+        markNotified(id)
+        scope.launch {
+            try {
+                missedChannel()
+                val u = Repo.user(from).value ?: try { kotlinx.coroutines.withTimeoutOrNull(2000) { Repo.userOnce(from) } } catch (_: Exception) { null }
+                val name = u?.name?.ifBlank { null } ?: "Someone"
+                val at = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(if (ts > 0) ts else System.currentTimeMillis()))
+                val kind = if (video) "video" else "voice"
+                fun pi(code: Int, call: Boolean) = PendingIntent.getActivity(app, code, Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra("cb_uid", from).putExtra("cb_video", video).putExtra("cb_call", call), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+                val n = NotificationCompat.Builder(app, MISSED_CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle(name).setContentText("Missed $kind call · $at")
+                    .setCategory(NotificationCompat.CATEGORY_MISSED_CALL).setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setWhen(if (ts > 0) ts else System.currentTimeMillis())
+                    .setContentIntent(pi(("m" + id).hashCode(), false)).addAction(0, "Call back", pi(("b" + id).hashCode(), true)).build()
+                (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(("missed" + from).hashCode(), n)
+            } catch (_: SecurityException) { } catch (_: Exception) {}
+        }
+    }
+
     // ------------------------------------------------------------------------------------------ end
-    private fun finish(state: String, notifyPeer: Boolean, remote: Boolean, why: String = "") {
+    private fun finish(state: String, notifyPeer: Boolean, remote: Boolean, why: String = "", byMe: Boolean = false) {
         if (finishing || phase == CallPhase.IDLE) return
         finishing = true
         val id = callId; val to = peer; val wasCaller = caller; val vid = video
         val dur = if (connectedAt > 0) ((System.currentTimeMillis() - connectedAt) / 1000).toInt() else 0
         if (notifyPeer) setState(id, state)
+        // my own line in the call history: one per call, keyed by the call id
+        val st = if (wasCaller) CallLog.outgoingStatus(dur, state, peerRang, byMe) else CallLog.incomingStatus(dur, state)
+        val startTs = if (callStartTs > 0) callStartTs else serverNow()
+        scope.launch {
+            Repo.logCall(id, to, wasCaller, vid, st, dur, startTs)
+            // nobody picked up: leave the Missed call in THEIR history too (it is waiting for them even if their app is closed or offline)
+            if (wasCaller && dur == 0 && state == "missed") Repo.leaveMissedCall(to, id, vid, startTs)
+        }
+        if (!wasCaller && st == "missed") notifyMissed(to, vid, startTs, id)
         // the caller leaves a line in the chat ("Missed video call", "Voice call · 2:31" …)
         if (wasCaller) scope.launch {
             try {
                 val status = when { dur > 0 -> "ended"; state == "busy" -> "declined"; else -> state }
-                Repo.send(ChatRef(Repo.dmId(to), Kind.DM, to), "call", JSONObject().put("v", if (vid) 1 else 0).put("d", dur).put("s", status).toString(), null, if (vid) "Video call" else "Voice call")
+                Repo.send(ChatRef(Repo.dmId(to), Kind.DM, to), "call", JSONObject().put("v", if (vid) 1 else 0).put("d", dur).put("s", status).toString(), null, if (vid) "Video call" else "Voice call", mid = id)
             } catch (_: Exception) {}
             delay(4000); Repo.db.getReference("calls/$id").removeValue()
         }

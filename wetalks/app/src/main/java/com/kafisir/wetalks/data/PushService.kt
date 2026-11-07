@@ -13,6 +13,13 @@ class PushService : FirebaseMessagingService() {
 
     override fun onMessageReceived(m: RemoteMessage) {
         if (Repo.uid.isEmpty()) return
+        // a call that ended while this phone was off / closed: "Missed video call · 10:42 am" with a Call back button
+        val d = m.data
+        if (d["t"] == "missed") {
+            val from = d["from"].orEmpty()
+            if (from.isNotEmpty()) try { Calls.notifyMissed(from, d["v"] == "1", d["ts"]?.toLongOrNull() ?: 0L, d["cid"].orEmpty().ifEmpty { from + d["ts"] }) } catch (_: Exception) {}
+            return
+        }
         try {
             ConnectService.sync(applicationContext)
             Calls.listen(); Repo.watchBlocks(); Repo.watchPrivacy(); Notifier.start(applicationContext)

@@ -34,6 +34,8 @@ data class RFolder(val locked: Boolean, val tab: Int) : Route
 data object RLabels : Route
 data object RDevices : Route
 data object RTwoStep : Route
+data class RCallInfo(val peer: String) : Route
+data class RCallBack(val uid: String, val video: Boolean) : Route
 data object RLanguage : Route
 data class RGroupSettings(val id: String) : Route
 data class RChannelSettings(val id: String) : Route
@@ -53,6 +55,8 @@ object Nav {
     class ChatMemo(val index: Int, val offset: Int, val draft: String)
     val chatMemo = HashMap<String, ChatMemo>()
     val pendingLink = mutableStateOf<String?>(null)
+    /** (person, video, ring now) from the "Call back" button of a missed-call notification. */
+    val pendingCallback = mutableStateOf<Triple<String, Boolean, Boolean>?>(null)
     val pendingChat = mutableStateOf<ChatRef?>(null)
     val pendingServices = mutableStateOf(false)
     /** Opens the chat and scrolls to (and highlights) one message. */

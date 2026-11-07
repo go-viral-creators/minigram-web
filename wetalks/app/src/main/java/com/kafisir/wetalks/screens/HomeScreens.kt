@@ -56,7 +56,8 @@ fun HomeScreen() {
     val labelFilter = labelPicked?.takeIf { f -> allLabels.any { it.id == f } }          // a deleted label cannot leave the list filtered to nothing
     // archived and locked chats leave the main list (they sit in their own rows); a label filter narrows what is left
     fun main(kind: Kind) = visible.filter { it.ref.kind == kind && !it.archived && !com.kafisir.wetalks.data.ChatLock.isLocked(it.ref.id) && (labelFilter == null || labelFilter in it.labels) }
-    val titles = listOf("WeTalks", "Groups", "Channels", "Me")
+    val titles = listOf("WeTalks", "Groups", "Channels", "Calls", "Me")
+    val callLog by Repo.callLog.collectAsState()
     val ctx = androidx.compose.ui.platform.LocalContext.current
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar(titles[tab], actions = {
@@ -68,20 +69,21 @@ fun HomeScreen() {
                 0 -> ChatList(main(Kind.DM), Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.", header = { RulesBanner(); ServicesRow(); LabelBar(labelFilter) { labelPicked = it }; FolderRows(0, visible) })
                 1 -> ChatList(main(Kind.GROUP), Ic.Group, "No groups yet", "Create a group to chat with several people at once.", header = { LabelBar(labelFilter) { labelPicked = it }; FolderRows(1, visible) })
                 2 -> ChatList(main(Kind.CHANNEL), Ic.Mega, "No channels yet", "Tap the search icon to find public channels, or + to start your own.", header = { LabelBar(labelFilter) { labelPicked = it }; FolderRows(2, visible) })
+                3 -> CallsTab()
                 else -> MeScreen()
             }
-            if (tab < 3) Box(Modifier.align(Alignment.BottomEnd).padding(18.dp).size(56.dp).clip(CircleShape).background(We.primary)
-                .combinedClickable(onClick = { Nav.push(when (tab) { 0 -> RNewChat; 1 -> RNewGroup; else -> RNewChannel }) }), contentAlignment = Alignment.Center) {
-                Icon(if (tab == 0) Ic.Edit else Ic.Plus, We.onPrimary, 26.dp)
+            if (tab < 4) Box(Modifier.align(Alignment.BottomEnd).padding(18.dp).size(56.dp).clip(CircleShape).background(We.primary)
+                .combinedClickable(onClick = { Nav.push(when (tab) { 0 -> RNewChat; 1 -> RNewGroup; 3 -> RNewChat; else -> RNewChannel }) }), contentAlignment = Alignment.Center) {
+                Icon(if (tab == 0) Ic.Edit else if (tab == 3) Ic.Phone else Ic.Plus, We.onPrimary, 26.dp)
             }
         }
-        BottomNav(tab, chats.filter { it.ref.kind == Kind.DM }.sumOf { it.unread }, chats.filter { it.ref.kind == Kind.GROUP }.sumOf { it.unread })
+        BottomNav(tab, chats.filter { it.ref.kind == Kind.DM }.sumOf { it.unread }, chats.filter { it.ref.kind == Kind.GROUP }.sumOf { it.unread }, callLog.count { it.missed && it.ts > CallSeen.seen }.toLong())
     }
 }
 
 @Composable
-fun BottomNav(tab: Int, dmUnread: Long, grpUnread: Long) {
-    val items = listOf(Triple(Ic.Chat, "Chats", dmUnread), Triple(Ic.Group, "Groups", grpUnread), Triple(Ic.Mega, "Channels", 0L), Triple(Ic.User, "Me", 0L))
+fun BottomNav(tab: Int, dmUnread: Long, grpUnread: Long, missedCalls: Long = 0L) {
+    val items = listOf(Triple(Ic.Chat, "Chats", dmUnread), Triple(Ic.Group, "Groups", grpUnread), Triple(Ic.Mega, "Channels", 0L), Triple(Ic.Phone, "Calls", missedCalls), Triple(Ic.User, "Me", 0L))
     Column(Modifier.background(We.surface)) {
         Divider()
         Row(Modifier.navigationBarsPadding().height(60.dp).fillMaxWidth()) {
