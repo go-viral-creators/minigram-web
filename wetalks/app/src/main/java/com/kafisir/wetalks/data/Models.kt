@@ -32,7 +32,11 @@ data class Channel(
 data class ChatItem(
     val ref: ChatRef, val lastTs: Long, val lastBody: String, val lastType: String, val lastFrom: String,
     val unread: Long, val pinned: Boolean, val muted: Boolean,
+    val archived: Boolean = false, val labels: Set<String> = emptySet(),
 )
+
+/** A chat label (name + one of 12 colours) kept per account; chats carry the ids of their labels. */
+data class ChatLabel(val id: String, val name: String, val color: Int)
 
 data class Msg(
     val id: String, val from: String, val ts: Long, val type: String,      // text | link | image | gif | voice | sticker

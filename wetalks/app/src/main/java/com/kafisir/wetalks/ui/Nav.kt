@@ -30,6 +30,8 @@ data class RBrowser(val url: String) : Route
 data object RChatSettings : Route
 data object RStorage : Route
 data object RAppLock : Route
+data class RFolder(val locked: Boolean, val tab: Int) : Route
+data object RLabels : Route
 data object RLanguage : Route
 data class RGroupSettings(val id: String) : Route
 data class RChannelSettings(val id: String) : Route

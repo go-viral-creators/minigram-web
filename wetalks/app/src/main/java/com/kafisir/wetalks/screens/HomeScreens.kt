@@ -51,6 +51,11 @@ fun HomeScreen() {
     val chats by remember { Repo.chats() }.collectAsState(initial = emptyList())
     val blocked by Repo.blockedUsers.collectAsState()
     val visible = chats.filter { !(it.ref.kind == Kind.DM && it.ref.peer in blocked) }.sortedWith(compareByDescending<ChatItem> { it.pinned }.thenByDescending { c -> Repo.outgoing.lastOrNull { it.ref.id == c.ref.id }?.ts ?: c.lastTs })
+    var labelPicked by remember { mutableStateOf<String?>(null) }
+    val allLabels by Repo.labels.collectAsState()
+    val labelFilter = labelPicked?.takeIf { f -> allLabels.any { it.id == f } }          // a deleted label cannot leave the list filtered to nothing
+    // archived and locked chats leave the main list (they sit in their own rows); a label filter narrows what is left
+    fun main(kind: Kind) = visible.filter { it.ref.kind == kind && !it.archived && !com.kafisir.wetalks.data.ChatLock.isLocked(it.ref.id) && (labelFilter == null || labelFilter in it.labels) }
     val titles = listOf("WeTalks", "Groups", "Channels", "Me")
     val ctx = androidx.compose.ui.platform.LocalContext.current
     Column(Modifier.fillMaxSize().background(We.bg)) {
@@ -60,9 +65,9 @@ fun HomeScreen() {
         })
         Box(Modifier.weight(1f)) {
             when (tab) {
-                0 -> ChatList(visible.filter { it.ref.kind == Kind.DM }, Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.", header = { ServicesRow() })
-                1 -> ChatList(visible.filter { it.ref.kind == Kind.GROUP }, Ic.Group, "No groups yet", "Create a group to chat with several people at once.")
-                2 -> ChatList(visible.filter { it.ref.kind == Kind.CHANNEL }, Ic.Mega, "No channels yet", "Tap the search icon to find public channels, or + to start your own.")
+                0 -> ChatList(main(Kind.DM), Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.", header = { ServicesRow(); LabelBar(labelFilter) { labelPicked = it }; FolderRows(0, visible) })
+                1 -> ChatList(main(Kind.GROUP), Ic.Group, "No groups yet", "Create a group to chat with several people at once.", header = { LabelBar(labelFilter) { labelPicked = it }; FolderRows(1, visible) })
+                2 -> ChatList(main(Kind.CHANNEL), Ic.Mega, "No channels yet", "Tap the search icon to find public channels, or + to start your own.", header = { LabelBar(labelFilter) { labelPicked = it }; FolderRows(2, visible) })
                 else -> MeScreen()
             }
             if (tab < 3) Box(Modifier.align(Alignment.BottomEnd).padding(18.dp).size(56.dp).clip(CircleShape).background(We.primary)
@@ -96,6 +101,8 @@ fun BottomNav(tab: Int, dmUnread: Long, grpUnread: Long) {
 fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, emptySub: String, header: (@Composable () -> Unit)? = null) {
     var menu by remember { mutableStateOf<ChatItem?>(null) }
     var delete by remember { mutableStateOf<ChatItem?>(null) }
+    var labelsFor by remember { mutableStateOf<ChatItem?>(null) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     if (items.isEmpty()) {
         Column(Modifier.fillMaxSize()) { header?.invoke(); Box(Modifier.weight(1f)) { Empty(emptyIcon, emptyTitle, emptySub) } }
     } else LazyColumn(Modifier.fillMaxSize()) {
@@ -107,12 +114,16 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
     }
     menu?.let { c ->
         Sheet({ menu = null }) {
-            SheetItem(Ic.Pin, if (c.pinned) "Unpin from top" else "Pin to top") { Repo.setPinned(c.ref.id, !c.pinned); menu = null }
+            SheetItem(Ic.Pin, if (c.pinned) "Unpin from top" else "Pin to top") { if (!Repo.setPinned(c.ref.id, !c.pinned)) Nav.say("You can pin up to ${Repo.MAX_PINNED} chats"); menu = null }
+            SheetItem(Ic.Archive, if (c.archived) "Unarchive" else "Archive") { Repo.scope.launch { try { Repo.setArchived(c.ref.id, !c.archived) } catch (e: Exception) { Nav.say("Could not archive. Update the app and try again.") } }; menu = null }
+            SheetItem(Ic.Tag, "Labels") { labelsFor = c; menu = null }
+            SheetItem(Ic.Lock, if (com.kafisir.wetalks.data.ChatLock.isLocked(c.ref.id)) "Unlock chat" else "Lock chat") { toggleChatLock(ctx as androidx.fragment.app.FragmentActivity, c); menu = null }
             if (c.ref.kind != Kind.CHANNEL || true) SheetItem(if (c.muted) Ic.Bell else Ic.BellOff, if (c.muted) "Unmute" else "Mute") { Repo.setMuted(c.ref.id, !c.muted); menu = null }
             SheetItem(Ic.Trash, if (c.ref.kind == Kind.DM) "Delete chat" else "Remove from list", danger = true) { delete = c; menu = null }
         }
     }
     delete?.let { c -> val (n, _, _) = titleOf(c.ref); DeleteChatDialog(c.ref, n, { delete = null }) }
+    labelsFor?.let { c -> LabelPickerSheet(items.firstOrNull { it.ref.id == c.ref.id } ?: c) { labelsFor = null } }
 }
 
 @Composable
@@ -235,6 +246,7 @@ fun MeScreen() {
                 try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))) } catch (_: Exception) {}
             })
             Row2(Ic.Fingerprint, "App lock", if (AppLock.enabled) "On · fingerprint or screen lock" else "Off", onClick = { Nav.push(RAppLock) })
+            Row2(Ic.Tag, "Labels", "Name and colour your chats, then filter by them", onClick = { Nav.push(RLabels) })
             Row2(Ic.Type, "Chat settings", "Text size, bubble shape, wallpaper", onClick = { Nav.push(RChatSettings) })
             Row2(Ic.Globe, "Language", I18n.byCode(I18n.lang).native + " · translate to " + I18n.byCode(I18n.translateTo).english, onClick = { Nav.push(RLanguage) })
             Row2(Ic.Palette, "Appearance", (when (ThemeMode.mode.intValue) { 1 -> "Light"; 2 -> "Dark"; else -> "Follow system" }) + " · " + UiPrefs.accents[UiPrefs.accent.intValue].first, onClick = { Nav.push(RAppearance) })

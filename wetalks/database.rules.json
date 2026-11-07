@@ -102,6 +102,21 @@
           "unread": { ".write": "auth != null && auth.uid !== $uid && ($cid === $uid + '_' + auth.uid || $cid === auth.uid + '_' + $uid || (root.child('groups').child($cid).child('members').child(auth.uid).exists() && root.child('groups').child($cid).child('members').child($uid).exists()))", ".validate": "newData.isNumber() && newData.val() >= 0 && (auth.uid === $uid || newData.val() === 0 || (!data.exists() && newData.val() === 1) || newData.val() === data.val() + 1)" },
           "pinned": { ".validate": "newData.isBoolean()" },
           "muted": { ".validate": "newData.isBoolean()" },
+          "archived": { ".validate": "newData.isBoolean()" },
+          "labels": { "$lid": { ".validate": "$lid.matches(/^[a-z0-9]{6,12}$/) && newData.val() === true" } },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "chat_labels": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$lid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "$lid.matches(/^[a-z0-9]{6,12}$/) && (!newData.exists() || (newData.hasChildren(['name','color']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 24 && newData.child('color').isNumber() && newData.child('color').val() >= 0 && newData.child('color').val() <= 11))",
+          "name": { ".validate": "newData.isString()" },
+          "color": { ".validate": "newData.isNumber()" },
           "$other": { ".validate": false }
         }
       }

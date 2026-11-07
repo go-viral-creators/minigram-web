@@ -363,7 +363,8 @@ object Repo {
     // blocking is local-first: blocked senders are filtered on this phone
     private val blocked = MutableStateFlow<Set<String>>(emptySet())
     val blockedUsers: StateFlow<Set<String>> get() = blocked
-    fun watchBlocks() = watch("blocks/$uid") { s -> blocked.value = s.children.mapNotNull { it.key }.toSet() }
+    fun watchBlocks() { watchLabels(); watchBlocksNow() }
+    private fun watchBlocksNow() = watch("blocks/$uid") { s -> blocked.value = s.children.mapNotNull { it.key }.toSet() }
     fun block(id: String, on: Boolean) { val r = db.getReference("blocks/$uid/$id"); if (on) r.setValue(true) else r.removeValue() }
 
     // ------------------------------------------------------------------------------------------ chat list
@@ -379,8 +380,9 @@ object Repo {
                     if (type.isEmpty() && c.str("peer").isEmpty() && c.str("lastBody").isEmpty() && c.lng("lastTs") == 0L) return@mapNotNull null
                     if (kind == Kind.DM && c.str("peer").isEmpty()) return@mapNotNull null
                     ChatItem(ChatRef(id, kind, c.str("peer").ifEmpty { null }), c.lng("lastTs"), c.str("lastBody"), c.str("lastType"),
-                        c.str("lastFrom"), c.lng("unread"), c.bool("pinned"), c.bool("muted"))
+                        c.str("lastFrom"), c.lng("unread"), c.bool("pinned"), c.bool("muted"), c.bool("archived"), c.child("labels").children.mapNotNull { it.key }.toSet())
                 }
+                chatSnapshot = list
                 warmGroupKeys(list)
                 trySend(list.sortedWith(compareByDescending<ChatItem> { it.pinned }.thenByDescending { it.lastTs }))
             }
@@ -390,7 +392,57 @@ object Repo {
         awaitClose { ref.removeEventListener(l) }
     }
 
-    fun setPinned(id: String, v: Boolean) { val me = uid; db.getReference("user_chats/$me/$id/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$id/pinned").setValue(v) } }
+    @Volatile private var chatSnapshot: List<ChatItem> = emptyList()
+    const val MAX_PINNED = 5
+
+    /** Returns false when 5 chats are already pinned. */
+    fun setPinned(id: String, v: Boolean): Boolean {
+        if (v && chatSnapshot.count { it.pinned } >= MAX_PINNED) return false
+        val me = uid; db.getReference("user_chats/$me/$id/type").get().addOnSuccessListener { if (it.exists()) db.getReference("user_chats/$me/$id/pinned").setValue(v) }
+        return true
+    }
+
+    /** Archived chats leave the list (they stay in the "Archived" row). Archiving also unpins. */
+    suspend fun setArchived(id: String, v: Boolean) {
+        val me = uid
+        if (!db.getReference("user_chats/$me/$id/type").get().await().exists()) return
+        val up = HashMap<String, Any?>()
+        up["user_chats/$me/$id/archived"] = if (v) true else null
+        if (v) up["user_chats/$me/$id/pinned"] = null
+        db.reference.updateChildren(up).await()
+    }
+
+    // ---- labels
+    val labels = MutableStateFlow<List<ChatLabel>>(emptyList())
+    private var labelsWatching = ""
+    fun watchLabels() {
+        if (uid.isEmpty() || labelsWatching == uid) return
+        labelsWatching = uid
+        watch("chat_labels/$uid") { s ->
+            labels.value = s.children.mapNotNull { c -> val id = c.key ?: return@mapNotNull null; val n = c.str("name"); if (n.isEmpty()) null else ChatLabel(id, n, c.lng("color").toInt()) }
+                .sortedBy { it.name.lowercase() }
+        }
+    }
+    private fun newLabelId(): String { val abc = "abcdefghijklmnopqrstuvwxyz0123456789"; val r = java.security.SecureRandom(); return (1..8).map { abc[r.nextInt(abc.length)] }.joinToString("") }
+    suspend fun createLabel(name: String, color: Int): String {
+        val id = newLabelId()
+        db.getReference("chat_labels/$uid/$id").setValue(hashMapOf("name" to name.trim().take(24), "color" to color.coerceIn(0, 11))).await()
+        return id
+    }
+    suspend fun editLabel(id: String, name: String, color: Int) {
+        db.getReference("chat_labels/$uid/$id").updateChildren(mapOf("name" to name.trim().take(24), "color" to color.coerceIn(0, 11))).await()
+    }
+    /** Deletes the label and removes it from every chat that has it. */
+    suspend fun deleteLabel(id: String) {
+        val up = HashMap<String, Any?>()
+        up["chat_labels/$uid/$id"] = null
+        for (c in chatSnapshot) if (id in c.labels) up["user_chats/$uid/${c.ref.id}/labels/$id"] = null
+        db.reference.updateChildren(up).await()
+    }
+    suspend fun setChatLabel(cid: String, lid: String, on: Boolean) {
+        if (!db.getReference("user_chats/$uid/$cid/type").get().await().exists()) return
+        db.getReference("user_chats/$uid/$cid/labels/$lid").setValue(if (on) true else null).await()
+    }
     fun muteDm(peer: String, v: Boolean) {
         val b = "user_chats/$uid/${dmId(peer)}"
         db.getReference(b).updateChildren(mapOf("type" to "dm", "peer" to peer, "muted" to v))

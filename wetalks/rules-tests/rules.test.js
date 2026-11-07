@@ -565,3 +565,29 @@ test('M7: follower count only moves with the caller\'s own follow state', async 
   await assertFails(set(ref(db(C), 'channels/c1/subCount'), 50));                 // no jumps
   // known limit: a non-follower can still step the count down by one at a time, so subCount stays advisory (recount tool/cron planned)
 });
+
+// ---- chat organisation: archive, labels (pin and mute already existed) ----
+test('archive and labels: owner-only fields on the chat entry, peers cannot set them', async () => {
+  await assertSucceeds(update(ref(db(A), `user_chats/alice/${AB}`), { type: 'dm', peer: B, archived: true, 'labels/abc123': true }));
+  await assertSucceeds(set(ref(db(A), `user_chats/alice/${AB}/archived`), false));
+  await assertFails(set(ref(db(A), `user_chats/alice/${AB}/archived`), 'yes'));
+  await assertFails(set(ref(db(A), `user_chats/alice/${AB}/labels/BAD!`), true));
+  await assertFails(set(ref(db(A), `user_chats/alice/${AB}/labels/abc123`), 'x'));
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/archived`), true));              // bob cannot archive alice's chat
+  await assertFails(set(ref(db(B), `user_chats/alice/${AB}/labels/abc123`), true));
+  await assertSucceeds(set(ref(db(B), `user_chats/alice/${AB}/unread`), 1));                 // normal send fan-out still works
+});
+
+test('chat_labels: private to the owner, validated', async () => {
+  await assertSucceeds(set(ref(db(A), 'chat_labels/alice/work01'), { name: 'Work', color: 3 }));
+  await assertSucceeds(get(ref(db(A), 'chat_labels/alice')));
+  await assertFails(get(ref(db(B), 'chat_labels/alice')));
+  await assertFails(set(ref(db(B), 'chat_labels/alice/work02'), { name: 'x', color: 1 }));
+  await assertFails(set(ref(db(A), 'chat_labels/alice/work02'), { name: '', color: 1 }));
+  await assertFails(set(ref(db(A), 'chat_labels/alice/work02'), { name: 'x'.repeat(25), color: 1 }));
+  await assertFails(set(ref(db(A), 'chat_labels/alice/work02'), { name: 'ok', color: 99 }));
+  await assertFails(set(ref(db(A), 'chat_labels/alice/work02'), { name: 'ok', color: 1, extra: 1 }));
+  await assertFails(set(ref(db(A), 'chat_labels/alice/W'), { name: 'ok', color: 1 }));
+  await assertSucceeds(update(ref(db(A), 'chat_labels/alice/work01'), { name: 'Office' }));
+  await assertSucceeds(remove(ref(db(A), 'chat_labels/alice/work01')));
+});

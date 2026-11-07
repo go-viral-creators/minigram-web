@@ -45,7 +45,7 @@ import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
     override fun onCreate() { super.onCreate(); if (Application.getProcessName().endsWith(":tts")) return   // the voice engine process needs none of the app
-        com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
+        com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.data.ChatLock.load(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -114,7 +114,7 @@ fun App() {
             LaunchedEffect(me) { if (me == true) { Repo.watchConnection(); if (com.kafisir.wetalks.data.Calls.foreground) Repo.setOnline(true) } }
             LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { if (me == true) { Repo.setOnline(true); try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {} } }
             LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (me == true) Repo.setOnline(false) }
-            LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true }
+            LifecycleEventEffect(Lifecycle.Event.ON_STOP) { if (AppLock.enabled) AppLock.locked = true; com.kafisir.wetalks.data.ChatLock.relockAll() }
             when (me) {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) }
                 false -> ProfileSetupScreen(null, onDone = {})
@@ -193,6 +193,8 @@ fun Main() {
                 RChatSettings -> ChatSettingsScreen()
                 RStorage -> StorageScreen()
                 RAppLock -> AppLockScreen()
+                is RFolder -> com.kafisir.wetalks.screens.FolderScreen(r.locked, r.tab)
+                RLabels -> com.kafisir.wetalks.screens.LabelsScreen()
                 is RQr -> QrScreen(r)
                 RLanguage -> LanguageScreen()
                 is RGroupSettings -> GroupSettingsScreen(r.id)

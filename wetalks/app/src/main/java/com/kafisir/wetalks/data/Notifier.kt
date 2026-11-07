@@ -92,11 +92,12 @@ object Notifier {
     }
 
     private suspend fun post(c: ChatItem) {
+        val locked = ChatLock.isLocked(c.ref.id)
         val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
-        val text = if (m.unreadable) "New message" else when (m.type) { "call" -> "Call"; else -> previewText(m.type, m.text).ifEmpty { "New message" } }
-        val who = (Repo.user(c.lastFrom).value ?: try { Repo.userOnce(c.lastFrom) } catch (_: Exception) { null })?.name ?: "Someone"
-        val group = c.ref.kind == Kind.GROUP
-        val title = if (group) (Repo.group(c.ref.id).value?.name ?: "Group") else who
+        val text = if (locked || m.unreadable) "New message" else when (m.type) { "call" -> "Call"; else -> previewText(m.type, m.text).ifEmpty { "New message" } }
+        val who = if (locked) "Locked chat" else (Repo.user(c.lastFrom).value ?: try { Repo.userOnce(c.lastFrom) } catch (_: Exception) { null })?.name ?: "Someone"
+        val group = c.ref.kind == Kind.GROUP && !locked
+        val title = if (locked) "Locked chat" else if (group) (Repo.group(c.ref.id).value?.name ?: "Group") else who
         convs[c.ref.id] = Conv(c.ref, title, group)
         val l = lines.getOrPut(c.ref.id) { ArrayList() }
         l.add(Line(who, if (c.lastTs > 0) c.lastTs else System.currentTimeMillis(), text, false)); while (l.size > 8) l.removeAt(0)

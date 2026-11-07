@@ -152,6 +152,8 @@ private fun isMedia(m: Msg) = m.type == "call" || m.type == "image" || m.type ==
 
 @Composable
 fun ChatScreen(ref: ChatRef) {
+    // a locked chat shows nothing until the phone's fingerprint / screen lock is passed
+    if (!com.kafisir.wetalks.data.ChatLock.isOpen(ref.id)) { ChatLockGate(ref); return }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val me = Repo.uid
