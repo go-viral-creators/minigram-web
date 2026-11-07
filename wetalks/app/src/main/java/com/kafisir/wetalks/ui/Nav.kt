@@ -30,6 +30,8 @@ data object RPhotoEdit : Route
 data class RBrowser(val url: String) : Route
 data object RChatSettings : Route
 data object RStorage : Route
+data object RBackup : Route
+data object RRestoreBackup : Route
 data object RAppLock : Route
 data class RFolder(val locked: Boolean, val tab: Int) : Route
 data object RLabels : Route

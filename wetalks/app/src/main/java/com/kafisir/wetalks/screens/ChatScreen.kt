@@ -164,10 +164,13 @@ fun ChatScreen(ref: ChatRef) {
     val blocked by Repo.blockedUsers.collectAsState()
     var limit by remember { mutableIntStateOf(50) }
     var loaded by remember(ref) { mutableStateOf(Repo.cachedMessages(ref.id) != null) }
-    val msgsRaw by produceState<List<Msg>>(Repo.cachedMessages(ref.id) ?: emptyList(), ref, limit) {
+    val msgsLive by produceState<List<Msg>>(Repo.cachedMessages(ref.id) ?: emptyList(), ref, limit) {
         launch { try { Repo.chatKey(ref) } catch (_: Exception) {} }          // the encryption key loads while the messages load, not after them
         Repo.rawMessages(ref, limit).collect { raws -> val l = Repo.decryptAll(ref, raws); value = l; Repo.putMessages(ref.id, l); loaded = true }
     }
+    // restored chat backup: archived copies of messages the server no longer has (live messages always win)
+    val archived by produceState<List<Msg>>(emptyList(), ref.id) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { try { com.kafisir.wetalks.data.ArchiveStore.get().messages(ref.id) } catch (_: Exception) { emptyList() } } }
+    val msgsRaw = remember(msgsLive, archived) { com.kafisir.wetalks.data.ArchiveStore.union(msgsLive, archived) }
     var hideTick by remember { mutableIntStateOf(0) }
     // disappearing messages: hide each message the moment it expires, and let the database clean-up follow
     var expTick by remember { mutableIntStateOf(0) }
