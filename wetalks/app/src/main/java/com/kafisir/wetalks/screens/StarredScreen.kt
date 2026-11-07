@@ -48,6 +48,7 @@ import kotlinx.coroutines.withContext
 /** Starred messages of all chats (or one chat), newest message first. Tap one to open the chat at that message. */
 @Composable
 fun StarredScreen(only: ChatRef?) {
+    androidx.compose.runtime.LaunchedEffect(Unit) { Starred.watch() }
     val chats by remember { Repo.chats() }.collectAsState(null)
     val entries = Starred.entries
     val loaded = remember { mutableStateMapOf<String, Msg>() }

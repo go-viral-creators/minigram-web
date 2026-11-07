@@ -69,6 +69,7 @@ object Starred {
             try {
                 val r = Repo.db.getReference("starred/$u/$cid/$mid")
                 if (on) r.setValue(ServerValue.TIMESTAMP).await() else r.removeValue().await()
+                com.kafisir.wetalks.ui.Nav.toast.value = if (on) "Message starred" else "Star removed"
             } catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { com.kafisir.wetalks.ui.Nav.toast.value = Repo.explain(e, if (on) "Starring the message" else "Removing the star") }
         }

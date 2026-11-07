@@ -219,12 +219,15 @@ fun ChatRow(c: ChatItem, onClick: () -> Unit, onLong: () -> Unit) {
     }
 }
 
+/** Scroll position of the Me tab (kept for the whole session). */
+object MeScroll { val state = androidx.compose.foundation.lazy.LazyListState() }
+
 @Composable
 fun MeScreen() {
     val me by Repo.user(Repo.uid).collectAsState()
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var confirmOut by remember { mutableStateOf(false) }
-    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize()) {
+    androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize(), state = MeScroll.state) {
         item {
             Column(Modifier.fillMaxWidth().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(We.appBar, We.bg))).padding(top = 22.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.clip(CircleShape).background(We.bg).padding(4.dp).tap { Nav.push(REditProfile) }) { Avatar(me?.name ?: "", me?.photo ?: "", 104.dp, Repo.uid) }
