@@ -714,3 +714,50 @@ test('2SV: the app can read how many tries are used (never the hash); a stale re
   await env.withSecurityRulesDisabled(async (ctx) => { await remove(ref(ctx.database(), 'two_step_secret/alice')); });
   await assertSucceeds(remove(ref(db(A), 'two_step_try/alice')));                    // 2-step is off: nothing to protect
 });
+
+// ---- call log: one entry per user per call; a missed call reaches an offline receiver ----
+const CID = '-Ncall0001abcdef';
+const entry = (o) => ({ peer: B, dir: 'out', st: 'noanswer', ts: Date.now(), video: false, dur: 0, ...o });
+
+test('call log: each person writes their own entry once per call id; nobody else can read it', async () => {
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${CID}`), entry({})));
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${CID}`), entry({ st: 'ended', dur: 65 })));   // same call id = same single entry (updates it, no second row)
+  await assertSucceeds(get(ref(db(A), 'call_log/alice')));
+  await assertFails(get(ref(db(B), 'call_log/alice')));
+  await assertFails(set(ref(db(B), `call_log/alice/${CID}`), entry({ peer: B, dir: 'in', st: 'declined' })));   // bob cannot rewrite alice's history
+  await assertFails(set(ref(db(A), 'call_log/alice/-Ncall0002'), entry({ st: 'whatever' })));
+  await assertFails(set(ref(db(A), 'call_log/alice/-Ncall0003'), entry({ peer: A })));                 // not a call with yourself
+  await assertFails(set(ref(db(A), 'call_log/alice/-Ncall0004'), entry({ dur: 999999 })));
+  await assertFails(set(ref(db(A), 'call_log/alice/-Ncall0005'), { ...entry({}), extra: 1 }));
+  await assertSucceeds(remove(ref(db(A), `call_log/alice/${CID}`)));                                   // delete one entry
+});
+
+test('call log, receiver app closed or offline: the caller leaves the Missed call in their log, only while the ring request is still waiting', async () => {
+  // the caller's ring request, as the app writes it before the receiver is online
+  await assertSucceeds(set(ref(db(A), `incoming_calls/bob/${CID}`), { from: A, video: true, ts: serverTimestamp() }));
+  await assertSucceeds(set(ref(db(A), `call_log/bob/${CID}`), { peer: A, dir: 'in', st: 'missed', ts: Date.now(), video: true, dur: 0 }));
+  await assertSucceeds(get(ref(db(B), 'call_log/bob')));                                               // bob sees it when he opens the app
+  await assertFails(get(ref(db(A), 'call_log/bob')));
+  await assertFails(set(ref(db(A), `call_log/bob/${CID}`), { peer: A, dir: 'in', st: 'declined', ts: Date.now() }));   // cannot overwrite it, nor claim another state
+  await assertSucceeds(set(ref(db(B), `call_log/bob/${CID}`), { peer: A, dir: 'in', st: 'missed', ts: Date.now(), video: true, dur: 0 }));   // bob's own app can always write his entry
+});
+
+test('call log: nobody can plant fake missed calls', async () => {
+  await assertFails(set(ref(db(A), 'call_log/bob/-Ncall0100'), { peer: A, dir: 'in', st: 'missed', ts: Date.now() }));      // no ring request exists
+  await assertSucceeds(set(ref(db(A), 'incoming_calls/bob/-Ncall0101'), { from: A, video: false, ts: serverTimestamp() }));
+  await assertFails(set(ref(db(C), 'call_log/bob/-Ncall0101'), { peer: C, dir: 'in', st: 'missed', ts: Date.now() }));      // carol is not the caller
+  await assertFails(set(ref(db(C), 'call_log/bob/-Ncall0101'), { peer: A, dir: 'in', st: 'missed', ts: Date.now() }));      // nor can she name alice
+  await assertFails(set(ref(db(A), 'call_log/bob/-Ncall0101'), { peer: A, dir: 'out', st: 'missed', ts: Date.now() }));     // only an incoming missed entry
+  await assertFails(set(ref(db(A), 'call_log/bob/-Ncall0101'), { peer: A, dir: 'in', st: 'ended', ts: Date.now(), dur: 500 })); // cannot invent a long call
+});
+
+test('call log: declined and cancelled-before-answer, both sides own their line', async () => {
+  // bob declined while online: his app removed the ring request and wrote his own entry; alice writes hers
+  await assertSucceeds(set(ref(db(B), `call_log/bob/${CID}`), { peer: A, dir: 'in', st: 'declined', ts: Date.now(), video: false, dur: 0 }));
+  await assertSucceeds(set(ref(db(A), `call_log/alice/${CID}`), { peer: B, dir: 'out', st: 'declined', ts: Date.now(), video: false, dur: 0 }));
+  // alice cancels another call before bob answers
+  await assertSucceeds(set(ref(db(A), 'call_log/alice/-Ncall0200'), { peer: B, dir: 'out', st: 'cancelled', ts: Date.now() }));
+  await assertSucceeds(set(ref(db(A), 'call_log/alice/-Ncall0201'), { peer: B, dir: 'out', st: 'unavailable', ts: Date.now() }));
+  // clearing the whole log is one delete
+  await assertSucceeds(remove(ref(db(A), 'call_log/alice')));
+});

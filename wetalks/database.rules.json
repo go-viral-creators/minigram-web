@@ -163,6 +163,25 @@
       }
     },
 
+    "call_log": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".indexOn": ["ts"],
+        "$cid": {
+          ".write": "auth != null && (auth.uid === $uid || (!data.exists() && newData.child('dir').val() === 'in' && newData.child('st').val() === 'missed' && newData.child('peer').val() === auth.uid && root.child('incoming_calls').child($uid).child($cid).child('from').val() === auth.uid))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['peer','dir','st','ts']) && newData.child('peer').isString() && newData.child('peer').val().length <= 40 && newData.child('peer').val() !== $uid && (newData.child('dir').val() === 'in' || newData.child('dir').val() === 'out') && (newData.child('st').val() === 'ended' || newData.child('st').val() === 'missed' || newData.child('st').val() === 'declined' || newData.child('st').val() === 'noanswer' || newData.child('st').val() === 'unavailable' || newData.child('st').val() === 'cancelled' || newData.child('st').val() === 'busy') && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 60000)",
+          "peer": { ".validate": "newData.isString()" },
+          "dir": { ".validate": "newData.isString()" },
+          "st": { ".validate": "newData.isString()" },
+          "ts": { ".validate": "newData.isNumber()" },
+          "video": { ".validate": "newData.isBoolean()" },
+          "dur": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "devices": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

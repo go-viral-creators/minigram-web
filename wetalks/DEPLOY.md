@@ -14,9 +14,11 @@ firebase deploy --only hosting --project wetalks-78e5a
 ```
 
 ## Database rules
+Always from this `wetalks/` folder with the explicit project. The repo root still holds the old Minigram config (`mim-324d3`); never deploy from there.
 ```bash
-firebase deploy --only database --project wetalks-78e5a
+tools/deploy_rules.sh        # runs the emulator tests, then: firebase deploy --only database --project wetalks-78e5a
 ```
+If the new features (labels, linked phones, 2-step, call log) say "permission denied", these rules are not deployed yet.
 
 ## Push notifications (needs the Blaze plan)
 ```bash
