@@ -61,7 +61,7 @@ fun HomeScreen() {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar(titles[tab], actions = {
-            if (tab == 0) { IconBtn(Ic.Scan, We.onAppBar, { scanQr(ctx) }); IconBtn(Ic.Search, We.onAppBar, { Nav.push(RNewChat) }) }
+            if (tab == 0) { IconBtn(Ic.Scan, We.onAppBar, { scanQr(ctx) }); IconBtn(Ic.Search, We.onAppBar, { Nav.push(RSearch) }) }
             if (tab == 2) IconBtn(Ic.Search, We.onAppBar, { Nav.push(RDiscover) })
         })
         Box(Modifier.weight(1f)) {
@@ -235,6 +235,7 @@ fun MeScreen() {
             }
             Divider()
             Row2(Ic.Bookmark, "Saved Messages", "Notes, photos and voice for yourself", onClick = { Nav.push(RChat(Repo.dmRef(Repo.uid))) })
+            Row2(Ic.Star, "Starred messages", "Messages you marked, from all your phones", onClick = { Nav.push(RStarred()) })
             Row2(Ic.Qr, "My QR code", "Let friends scan to message you", onClick = { Repo.user(Repo.uid).value?.let { Nav.push(RQr(it.name, "@" + it.username, it.photo, Repo.uid, Repo.Links.user(it.username))) } })
             Row2(Ic.UserPlus, "New group", "Chat with several people", onClick = { Nav.push(RNewGroup) })
             Row2(Ic.Mega, "New channel", "Broadcast to followers", onClick = { Nav.push(RNewChannel) })

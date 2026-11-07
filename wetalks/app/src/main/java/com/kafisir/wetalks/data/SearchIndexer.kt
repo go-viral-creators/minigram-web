@@ -1,5 +1,7 @@
 package com.kafisir.wetalks.data
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -136,7 +138,7 @@ object SearchBackfill {
         var pruned = false
         var firstSeen = 0L
         try {
-            while (isActive) {
+            while (kotlinx.coroutines.currentCoroutineContext().isActive) {
                 if (!SearchSettings.enabled || Repo.uid.isEmpty()) { running = false; delay(10_000); continue }
                 // locked chats are never kept in the index (also when a chat was locked after it had been indexed)
                 val locked = ChatLock.all

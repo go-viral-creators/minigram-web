@@ -51,7 +51,10 @@ fun MarkdownText(text: String, color: Color, style: TextStyle) {
 }
 
 @Composable
-private fun rich(runs: List<Markdown.Run>, color: Color, reveal: Boolean, onReveal: () -> Unit): AnnotatedString {
+private fun rich(runs: List<Markdown.Run>, color: Color, reveal: Boolean, onReveal: () -> Unit): AnnotatedString = marked(richPlain(runs, color, reveal, onReveal))
+
+@Composable
+private fun richPlain(runs: List<Markdown.Run>, color: Color, reveal: Boolean, onReveal: () -> Unit): AnnotatedString {
     val ctx = LocalContext.current
     val accent = We.primary
     val codeBg = We.primary.copy(alpha = .14f)

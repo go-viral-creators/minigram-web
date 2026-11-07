@@ -16,7 +16,7 @@ object SearchSettings {
     var enabled by mutableStateOf(true); private set
     private lateinit var app: Context
     fun load(c: Context) { app = c.applicationContext; enabled = app.getSharedPreferences("wt_search", Context.MODE_PRIVATE).getBoolean("on", true) }
-    fun setEnabled(v: Boolean) {
+    fun turn(v: Boolean) {
         enabled = v
         if (::app.isInitialized) app.getSharedPreferences("wt_search", Context.MODE_PRIVATE).edit().putBoolean("on", v).apply()
         if (v) SearchIndexer.onEnabled() else SearchIndexer.onDisabled()
@@ -43,7 +43,7 @@ object SearchIndex {
     private val ready get() = ::app.isInitialized
 
     private class Helper(c: Context) : SQLiteOpenHelper(c, NAME, null, VERSION) {
-        override fun onConfigure(db: SQLiteDatabase) { db.setWriteAheadLoggingEnabled(true) }
+        init { setWriteAheadLoggingEnabled(true) }
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE msg(rowid INTEGER PRIMARY KEY AUTOINCREMENT, chat TEXT NOT NULL, mid TEXT NOT NULL, ts INTEGER NOT NULL, frm TEXT NOT NULL DEFAULT '', exp INTEGER NOT NULL DEFAULT 0, UNIQUE(chat, mid))")
             db.execSQL("CREATE INDEX msg_chat_ts ON msg(chat, ts)")
