@@ -15,6 +15,8 @@
         "photo": { ".validate": "newData.isString() && newData.val().length <= 60000" },
         "pk": { ".validate": "newData.isString() && newData.val().length <= 64" },
         "phoneKey": { ".validate": "!newData.exists() || (root.child('config').child('phoneKeyLegacyOff').val() !== true && newData.isString())" },
+        "createdAt": { ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)" },
+        ".validate": "(!data.child('createdAt').exists() || newData.child('createdAt').exists()) && (data.exists() || root.child('config').child('rateLimit').child('enforce').val() !== true || newData.child('createdAt').exists())",
         "$other": { ".validate": "true" }
       }
     },
@@ -78,7 +80,8 @@
 
     "config": {
       "maintenance": { ".read": true, ".write": false },
-      "turn": { ".read": "auth != null", ".write": false }
+      "turn": { ".read": "auth != null", ".write": false },
+      "rateLimit": { ".read": true, ".write": false }
     },
 
     "fcm_tokens": {
@@ -252,6 +255,45 @@
       }
     },
 
+    "rate": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$cid": {
+          ".write": "auth != null && auth.uid === $uid && (newData.exists() || (data.exists() && now - data.child('t').val() >= 60000))",
+          ".validate": "$cid.matches(/^[A-Za-z0-9_-]{1,300}$/) && newData.hasChildren(['t','n']) && newData.child('t').isNumber() && newData.child('n').isNumber() && newData.child('n').val() >= 1 && newData.child('n').val() <= (($cid.contains('_') && $cid.contains($uid) && !root.child('groups').child($cid).exists() && !root.child('channels').child($cid).exists()) ? 20 : 12) && ((data.exists() && now - data.child('t').val() < 60000) ? (newData.child('t').val() === data.child('t').val() && newData.child('n').val() === data.child('n').val() + 1 && (!newData.child('h').exists() || (newData.child('hn').isNumber() && newData.child('hn').val() === (data.child('h').val() === newData.child('h').val() ? data.child('hn').val() + 1 : 1) && newData.child('hn').val() <= 5))) : (newData.child('t').val() === now && newData.child('n').val() === 1 && (!newData.child('h').exists() || newData.child('hn').val() === 1) && (data.exists() || !($cid.contains('_') && $cid.contains($uid) && $cid !== $uid + '_' + $uid && !root.child('groups').child($cid).exists() && !root.child('channels').child($cid).exists()) || root.child('rate').child($cid.replace($uid, '').replace('_', '')).child($cid).exists() || newData.parent().parent().parent().child('quota').child($uid).child('n').val() === (root.child('quota').child($uid).child('d').val() === ((now - now % 86400000) / 86400000) ? root.child('quota').child($uid).child('n').val() + 1 : 1)))) && (newData.child('h').exists() || !newData.child('hn').exists())",
+          "t": { ".validate": "newData.isNumber()" },
+          "n": { ".validate": "newData.isNumber()" },
+          "h": { ".validate": "newData.isString() && newData.val().matches(/^[a-f0-9]{6}$/)" },
+          "hn": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "rate_all": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (newData.exists() || (data.exists() && now - data.child('t').val() >= 60000))",
+        ".validate": "newData.hasChildren(['t','n']) && newData.child('t').isNumber() && newData.child('n').isNumber() && newData.child('n').val() >= 1 && newData.child('n').val() <= 60 && ((data.exists() && now - data.child('t').val() < 60000) ? (newData.child('t').val() === data.child('t').val() && newData.child('n').val() === data.child('n').val() + 1) : (newData.child('t').val() === now && newData.child('n').val() === 1))",
+        "t": { ".validate": "newData.isNumber()" },
+        "n": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "quota": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && newData.exists()",
+        ".validate": "newData.hasChildren(['d','g','c','n']) && newData.child('d').val() === ((now - now % 86400000) / 86400000) && newData.child('g').isNumber() && newData.child('c').isNumber() && newData.child('n').isNumber() && newData.child('g').val() >= 0 && newData.child('c').val() >= 0 && newData.child('n').val() >= 0 && ((root.child('users').child($uid).child('createdAt').exists() && now - root.child('users').child($uid).child('createdAt').val() < 86400000) ? (newData.child('g').val() <= 2 && newData.child('c').val() <= 1 && newData.child('n').val() <= 10) : (newData.child('g').val() <= 10 && newData.child('c').val() <= 5 && newData.child('n').val() <= 60)) && (data.child('d').val() === newData.child('d').val() ? (newData.child('g').val() >= data.child('g').val() && newData.child('g').val() <= data.child('g').val() + 1 && newData.child('c').val() >= data.child('c').val() && newData.child('c').val() <= data.child('c').val() + 1 && newData.child('n').val() >= data.child('n').val() && newData.child('n').val() <= data.child('n').val() + 1) : (newData.child('g').val() <= 1 && newData.child('c').val() <= 1 && newData.child('n').val() <= 1))",
+        "d": { ".validate": "newData.isNumber()" },
+        "g": { ".validate": "newData.isNumber()" },
+        "c": { ".validate": "newData.isNumber()" },
+        "n": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
     "call_log": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
@@ -371,6 +413,7 @@
       "$gid": {
         ".read": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).exists()",
         ".write": "auth != null && !data.exists() && newData.child('owner').val() === auth.uid",
+        ".validate": "!newData.exists() || data.exists() || root.child('config').child('rateLimit').child('enforce').val() !== true || (!(root.child('users').child(auth.uid).child('createdAt').exists() && now - root.child('users').child(auth.uid).child('createdAt').val() < 3600000) && newData.parent().parent().child('quota').child(auth.uid).child('g').val() === (root.child('quota').child(auth.uid).child('d').val() === ((now - now % 86400000) / 86400000) ? root.child('quota').child(auth.uid).child('g').val() + 1 : 1))",
         "name": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'", ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
         "about": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'" },
         "photo": { ".write": "auth != null && root.child('groups').child($gid).child('members').child(auth.uid).val() === 'admin'", ".validate": "newData.isString() && newData.val().length <= 60000" },
@@ -403,6 +446,7 @@
       ".read": "auth != null",
       "$cid": {
         ".write": "auth != null && !data.exists() && newData.child('owner').val() === auth.uid",
+        ".validate": "!newData.exists() || data.exists() || root.child('config').child('rateLimit').child('enforce').val() !== true || (!(root.child('users').child(auth.uid).child('createdAt').exists() && now - root.child('users').child(auth.uid).child('createdAt').val() < 3600000) && newData.parent().parent().child('quota').child(auth.uid).child('c').val() === (root.child('quota').child(auth.uid).child('d').val() === ((now - now % 86400000) / 86400000) ? root.child('quota').child(auth.uid).child('c').val() + 1 : 1))",
         "name": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid", ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
         "nameLower": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid" },
         "perms": { ".write": "auth != null && root.child('channels').child($cid).child('owner').val() === auth.uid" },
@@ -466,7 +510,7 @@
         ".read": "auth != null && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))",
         "$mid": {
           ".write": "auth != null && ( (!data.exists() && newData.child('from').val() === auth.uid && (($cid.contains('_') && $cid.contains(auth.uid)) || (root.child('groups').child($cid).child('members').child(auth.uid).exists() && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || ((root.child('groups').child($cid).child('perms').child('send').val() !== false && (newData.child('type').val() !== 'text' && newData.child('type').val() !== 'link' || root.child('groups').child($cid).child('perms').child('text').val() !== false) && ((newData.child('type').val() !== 'image' && newData.child('type').val() !== 'video' && newData.child('type').val() !== 'audio' && newData.child('type').val() !== 'file') || root.child('groups').child($cid).child('perms').child('image').val() !== false) && (newData.child('type').val() !== 'sticker' && newData.child('type').val() !== 'gif' || root.child('groups').child($cid).child('perms').child('sticker').val() !== false) && (newData.child('type').val() !== 'voice' || root.child('groups').child($cid).child('perms').child('voice').val() !== false)) && (!root.child('groups').child($cid).child('slow').exists() || root.child('groups').child($cid).child('slow').val() == 0 || !root.child('slow').child($cid).child(auth.uid).exists() || now - root.child('slow').child($cid).child(auth.uid).val() >= root.child('groups').child($cid).child('slow').val() * 1000)))) || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists() || (root.child('channels').child($cid).child('perms').child('followers').val() === true && root.child('channel_subs').child($cid).child(auth.uid).exists() && (root.child('channels').child($cid).child('perms').child('send').val() !== false && (newData.child('type').val() !== 'text' && newData.child('type').val() !== 'link' || root.child('channels').child($cid).child('perms').child('text').val() !== false) && ((newData.child('type').val() !== 'image' && newData.child('type').val() !== 'video' && newData.child('type').val() !== 'audio' && newData.child('type').val() !== 'file') || root.child('channels').child($cid).child('perms').child('image').val() !== false) && (newData.child('type').val() !== 'sticker' && newData.child('type').val() !== 'gif' || root.child('channels').child($cid).child('perms').child('sticker').val() !== false) && (newData.child('type').val() !== 'voice' || root.child('channels').child($cid).child('perms').child('voice').val() !== false)) && (!root.child('channels').child($cid).child('slow').exists() || root.child('channels').child($cid).child('slow').val() == 0 || !root.child('slow').child($cid).child(auth.uid).exists() || now - root.child('slow').child($cid).child(auth.uid).val() >= root.child('channels').child($cid).child('slow').val() * 1000)))) || (data.exists() && newData.exists() && data.child('from').val() === auth.uid && newData.child('from').val() === auth.uid && newData.child('type').val() === data.child('type').val() && newData.child('ts').val() === data.child('ts').val() && newData.child('kv').val() === data.child('kv').val()) || (data.exists() && !newData.exists() && (data.child('from').val() === auth.uid || ($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())) || (data.exists() && !newData.exists() && data.child('exp').isNumber() && data.child('exp').val() < now && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))) )",
-          ".validate": "!newData.exists() || (newData.hasChildren(['from','ts','type','body']) && newData.child('body').isString() && newData.child('body').val().length <= 60000 && (data.exists() ? newData.child('exp').val() === data.child('exp').val() : ((!root.child('chat_settings').child($cid).child('disappear').exists() || root.child('chat_settings').child($cid).child('disappear').val() == 0) ? !newData.child('exp').exists() : (newData.child('exp').isNumber() && newData.child('exp').val() > 0 && newData.child('exp').val() <= now + root.child('chat_settings').child($cid).child('disappear').val() * 1000 + 300000))) && (newData.child('type').val() !== 'sys' || data.exists() || (root.child('chat_settings').child($cid).child('by').val() === auth.uid && now - root.child('chat_settings').child($cid).child('ts').val() < 600000)))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['from','ts','type','body']) && newData.child('body').isString() && newData.child('body').val().length <= 60000 && (data.exists() ? newData.child('exp').val() === data.child('exp').val() : ((!root.child('chat_settings').child($cid).child('disappear').exists() || root.child('chat_settings').child($cid).child('disappear').val() == 0) ? !newData.child('exp').exists() : (newData.child('exp').isNumber() && newData.child('exp').val() > 0 && newData.child('exp').val() <= now + root.child('chat_settings').child($cid).child('disappear').val() * 1000 + 300000))) && (data.exists() || root.child('config').child('rateLimit').child('enforce').val() !== true || (((root.child('rate').child(auth.uid).child($cid).exists() && now - root.child('rate').child(auth.uid).child($cid).child('t').val() < 60000) ? newData.parent().parent().parent().child('rate').child(auth.uid).child($cid).child('n').val() === root.child('rate').child(auth.uid).child($cid).child('n').val() + 1 : (newData.parent().parent().parent().child('rate').child(auth.uid).child($cid).child('t').val() === now && newData.parent().parent().parent().child('rate').child(auth.uid).child($cid).child('n').val() === 1)) && ((root.child('rate_all').child(auth.uid).exists() && now - root.child('rate_all').child(auth.uid).child('t').val() < 60000) ? newData.parent().parent().parent().child('rate_all').child(auth.uid).child('n').val() === root.child('rate_all').child(auth.uid).child('n').val() + 1 : (newData.parent().parent().parent().child('rate_all').child(auth.uid).child('t').val() === now && newData.parent().parent().parent().child('rate_all').child(auth.uid).child('n').val() === 1)))) && (root.child('config').child('rateLimit').child('enforce').val() !== true || newData.child('type').val() !== 'link' || (data.exists() && data.child('type').val() === 'link') || (root.child('users').child(auth.uid).child('createdAt').exists() ? now - root.child('users').child(auth.uid).child('createdAt').val() >= 86400000 : true) || !($cid.contains('_') && $cid.contains(auth.uid) && $cid !== auth.uid + '_' + auth.uid) || root.child('rate').child($cid.replace(auth.uid, '').replace('_', '')).child($cid).exists()) && (newData.child('type').val() !== 'sys' || data.exists() || (root.child('chat_settings').child($cid).child('by').val() === auth.uid && now - root.child('chat_settings').child($cid).child('ts').val() < 600000)))",
           "exp": { ".validate": "newData.isNumber()" },
           "react": {
             "$ruid": { ".write": "auth != null && auth.uid === $ruid && (($cid.contains('_') && $cid.contains(auth.uid)) || root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))", ".validate": "newData.isString() && newData.val().length <= 8" }
