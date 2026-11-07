@@ -9,6 +9,8 @@ import android.content.Context
  */
 object Hinglish {
     private var lex: Map<String, String> = emptyMap()
+    /** Words from the hand-made base list only: used to decide whether a text is Hinglish at all (the generated verb forms would make plain English look like Hindi). */
+    private var strong: Set<String> = emptySet()
     private var en: Set<String> = emptySet()
     @Volatile private var ready = false
 
@@ -19,14 +21,18 @@ object Hinglish {
             try {
                 val l = c.assets.open("hinglish/hi_lex.tsv").bufferedReader(Charsets.UTF_8).readLines()
                 val e = c.assets.open("hinglish/en_words.txt").bufferedReader(Charsets.UTF_8).readLines()
-                set(l, e)
+                val x = try { c.assets.open("hinglish/hi_lex_extra.tsv").bufferedReader(Charsets.UTF_8).readLines() } catch (_: Exception) { emptyList() }
+                set(l, e, x)
             } catch (_: Exception) { /* without the lists the text is simply read as it is */ }
         }
     }
 
-    fun set(lexLines: List<String>, enWords: Collection<String>) {
-        val m = HashMap<String, String>(1024)
-        for (ln in lexLines) { val i = ln.indexOf('\t'); if (i > 0) m[ln.substring(0, i)] = ln.substring(i + 1).trim() }
+    fun set(lexLines: List<String>, enWords: Collection<String>, extraLines: List<String> = emptyList()) {
+        val m = HashMap<String, String>(4096)
+        for (ln in extraLines) { val i = ln.indexOf('\t'); if (i > 0) m[ln.substring(0, i)] = ln.substring(i + 1).trim() }
+        val base = HashSet<String>(1024)
+        for (ln in lexLines) { val i = ln.indexOf('\t'); if (i > 0) { m[ln.substring(0, i)] = ln.substring(i + 1).trim(); base.add(ln.substring(0, i)) } }   // the base list wins over generated forms
+        strong = base
         lex = m; en = enWords.map { it.trim() }.filter { it.isNotEmpty() }.toHashSet(); ready = true
     }
 
@@ -38,11 +44,21 @@ object Hinglish {
         V("a", "अ", ""), V("i", "इ", "ि"), V("u", "उ", "ु"), V("e", "ए", "े"), V("o", "ओ", "ो"))
     private const val HALANT = "्"
     private val NO_NASAL_BEFORE = setOf("न", "म", "य", "ह")
+    private val LABIAL = setOf("प", "ब", "भ", "फ")
+    private const val VOWELS = "aeiou"
 
     private class Tok(val cons: Boolean, val text: String, val v: V? = null)
 
     /** Letter-by-letter conversion of one lower-case word. */
-    fun translit(w: String): String {
+    fun translit(w0: String): String {
+        var w = w0
+        // milkar, dekhkar, sochkar: the verb stem plus कर, with the short a kept (no conjunct like मिल्कर)
+        if (w.length >= 6 && w.endsWith("kar") && w[w.length - 4] !in VOWELS) return translit(w.dropLast(3)) + "कर"
+        // karun, chalun / karoon: a final -un or -oon is the nasal long u (करूँ)
+        if (w.length >= 5 && w.endsWith("oon")) return translit(w.dropLast(3)) + "ूँ"
+        if (w.length >= 4 && w.endsWith("un") && w[w.length - 3] !in VOWELS) return translit(w.dropLast(2)) + "ूँ"
+        // banaya, dikhaya, banayi, banaye, banayega: the vowel before -ya / -yi / -ye is long (बनाया, not बनया)
+        if (w.length >= 5 && Regex("[^aeiou]a(ya|yi|ye)(g[ai]|nge)?$").containsMatchIn(w)) w = Regex("([^aeiou])a(y)").replace(w) { it.groupValues[1] + "aa" + it.groupValues[2] }
         val toks = ArrayList<Tok>(); var i = 0
         while (i < w.length) {
             val c = CONS.firstOrNull { w.startsWith(it.first, i) }
@@ -56,13 +72,13 @@ object Hinglish {
             if (!t.cons) { out.append(t.text); j++; continue }
             val nxt = if (j + 1 < n) toks[j + 1] else null
             // n / m inside a word before another consonant is the nasal dot (pahunch -> पहुंच)
-            if ((t.text == "न" || t.text == "म") && j > 0 && nxt != null && nxt.cons && nxt.text !in NO_NASAL_BEFORE) { out.append("ं"); j++; continue }
+            if (j > 0 && nxt != null && nxt.cons && ((t.text == "न" && nxt.text !in NO_NASAL_BEFORE) || (t.text == "म" && nxt.text in LABIAL))) { out.append("ं"); j++; continue }
             out.append(t.text)
             if (nxt == null) { /* the word ends on a consonant */ }
             else if (!nxt.cons) {
                 val v = nxt.v!!
                 var mat = v.mat; val last = (j + 2 == n)
-                if (v.key == "a" && last && j > 0) mat = "ा"          // final -a is long
+                if (v.key == "a" && last && (j > 0 || n == 2)) mat = "ा"          // final -a is long
                 else if (v.key == "i" && last) mat = "ी"              // final -i is long
                 out.append(mat); j++
             } else {
@@ -114,8 +130,8 @@ object Hinglish {
     fun looksHinglish(text: String): Boolean {
         val ws = Regex("[A-Za-z]+").findAll(text).map { it.value.lowercase() }.toList()
         if (ws.size < 3) return false
-        val hits = ws.count { it in lex && it !in SOFT }
-        val soft = ws.count { it in lex } - hits
+        val hits = ws.count { it in strong && it !in SOFT }
+        val soft = ws.count { it in strong } - hits
         return hits >= 2 || (hits >= 1 && hits + soft >= 4) || (hits + soft) * 100 / ws.size >= 45
     }
 }

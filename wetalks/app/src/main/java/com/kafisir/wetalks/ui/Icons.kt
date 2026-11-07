@@ -87,4 +87,6 @@ object Ic {
     val Clock: ImageVector by lazy { icon("Clock", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM12 7v5l3 2") }
     val Alert: ImageVector by lazy { icon("Alert", "M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18ZM12 7.5v5.5M12 16.5h.01") }
     val Pause2: ImageVector by lazy { icon("Pause2", "M9 5v14M15 5v14") }
+    val SkipNext: ImageVector by lazy { icon("SkipNext", "M6 5l9 7l-9 7Z", "M18 5v14") }
+    val SkipPrev: ImageVector by lazy { icon("SkipPrev", "M18 5l-9 7l9 7Z", "M6 5v14") }
 }

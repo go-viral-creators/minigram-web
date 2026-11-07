@@ -59,4 +59,33 @@ class HinglishTest {
         assertEquals("problem", s[1].second.trim()); assertEquals("help", s[3].second.trim())
         assertTrue(s[0].second.contains("भाई")); assertTrue(s[2].second.contains("यार")); assertTrue(s[4].second.trim().endsWith("?"))
     }
+
+    // the extra word list holds verb forms (banana, samjhao …); the letter rules cover the rest
+    private fun initWithExtra() {
+        val d = listOf("src/main/assets/hinglish", "app/src/main/assets/hinglish").map { File(it) }.first { it.exists() }
+        Hinglish.set(File(d, "hi_lex.tsv").readLines(Charsets.UTF_8), File(d, "en_words.txt").readLines(), File(d, "hi_lex_extra.tsv").readLines(Charsets.UTF_8))
+    }
+
+    @Test fun commonVerbFormsAreReadAsHindi() {
+        initWithExtra()
+        val cases = mapOf(
+            "mujhe plan banana hai" to "मुझे plan बनाना है", "usne khana banaya" to "उसने खाना बनाया", "mujhe vishwas nahi hota" to "मुझे विश्वास नहीं होता",
+            "usko samjhao" to "उसको समझाओ", "hum milkar karenge" to "हम मिलकर करेंगे", "kya karun" to "क्या करूँ", "video call nahi ho pa rahi" to "video call नहीं हो पा रही",
+            "main kal bolunga" to "मैं कल बोलूँगा", "tum kab aaoge" to "तुम कब आओगे", "sab theek ho jayega" to "सब ठीक हो जाएगा")
+        for ((a, b) in cases) assertEquals(a, b, Hinglish.toDevanagari(a))
+    }
+
+    @Test fun englishIsNeverMistakenForHinglishBecauseOfGeneratedForms() {
+        initWithExtra()
+        assertFalse(Hinglish.looksHinglish("The late train came to the lane near the gate and we waited"))
+        assertFalse(Hinglish.looksHinglish("I will call you tomorrow at five"))
+        assertTrue(Hinglish.looksHinglish("bhai kal milte hain, tension mat lo sab theek ho jayega"))
+    }
+
+    @Test fun mixedSentencesKeepEachLanguageInItsOwnPiece() {
+        initWithExtra()
+        val segs = Hinglish.segments("yaar ye app bahut slow chal raha hai")
+        assertEquals(listOf("hi", "en", "hi", "en", "hi"), segs.map { it.first })
+        assertEquals(listOf("app", "slow"), segs.filter { it.first == "en" }.map { it.second.trim() })
+    }
 }

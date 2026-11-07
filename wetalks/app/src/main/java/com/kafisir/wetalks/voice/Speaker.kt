@@ -6,6 +6,8 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.kafisir.wetalks.ui.Markdown
@@ -27,14 +29,23 @@ object Speaker {
     var reading by mutableStateOf(false); private set
     var paused by mutableStateOf(false); private set
     var label by mutableStateOf("Reading aloud"); private set
+    /** Reading speed (1.0 = normal), kept between readings. */
+    var speed by mutableFloatStateOf(1f); private set
+    /** Sentence being read (0-based) and how many there are. */
+    var sentence by mutableIntStateOf(0); private set
+    var total by mutableIntStateOf(0); private set
+    val speeds = listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
     private var neural = false
     private var sysChunks: List<String> = emptyList()
     @Volatile private var sysIdx = 0
+    @Volatile private var sysPos = 0            // character the voice had reached inside chunk [sysIdx]
+    @Volatile private var sysGen = 0            // every (re)start gets a number: answers from an older start are ignored
     private var sysId = ""
     private var appCtx: Context? = null
     private fun notifyService() { appCtx?.let { PlaybackService.sync(it) } }
+    private fun prefs(c: Context) = c.getSharedPreferences("wt_listen", Context.MODE_PRIVATE)
 
-    private fun finish() { speakingId = null; reading = false; paused = false; neural = false; notifyService(); onState?.invoke() }
+    private fun finish() { speakingId = null; reading = false; paused = false; neural = false; sentence = 0; total = 0; NeuralTts.onProgress = null; notifyService(); onState?.invoke() }
 
     private fun engine(ctx: Context, then: () -> Unit) {
         val t = tts
@@ -45,9 +56,12 @@ object Speaker {
             ready = status == TextToSpeech.SUCCESS
             if (ready) {
                 tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(id: String?) { val i = id?.substringAfterLast('#')?.toIntOrNull(); if (i != null) sysIdx = i else if (id?.endsWith("#last") == true) sysIdx = (sysChunks.size - 1).coerceAtLeast(0) }
-                    override fun onDone(id: String?) { if (id != null && id.endsWith("#last") && !paused) finish() }
-                    @Deprecated("") override fun onError(id: String?) { if (!paused) finish() }
+                    // utterance ids look like "<message>#g<start number>i<chunk>b<offset into the chunk>"; answers of an older start are dropped
+                    private fun parse(id: String?): IntArray? { val m = id?.let { Regex("#g(\\d+)i(\\d+)b(\\d+)$").find(it) } ?: return null; return intArrayOf(m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt()) }
+                    override fun onStart(id: String?) { val p = parse(id) ?: return; if (p[0] != sysGen) return; sysIdx = p[1]; sysPos = p[2]; sentence = p[1] }
+                    override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) { val p = parse(utteranceId) ?: return; if (p[0] != sysGen) return; sysPos = p[2] + start }
+                    override fun onDone(id: String?) { val p = parse(id) ?: return; if (p[0] == sysGen && p[1] >= sysChunks.lastIndex && !paused) finish() }
+                    @Deprecated("") override fun onError(id: String?) { val p = parse(id); if ((p == null || p[0] == sysGen) && !paused) finish() }
                 })
                 pending?.invoke()
             } else { tts = null; finish() }
@@ -56,6 +70,7 @@ object Speaker {
     }
 
     fun stop() {
+        sysGen++
         try { tts?.stop() } catch (_: Exception) {}; NeuralTts.stop()
         if (reading || speakingId != null) finish()
     }
@@ -63,47 +78,83 @@ object Speaker {
     fun pause() {
         if (!reading || paused) return
         paused = true
-        if (neural) NeuralTts.pause() else try { tts?.stop() } catch (_: Exception) {}     // the phone's engine has no pause: it restarts from the current sentence
+        // the natural voice pauses its audio exactly where it is; the phone's engine has no pause, so it is stopped and continues from the word it had reached
+        if (neural) NeuralTts.pause() else { sysGen++; try { tts?.stop() } catch (_: Exception) {} }
         notifyService()
     }
     fun resume() {
         if (!reading || !paused) return
         paused = false
-        if (neural) NeuralTts.resume() else speakSys(sysIdx)
+        if (neural) NeuralTts.resume() else speakSys(sysIdx, sysPos)
         notifyService()
     }
     fun toggle() { if (paused) resume() else pause() }
 
-    private fun speakSys(from: Int) {
+    /** One sentence back (-1) or forward (+1). */
+    fun skip(delta: Int) {
+        if (!reading || total <= 0) return
+        val n = (sentence + delta).coerceIn(0, total - 1)
+        sentence = n; paused = false
+        if (neural) NeuralTts.restart(n, speed) else speakSys(n, 0)
+        notifyService()
+    }
+
+    fun changeSpeed(v: Float) {
+        speed = v.coerceIn(0.5f, 2f)
+        appCtx?.let { prefs(it).edit().putFloat("speed", speed).apply() }
+        if (!reading) return
+        if (neural) { paused = false; NeuralTts.restart(sentence, speed) }
+        else { try { tts?.setSpeechRate(speed) } catch (_: Exception) {}; if (!paused) speakSys(sysIdx, sysPos) }
+        notifyService()
+    }
+    fun cycleSpeed() { val i = speeds.indexOfFirst { kotlin.math.abs(it - speed) < 0.01f }; changeSpeed(speeds[(i + 1).mod(speeds.size)]) }
+
+    /** Speaks the chunks from [from], starting at character [offset] of the first one (that is how a pause continues from the same word). */
+    private fun speakSys(from: Int, offset: Int) {
         val t = tts ?: return
         val parts = sysChunks; if (parts.isEmpty()) return
+        val gen = ++sysGen
+        val first = from.coerceIn(0, parts.lastIndex)
         t.stop()
-        for (i in from.coerceIn(0, parts.lastIndex)..parts.lastIndex)
-            t.speak(parts[i], if (i == from) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, sysId + (if (i == parts.lastIndex) "#last" else "#$i"))
+        for (i in first..parts.lastIndex) {
+            val base = if (i == first) offset.coerceIn(0, maxOf(0, parts[i].length - 1)) else 0
+            val text = parts[i].substring(base)
+            if (text.isBlank()) continue
+            t.speak(text, if (i == first) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "$sysId#g${gen}i${i}b$base")
+        }
     }
 
     /** Reads [text] aloud. A voice note and the reader never play at the same time. */
     fun speak(ctx: Context, id: String, text: String, appLang: String, say: (String) -> Unit, title: String = "") {
         if (speakingId == id) { stop(); return }
         appCtx = ctx.applicationContext
+        speed = prefs(ctx).getFloat("speed", 1f).coerceIn(0.5f, 2f)
         val clean = Markdown.plain(text).replace(Regex("https?://\\S+"), " link ").replace(Regex("\\s+"), " ").trim()
         if (clean.isEmpty()) return
         VoicePlayer.stop(); stop()
         label = title.ifEmpty { "Reading aloud" }
+        Hinglish.load(ctx)
         val locEarly = detect(clean, appLang)
+        val hing = Hinglish.looksHinglish(clean)
         // natural (downloaded) voice when the person turned it on and it covers this language; otherwise the phone's own voice
-        if (NeuralTts.usable()) {
-            Hinglish.load(ctx)
-            val hing = Hinglish.looksHinglish(clean)
-            if (hing || NeuralTts.supports(locEarly.language)) {
-                neural = true; speakingId = id; reading = true; paused = false; notifyService(); onState?.invoke()
-                NeuralTts.speak(ctx, clean, locEarly.language, hing, say) { if (speakingId == id) finish() }
-                return
-            }
+        if (NeuralTts.usable() && (hing || NeuralTts.supports(locEarly.language))) {
+            neural = true; speakingId = id; reading = true; paused = false; sentence = 0
+            NeuralTts.onProgress = { sentence = it }
+            NeuralTts.speak(ctx, clean, locEarly.language, hing, say, speed) { if (speakingId == id) finish() }
+            total = NeuralTts.sentenceTotal
+            notifyService(); onState?.invoke()
+            return
         }
         engine(ctx) {
             val t = tts ?: return@engine
-            val loc = Locale(locEarly.language, locEarly.country)
+            // romanised Hindi is read far better by a Hindi voice from Devanagari; English words in it keep their letters
+            var spoken = clean
+            var loc = Locale(locEarly.language, locEarly.country)
+            if (hing) {
+                val hi = Locale("hi", "IN")
+                if (best(t, hi) != null || t.isLanguageAvailable(hi) >= TextToSpeech.LANG_AVAILABLE) { loc = hi; spoken = Hinglish.toDevanagari(clean) }
+                else loc = Locale("en", "IN")
+            }
             val voice = best(t, loc)
             if (voice == null) {
                 val r = t.isLanguageAvailable(loc)
@@ -114,22 +165,14 @@ object Speaker {
                 }
                 t.language = loc
             } else t.voice = voice
-            t.setSpeechRate(0.97f); t.setPitch(1.0f)
-            neural = false; speakingId = id; reading = true; paused = false; sysId = id; sysIdx = 0
-            sysChunks = chunks(clean)          // the engine refuses very long text in one go: sentence-sized chunks, which also lets us pause
+            t.setSpeechRate(speed); t.setPitch(1.0f)
+            neural = false; speakingId = id; reading = true; paused = false; sysId = id; sysIdx = 0; sysPos = 0; sentence = 0
+            sysChunks = ReadPlan.sentences(spoken, 220, 160)          // one sentence at a time: the engine refuses very long text, and a pause continues from the same sentence
+            if (sysChunks.isEmpty()) sysChunks = listOf(spoken.take(220))
+            total = sysChunks.size
             notifyService(); onState?.invoke()
-            speakSys(0)
+            speakSys(0, 0)
         }
-    }
-
-    private fun chunks(s: String): List<String> {
-        val out = ArrayList<String>(); val sb = StringBuilder()
-        for (sentence in s.split(Regex("(?<=[.!?।])\\s+"))) {
-            if (sb.length + sentence.length > 400 && sb.isNotEmpty()) { out.add(sb.toString()); sb.clear() }
-            if (sentence.length > 400) { sentence.chunked(400).forEach { out.add(it) } } else sb.append(sentence).append(' ')
-        }
-        if (sb.isNotBlank()) out.add(sb.toString().trim())
-        return out.ifEmpty { listOf(s.take(400)) }
     }
 
     private fun best(t: TextToSpeech, loc: Locale): Voice? {

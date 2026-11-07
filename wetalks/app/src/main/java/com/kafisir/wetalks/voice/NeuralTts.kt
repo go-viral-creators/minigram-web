@@ -203,9 +203,17 @@ object NeuralTts {
     private var appCtx: Context? = null
     var lastCrash by mutableStateOf("")          // what the system recorded when the voice engine process died
         private set
+    private var jid = 0L                  // the reading that is current: answers from any older reading are ignored
+    private var plan: List<ReadPlan.Piece> = emptyList()
+    private var curSpeed = 1f
+    /** Which sentence is being read (0-based), reported while the voice plays. */
+    var onProgress: ((Int) -> Unit)? = null
+    val sentenceTotal: Int get() = (plan.maxOfOrNull { it.sentence } ?: -1) + 1
     private val replies by lazy { android.os.Messenger(android.os.Handler(android.os.Looper.getMainLooper()) { m ->
+        if ((m.data?.getLong("jid", -1L) ?: -1L) != jid) return@Handler true
         when (m.what) {
             TtsService.R_STARTED -> {}
+            TtsService.R_PROGRESS -> onProgress?.invoke(m.data.getInt("i", 0))
             TtsService.R_DONE -> finishCall()
             TtsService.R_ERROR -> { sayCb?.invoke("Natural voice failed. Using your phone's voice next time."); lastCrash = "Engine error: " + (m.data?.getString("t") ?: ""); appCtx?.let { markBroken(it) }; finishCall() }
         }
@@ -275,30 +283,49 @@ object NeuralTts {
 
     private fun free() { appCtx?.let { c -> send(c, android.os.Message.obtain(null, TtsService.MSG_FREE)) } }
 
-    fun stop() { try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_STOP)) } catch (_: Exception) {} }
+    fun stop() { jid++; doneCb = null; sayCb = null; try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_STOP)) } catch (_: Exception) {} }
     fun pause() { try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_PAUSE)) } catch (_: Exception) {} }
     fun resume() { try { svc?.send(android.os.Message.obtain(null, TtsService.MSG_RESUME)) } catch (_: Exception) {} }
 
-    /** Reads [text] aloud. Starts playing after the first sentence is ready. [done] is called when it ends or is stopped (also on error). */
-    fun speak(c: Context, text: String, lang: String, hinglish: Boolean, say: (String) -> Unit, done: () -> Unit) {
+    /** Reads [text] aloud, [speed] times normal speed. Starts playing after the first sentence is ready. [done] is called when it ends or is stopped (also on error). */
+    fun speak(c: Context, text: String, lang: String, hinglish: Boolean, say: (String) -> Unit, speed: Float, done: () -> Unit) {
         val ctx = c.applicationContext; appCtx = ctx
         var code = norm(lang)
         val body = prepare(text)
         if (hinglish) code = "hi"
         if (code !in LANGS) { done(); return }
         // Hinglish, or Hindi with English words in it: every word is read by the voice of its own language (Hindi words in Devanagari, English words in English)
-        val pieces: List<Pair<String, String>> = if (hinglish || (code == "hi" && body.any { it in 'A'..'Z' || it in 'a'..'z' })) { Hinglish.load(ctx); Hinglish.segments(body) } else listOf(code to body)
-        val chunkList = ArrayList<Pair<String, String>>()
-        for ((l, t) in pieces) for (c in chunks(t)) chunkList.add(l to c)
+        val mixed = hinglish || (code == "hi" && body.any { it in 'A'..'Z' || it in 'a'..'z' })
+        if (mixed) Hinglish.load(ctx)
+        plan = ReadPlan.pieces(ReadPlan.sentences(body), code, if (mixed) { s -> Hinglish.segments(s) } else null)
+        if (plan.isEmpty()) { done(); return }
         stop()
-        doneCb?.let { it() }          // an earlier reading that was replaced
         doneCb = done; sayCb = say
         lastCrash = ""
+        curSpeed = speed.coerceIn(0.5f, 2f)
         prefs(ctx).edit().putBoolean("busy", true).apply()
+        dispatch(ctx, 0)
+    }
+
+    /** Starts again from sentence [from] at [speed] (skip back / forward, or a new speed). The previous reading is replaced without ending the session. */
+    fun restart(from: Int, speed: Float) {
+        val ctx = appCtx ?: return
+        if (plan.isEmpty() || doneCb == null) return
+        curSpeed = speed.coerceIn(0.5f, 2f)
+        dispatch(ctx, from.coerceIn(0, maxOf(0, sentenceTotal - 1)))
+    }
+
+    private fun dispatch(ctx: Context, from: Int) {
+        val part = plan.filter { it.sentence >= from }.ifEmpty { plan }
+        jid++
         val threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(2, 4)
         val m = android.os.Message.obtain(null, TtsService.MSG_SPEAK).apply {
             replyTo = replies
-            data = android.os.Bundle().apply { putString("dir", dir(ctx).absolutePath + "/"); putStringArrayList("chunks", ArrayList(chunkList.map { it.second })); putStringArrayList("langs", ArrayList(chunkList.map { it.first })); putInt("sid", voice); putInt("threads", threads) }
+            data = android.os.Bundle().apply {
+                putString("dir", dir(ctx).absolutePath + "/"); putStringArrayList("chunks", ArrayList(part.map { it.text })); putStringArrayList("langs", ArrayList(part.map { it.lang }))
+                putIntArray("sents", part.map { it.sentence }.toIntArray()); putIntArray("gaps", part.map { (it.gapMs / curSpeed).toInt() }.toIntArray())
+                putInt("sid", voice); putInt("threads", threads); putLong("jid", jid); putFloat("speed", curSpeed)
+            }
         }
         send(ctx, m)
     }
