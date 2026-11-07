@@ -482,6 +482,80 @@
       }
     },
 
+    "chat_settings": {
+      "$cid": {
+        ".read": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))",
+        "nsfw": {
+          ".write": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())",
+          ".validate": "!newData.exists() || (newData.hasChildren(['on','lvl','by','ts']) && newData.child('by').val() === auth.uid && newData.child('ts').val() === now)",
+          "on": { ".validate": "newData.isBoolean()" },
+          "lvl": { ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === 1 || newData.val() === 2)" },
+          "by": { ".validate": "newData.isString()" },
+          "ts": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "moderation": {
+      "$cid": {
+        ".read": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())",
+        "$mid": {
+          ".write": "auth != null && !newData.exists() && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())",
+          "$by": {
+            ".read": "auth != null && auth.uid === $by",
+            ".write": "auth != null && auth.uid === $by && !data.exists() && newData.exists() && (root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))",
+            ".validate": "newData.hasChildren(['s','by','ts']) && newData.child('by').val() === auth.uid && newData.child('ts').val() === now && root.child('messages').child($cid).child($mid).exists() && root.child('messages').child($cid).child($mid).child('from').val() !== auth.uid && !root.child('moderation_ok').child($cid).child($mid).exists() && newData.parent().parent().parent().parent().child('admin_alerts').child($cid).child($mid).child('by').val() === auth.uid",
+            "s": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0" },
+            "by": { ".validate": "newData.isString()" },
+            "ts": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        }
+      }
+    },
+
+    "moderation_ok": {
+      "$cid": {
+        ".read": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))",
+        "$mid": {
+          ".write": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())",
+          ".validate": "!newData.exists() || newData.val() === true"
+        }
+      }
+    },
+
+    "admin_alerts": {
+      "$cid": {
+        ".read": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())",
+        "$mid": {
+          ".write": "auth != null && ((!data.exists() && newData.exists() && (root.child('groups').child($cid).child('members').child(auth.uid).exists() || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))) || (data.exists() && !newData.exists() && (root.child('groups').child($cid).child('members').child(auth.uid).val() === 'admin' || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['kind','mid','by','ts']) && newData.child('kind').val() === 'nsfw' && newData.child('mid').val() === $mid && newData.child('by').val() === auth.uid && newData.child('ts').val() === now && root.child('messages').child($cid).child($mid).exists() && root.child('messages').child($cid).child($mid).child('from').val() !== auth.uid && !root.child('moderation_ok').child($cid).child($mid).exists() && newData.parent().parent().parent().child('admin_alert_quota').child($cid).child(auth.uid).child('m').val() === $mid && newData.parent().parent().parent().child('admin_alert_quota').child($cid).child(auth.uid).child('h').val() === ((now - now % 3600000) / 3600000))",
+          "kind": { ".validate": "newData.isString()" },
+          "mid": { ".validate": "newData.isString() && newData.val().length <= 128" },
+          "by": { ".validate": "newData.isString()" },
+          "ts": { ".validate": "newData.isNumber()" },
+          "s": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100 && newData.val() % 1 === 0" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "admin_alert_quota": {
+      "$cid": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && newData.exists()",
+          ".validate": "newData.hasChildren(['h','n','m']) && newData.child('h').val() === ((now - now % 3600000) / 3600000) && newData.child('n').isNumber() && newData.child('n').val() >= 1 && newData.child('n').val() <= 5 && newData.child('n').val() === (data.child('h').val() === ((now - now % 3600000) / 3600000) ? data.child('n').val() + 1 : 1) && (root.child('groups').child($cid).exists() || root.child('channels').child($cid).exists())",
+          "h": { ".validate": "newData.isNumber()" },
+          "n": { ".validate": "newData.isNumber()" },
+          "m": { ".validate": "newData.isString() && newData.val().length <= 128" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "key_backups": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

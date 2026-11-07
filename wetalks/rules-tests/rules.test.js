@@ -1058,3 +1058,147 @@ test('call renegotiation node (video on / ICE restart): only the two people on t
   await assertFails(set(ref(anon(), `calls/${id}/neg`), { by: A, kind: 'offer', n: 5, sdp: 'evil' }));
   await assertFails(set(ref(db(C), `calls/${id}/ice_caller/k1`), 'sealed'));
 });
+
+// ======================================================================= sensitive-image protection (team/nsfw): groups and channels only
+const NE = 'erin', NM = 'mallory', NF = 'frank';
+const nHour = () => Math.floor(Date.now() / 3600000);
+async function nsfwSeed() {
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database();
+    await set(ref(d, 'groups/g1/members/erin'), 'member');
+    await set(ref(d, 'channel_subs/c1/frank'), true); await set(ref(d, 'channel_subs/c1/bob'), true);
+    for (let i = 1; i <= 8; i++) await set(ref(d, `messages/g1/n${i}`), { from: NE, ts: i, type: 'image', body: 'ct' });
+    await set(ref(d, 'messages/g1/mine'), { from: B, ts: 1, type: 'image', body: 'ct' });
+    await set(ref(d, 'messages/c1/cp1'), { from: A, ts: 1, type: 'image', body: 'pt' });
+    await set(ref(d, 'messages/alice_bob/dm1'), { from: A, ts: 1, type: 'image', body: 'ct' });
+  });
+}
+/** One atomic update, like the app sends: the alert, the quota counter and the scanner's own mark. */
+function nsfwFlag(user, cid, mid, { n = 1, s = 85, alert = true, quota = true, mark = true, by = user, m = mid, h = nHour() } = {}) {
+  const up = {};
+  if (alert) up[`admin_alerts/${cid}/${mid}`] = { kind: 'nsfw', mid, by, ts: serverTimestamp(), s };
+  if (quota) up[`admin_alert_quota/${cid}/${user}`] = { h, n, m };
+  if (mark) up[`moderation/${cid}/${mid}/${user}`] = { s, by, ts: serverTimestamp() };
+  return update(ref(db(user)), up);
+}
+
+test('nsfw: a group member flags a message; only admins read the alerts and marks, the flagger reads only his own mark', async () => {
+  await nsfwSeed();
+  await assertSucceeds(nsfwFlag(B, 'g1', 'n1'));
+  await assertSucceeds(get(ref(db(A), 'admin_alerts/g1')));                // owner/admin reads
+  await assertSucceeds(get(ref(db(A), 'moderation/g1')));
+  await assertFails(get(ref(db(B), 'admin_alerts/g1')));                   // a plain member does not
+  await assertFails(get(ref(db(B), 'moderation/g1')));
+  await assertFails(get(ref(db(B), 'moderation/g1/n1')));
+  await assertSucceeds(get(ref(db(B), 'moderation/g1/n1/bob')));           // his own mark only (so his phone remembers it)
+  await assertFails(get(ref(db(NE), 'moderation/g1/n1/bob')));             // nobody else sees who flagged
+  await assertFails(get(ref(db(NE), 'admin_alerts/g1/n1')));
+  await assertFails(get(ref(anon(), 'admin_alerts/g1')));
+  await assertFails(get(ref(db(NM), 'admin_alert_quota/g1/bob')));         // the counter is private to its owner
+  await assertSucceeds(get(ref(db(B), 'admin_alert_quota/g1/bob')));
+});
+
+test('nsfw: a stranger, a DM id, an own message, a missing message and forged fields are all refused', async () => {
+  await nsfwSeed();
+  await assertFails(nsfwFlag(NM, 'g1', 'n1'));                             // not a member of the group
+  await assertFails(nsfwFlag(B, 'alice_bob', 'dm1'));                      // a DM id is neither a group nor a channel: flagging does not exist there
+  await assertFails(nsfwFlag(A, 'alice_bob', 'dm1'));
+  await assertFails(nsfwFlag(B, 'g1', 'mine'));                            // his own photo
+  await assertFails(nsfwFlag(B, 'g1', 'nope'));                            // no such message
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { by: NE }));                  // forged scanner id on the alert
+  await assertFails(update(ref(db(B)), {                                   // a mark under somebody else's name
+    'moderation/g1/n1/erin': { s: 80, by: NE, ts: serverTimestamp() },
+    'admin_alerts/g1/n1': { kind: 'nsfw', mid: 'n1', by: B, ts: serverTimestamp() }, 'admin_alert_quota/g1/bob': { h: nHour(), n: 1, m: 'n1' } }));
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { s: 150 }));                  // bucket out of range
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { s: 33.5 }));
+  await assertFails(set(ref(db(B), 'admin_alerts/g1/n1'), { kind: 'nsfw', mid: 'n1', by: B, ts: 5 }));       // client-chosen timestamp
+  await assertFails(update(ref(db(B)), { 'admin_alerts/g1/n1': { kind: 'porn', mid: 'n1', by: B, ts: serverTimestamp() }, 'admin_alert_quota/g1/bob': { h: nHour(), n: 1, m: 'n1' } }));
+  await assertFails(update(ref(db(B)), { 'admin_alerts/g1/n1': { kind: 'nsfw', mid: 'n1', by: B, ts: serverTimestamp(), extra: 'x' }, 'admin_alert_quota/g1/bob': { h: nHour(), n: 1, m: 'n1' } }));
+  await assertFails(update(ref(db(B)), { 'admin_alerts/g1/n1': { kind: 'nsfw', mid: 'n2', by: B, ts: serverTimestamp() }, 'admin_alert_quota/g1/bob': { h: nHour(), n: 1, m: 'n1' } }));   // alert id and mid differ
+  await assertFails(set(ref(db(B), 'admin_alert_quota/alice_bob/bob'), { h: nHour(), n: 1, m: 'dm1' }));    // a counter for a DM id
+});
+
+test('nsfw: flagging needs the counter in the same write (no alert without it, no stale counter, one counter step per alert)', async () => {
+  await nsfwSeed();
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { quota: false }));            // alert + mark without the counter
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { n: 2 }));                    // counter must start at 1
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { h: nHour() - 1 }));          // old hour bucket
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { m: 'n2' }));                 // counter step bound to a different message
+  await assertFails(update(ref(db(B)), {                                   // two alerts, one counter step
+    'admin_alerts/g1/n3': { kind: 'nsfw', mid: 'n3', by: B, ts: serverTimestamp() }, 'admin_alerts/g1/n4': { kind: 'nsfw', mid: 'n4', by: B, ts: serverTimestamp() },
+    'admin_alert_quota/g1/bob': { h: nHour(), n: 1, m: 'n3' } }));
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { alert: false }));            // a mark needs its alert (no silent marks)
+  await assertSucceeds(nsfwFlag(B, 'g1', 'n1'));
+  // the counter is now stale (n=1, same hour): it cannot license a second alert without a real step
+  await assertFails(set(ref(db(B), 'admin_alerts/g1/n2'), { kind: 'nsfw', mid: 'n2', by: B, ts: serverTimestamp() }));
+});
+
+test('nsfw: flooding is stopped: 5 alerts per person per chat per hour, then refused; others are not affected', async () => {
+  await nsfwSeed();
+  for (let i = 1; i <= 5; i++) await assertSucceeds(nsfwFlag(B, 'g1', `n${i}`, { n: i }));
+  await assertFails(nsfwFlag(B, 'g1', 'n6', { n: 6 }));                    // 6th: over the limit
+  await assertFails(nsfwFlag(B, 'g1', 'n6', { n: 1 }));                    // resetting the counter inside the same hour
+  await assertFails(update(ref(db(B)), { 'admin_alert_quota/g1/bob': { h: nHour(), n: 99, m: 'n6' } }));
+  await assertFails(remove(ref(db(B), 'admin_alert_quota/g1/bob')));
+  await assertSucceeds(nsfwFlag(NE, 'g1', 'mine', { n: 1 }));              // another person has his own counter
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { n: 1 }));                    // the same message cannot be flagged twice
+});
+
+test('nsfw: one mark per scanner per message (create-only); members cannot remove or change anything; admins un-flag and it stays cleared', async () => {
+  await nsfwSeed();
+  await assertSucceeds(nsfwFlag(B, 'g1', 'n1'));
+  await assertFails(set(ref(db(B), 'moderation/g1/n1/bob'), { s: 10, by: B, ts: serverTimestamp() }));       // overwrite my own mark
+  await assertFails(remove(ref(db(B), 'moderation/g1/n1/bob')));                                             // un-flag as a member
+  await assertFails(remove(ref(db(B), 'moderation/g1/n1')));
+  await assertFails(remove(ref(db(B), 'admin_alerts/g1/n1')));
+  await assertFails(remove(ref(db(NE), 'admin_alerts/g1/n1')));
+  await assertFails(update(ref(db(B), 'admin_alerts/g1/n1'), { s: 1 }));
+  await assertSucceeds(nsfwFlag(NE, 'g1', 'mine', { n: 1 }));                                                // a different message is fine
+  await assertSucceeds(remove(ref(db(A), 'moderation/g1/n1')));                                              // admin: "not sensitive"
+  await assertSucceeds(remove(ref(db(A), 'admin_alerts/g1/n1')));
+  await assertSucceeds(set(ref(db(A), 'moderation_ok/g1/n1'), true));
+  await assertFails(nsfwFlag(B, 'g1', 'n1', { n: 2 }));                                                      // nobody can flag it again
+  await assertFails(set(ref(db(B), 'moderation_ok/g1/n2'), true));                                           // members cannot clear
+  await assertSucceeds(get(ref(db(B), 'moderation_ok/g1/n1')));                                              // members read it (their phones stop blurring)
+  await assertFails(get(ref(db(NM), 'moderation_ok/g1/n1')));
+  await assertFails(set(ref(db(A), 'moderation_ok/g1/n3'), 'yes'));
+});
+
+test('nsfw: channels: a follower flags, owner reads, a private channel stays closed to strangers, a public one is open to readers', async () => {
+  await nsfwSeed();
+  await assertSucceeds(nsfwFlag(NF, 'c1', 'cp1'));
+  await assertSucceeds(get(ref(db(A), 'admin_alerts/c1')));
+  await assertSucceeds(get(ref(db(A), 'moderation/c1')));
+  await assertFails(get(ref(db(NF), 'admin_alerts/c1')));
+  await assertFails(get(ref(db(B), 'moderation/c1/cp1')));
+  await assertFails(nsfwFlag(NM, 'c1', 'cp1', { n: 1 }));                                                    // already flagged: an alert exists for this message
+  await env.withSecurityRulesDisabled(async (ctx) => { await remove(ref(ctx.database(), 'admin_alerts/c1')); await remove(ref(ctx.database(), 'moderation/c1')); });
+  await assertSucceeds(nsfwFlag(NM, 'c1', 'cp1'));                                                           // public channel: any reader may flag
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'channels/c1/priv'), true); await remove(ref(ctx.database(), 'admin_alerts/c1')); await remove(ref(ctx.database(), 'moderation/c1')); await remove(ref(ctx.database(), 'admin_alert_quota/c1')); });
+  await assertFails(nsfwFlag(NM, 'c1', 'cp1'));                                                              // private channel, not a follower
+  await assertSucceeds(nsfwFlag(B, 'c1', 'cp1'));                                                            // follower
+});
+
+test('nsfw settings: admins write, members read, strangers and DM ids cannot; shape is validated', async () => {
+  await nsfwSeed();
+  const v = (o) => ({ on: true, lvl: 1, by: A, ts: serverTimestamp(), ...o });
+  await assertSucceeds(set(ref(db(A), 'chat_settings/g1/nsfw'), v({})));
+  await assertSucceeds(set(ref(db(A), 'chat_settings/g1/nsfw'), v({ on: false, lvl: 2 })));
+  await assertFails(set(ref(db(B), 'chat_settings/g1/nsfw'), v({ by: B })));                                  // plain member
+  await assertFails(set(ref(db(NM), 'chat_settings/g1/nsfw'), v({ by: NM })));
+  await assertFails(set(ref(db(A), 'chat_settings/g1/nsfw'), v({ by: B })));                                  // forged author
+  await assertFails(set(ref(db(A), 'chat_settings/g1/nsfw'), v({ lvl: 3 })));                                 // unknown strictness
+  await assertFails(set(ref(db(A), 'chat_settings/g1/nsfw'), v({ on: 'yes' })));
+  await assertFails(set(ref(db(A), 'chat_settings/g1/nsfw'), v({ ts: 1 })));
+  await assertFails(set(ref(db(A), 'chat_settings/g1/nsfw'), { ...v({}), junk: 1 }));
+  await assertFails(set(ref(db(A), 'chat_settings/alice_bob/nsfw'), v({})));                                  // no scanning settings for a private chat
+  await assertFails(set(ref(db(B), 'chat_settings/alice_bob/nsfw'), v({ by: B })));
+  await assertSucceeds(get(ref(db(B), 'chat_settings/g1/nsfw')));                                             // members read
+  await assertFails(get(ref(db(NM), 'chat_settings/g1/nsfw')));
+  await assertFails(get(ref(db(A), 'chat_settings/alice_bob/nsfw')));                                         // nothing exists for DMs
+  await assertSucceeds(set(ref(db(A), 'chat_settings/c1/nsfw'), v({})));                                      // channel owner
+  await assertFails(set(ref(db(NF), 'chat_settings/c1/nsfw'), v({ by: NF })));                                // follower
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'channels/c1/priv'), true); });
+  await assertSucceeds(get(ref(db(NF), 'chat_settings/c1/nsfw')));
+  await assertFails(get(ref(db(NM), 'chat_settings/c1/nsfw')));                                               // private channel, stranger
+  await assertSucceeds(remove(ref(db(A), 'chat_settings/c1/nsfw')));
+});
