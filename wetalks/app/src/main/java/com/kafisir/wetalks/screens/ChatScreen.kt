@@ -774,7 +774,7 @@ fun ChatScreen(ref: ChatRef) {
             onReport = if (m.from != me && !m.deleted && !m.pending && !saved) ({ reportTarget = ReportTarget.Message(ref, m.id, m.from, ReportLogic.snapshotOf(m.type, m.text), m.type, m.ts) to "this message"; menuMsg = null }) else null,
             onDelete = { deleting = listOf(m); menuMsg = null })
     }
-    reportTarget?.let { (t, what) -> ReportSheet(t, what) { reportTarget = null } }
+    (reportTarget ?: ReportBus.pending)?.let { (t, what) -> ReportSheet(t, what) { reportTarget = null; ReportBus.pending = null } }
     deleting?.let { list ->
         val canAll = when (ref.kind) { Kind.DM -> true; Kind.GROUP -> list.all { it.from == me } || group?.members?.get(me) == "admin"; Kind.CHANNEL -> canPost }
         val peerName = if (ref.kind == Kind.DM && !saved) title else null
@@ -923,7 +923,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 if (m.type != "image" && !isSticker) MetaRow(m, mine, read, fg, pinned)
             }
             if (isSticker) MetaRow(m, mine, read, We.text2, pinned)
-            if (!mine) ScamBannerFor(m)
+            if (!mine) ScamBannerFor(m, onReport = { if (!m.deleted && !m.pending) ReportBus.pending = ReportTarget.Message(ref, m.id, m.from, ReportLogic.snapshotOf(m.type, m.text), m.type, m.ts) to "this message" })
             if (m.reactions.isNotEmpty()) {
                 val groups = m.reactions.values.groupingBy { it }.eachCount()
                 Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {

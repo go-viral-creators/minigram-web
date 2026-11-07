@@ -190,3 +190,8 @@ fun ModerationScreen(id: String, kind: Kind) {
 
 private suspend fun banUser(kind: Kind, id: String, uid: String) { if (kind == Kind.GROUP) Reports.banFromGroup(id, uid) else Reports.banFromChannel(id, uid) }
 private suspend fun removeUser(kind: Kind, id: String, uid: String) { if (kind == Kind.GROUP) Repo.removeMember(id, uid) else Reports.removeFollower(id, uid) }
+
+/** Lets a small composable deep inside a bubble (the scam banner) ask the chat screen to open the report sheet. */
+object ReportBus {
+    var pending by androidx.compose.runtime.mutableStateOf<Pair<ReportTarget, String>?>(null)
+}
