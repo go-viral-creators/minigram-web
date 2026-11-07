@@ -1550,3 +1550,313 @@ test('nsfw settings: admins write, members read, strangers and DM ids cannot; sh
   await assertFails(get(ref(db(NM), 'chat_settings/c1/nsfw')));                                               // private channel, stranger
   await assertSucceeds(remove(ref(db(A), 'chat_settings/c1/nsfw')));
 });
+
+// ====================================================================================================================
+// rate limits (messages per minute, new accounts, group / channel creation per day) -- config/rateLimit/enforce switch
+// ====================================================================================================================
+const RL_DAY = 86400000;
+const rlToday = () => Math.floor(Date.now() / RL_DAY);
+const rlEnforce = async (on = true) => env.withSecurityRulesDisabled(async (ctx) => set(ref(ctx.database(), 'config/rateLimit/enforce'), on));
+const rlSeed = async (path, value) => env.withSecurityRulesDisabled(async (ctx) => set(ref(ctx.database(), path), value));
+const rlAge = async (u, ms) => rlSeed(`users/${u}/createdAt`, Date.now() - ms);          // account created ms ago
+const rlLive = (c) => !!c && Date.now() - c.t < 59000;
+
+// builds the SAME multi-path update the new app builds for one message: message + per-chat counter + all-chats counter (+ quota for a new DM chat)
+async function rlSend(u, cid, mid, o = {}) {
+  const d = db(u);
+  const cur = (await get(ref(d, `rate/${u}/${cid}`))).val();
+  const all = (await get(ref(d, `rate_all/${u}`))).val();
+  const up = { [`messages/${cid}/${mid}`]: { from: u, ts: Date.now(), type: o.type || 'text', body: 'ct' } };
+  if (rlLive(cur)) {
+    up[`rate/${u}/${cid}/n`] = increment(1);
+    if (o.h) { up[`rate/${u}/${cid}/h`] = o.h; up[`rate/${u}/${cid}/hn`] = cur.h === o.h ? cur.hn + 1 : 1; }
+  } else {
+    up[`rate/${u}/${cid}`] = o.h ? { t: serverTimestamp(), n: 1, h: o.h, hn: 1 } : { t: serverTimestamp(), n: 1 };
+    if (!cur && o.newChat) {
+      const q = (await get(ref(d, `quota/${u}`))).val();
+      if (q && q.d === rlToday()) up[`quota/${u}/n`] = increment(1); else up[`quota/${u}`] = { d: rlToday(), g: 0, c: 0, n: 1 };
+    }
+  }
+  if (rlLive(all)) up[`rate_all/${u}/n`] = increment(1); else up[`rate_all/${u}`] = { t: serverTimestamp(), n: 1 };
+  if (o.mutate) o.mutate(up);
+  return update(ref(d), up);
+}
+
+test('rate: enforcement OFF (default): old app shapes without any counter still work, in DMs and groups', async () => {
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/m1`), msg(A)));
+  await assertSucceeds(set(ref(db(B), 'messages/g1/m1'), msg(B)));
+  for (let i = 0; i < 30; i++) await assertSucceeds(set(ref(db(A), `messages/${AB}/f${i}`), msg(A)));   // no limit at all while the switch is off
+});
+
+test('rate: the switch itself is readable by everybody and writable by nobody from the app', async () => {
+  await rlEnforce(true);
+  await assertSucceeds(get(ref(db(A), 'config/rateLimit/enforce')));
+  await assertSucceeds(get(ref(anon(), 'config/rateLimit/enforce')));
+  await assertFails(set(ref(db(A), 'config/rateLimit/enforce'), false));
+  await assertFails(set(ref(db(B), 'config/rateLimit/enforce'), true));
+  await assertFails(set(ref(db(A), 'config/rateLimit'), { enforce: false }));
+});
+
+test('rate: enforcement OFF: a new app that writes the counters is checked for honesty, a made-up counter is refused', async () => {
+  await assertSucceeds(rlSend(A, AB, 'm1', { newChat: true }));
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/m2`]: msg(A), [`rate/alice/${AB}/n`]: 5 }));        // n must go up by exactly one
+  await assertFails(set(ref(db(A), `rate/alice/${AB}`), { t: 12345, n: 1 }));                                   // a made-up window start
+  await assertSucceeds(rlSend(A, AB, 'm2'));
+});
+
+test('rate: enforcement ON: a message without the counter is refused (DM and group), with the counter it goes through', async () => {
+  await rlEnforce(true);
+  await assertFails(set(ref(db(A), `messages/${AB}/m1`), msg(A)));                                              // an old app
+  await assertFails(set(ref(db(B), 'messages/g1/m1'), msg(B)));
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/m1`]: msg(A), [`rate/alice/${AB}`]: { t: serverTimestamp(), n: 1 } }));   // per-chat counter but not the all-chats counter
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/m1`]: msg(A), 'rate_all/alice': { t: serverTimestamp(), n: 1 } }));     // the other way round
+  await assertSucceeds(rlSend(A, AB, 'm1', { newChat: true }));
+  await assertSucceeds(rlSend(B, 'g1', 'g1m1'));
+  await assertSucceeds(rlSend(A, AB, 'm2'));
+});
+
+test('rate: a bot sending 100 DMs in a second is stopped at 20 per minute', async () => {
+  await rlEnforce(true);
+  let ok = 0, denied = 0;
+  for (let i = 0; i < 100; i++) { try { await rlSend(A, AB, `bot${i}`, { newChat: true }); ok++; } catch (e) { denied++; } }
+  if (ok !== 20) throw new Error(`expected exactly 20 DMs through, got ${ok}`);
+  if (denied !== 80) throw new Error('the rest must be refused');
+  const n = Object.keys((await get(ref(db(A), `messages/${AB}`))).val()).length;  if (n !== 20) throw new Error('only 20 messages may exist, found ' + n);
+});
+
+test('rate: groups are limited to 12 per minute; a counter pushed past the limit by hand is refused', async () => {
+  await rlEnforce(true);
+  let ok = 0;
+  for (let i = 0; i < 40; i++) { try { await rlSend(B, 'g1', `gb${i}`); ok++; } catch (e) {} }
+  if (ok !== 12) throw new Error(`expected 12 group messages through, got ${ok}`);
+  await assertFails(update(ref(db(B)), { 'messages/g1/hand': msg(B), [`rate/bob/g1/n`]: 13 }));
+});
+
+test('rate: the all-chats counter stops a bot that spreads 100 messages over many chats (60 per minute)', async () => {
+  await rlEnforce(true);
+  const ids = [];
+  for (let i = 0; i < 8; i++) { ids.push('gz' + i); await rlSeed('groups/gz' + i, { name: 'G', owner: A, kv: 1, members: { alice: 'admin', bob: 'member' } }); }
+  let ok = 0;
+  for (let i = 0; i < 100; i++) { try { await rlSend(A, ids[i % 8], `x${i}`); ok++; } catch (e) {} }
+  if (ok !== 60) throw new Error('the all-chats limit is 60 per minute, got ' + ok);
+});
+
+test('rate: the all-chats counter alone is enough to refuse the 61st message', async () => {
+  await rlEnforce(true);
+  await rlSeed('rate_all/alice', { t: Date.now() - 1000, n: 60 });
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true }));
+  await assertFails(update(ref(db(A)), { 'rate_all/alice/n': 61 }));
+});
+
+test('rate: counter tricks are refused (reset, rewind, delete, forged start, extra fields, someone else\'s counter)', async () => {
+  await rlEnforce(true);
+  await assertSucceeds(rlSend(A, AB, 'm1', { newChat: true }));
+  await assertSucceeds(rlSend(A, AB, 'm2'));
+  await assertFails(set(ref(db(A), `rate/alice/${AB}`), { t: serverTimestamp(), n: 1 }));                       // reset inside the window
+  await assertFails(update(ref(db(A), `rate/alice/${AB}`), { n: 1 }));                                          // rewind
+  await assertFails(update(ref(db(A), `rate/alice/${AB}`), { n: increment(2) }));                               // jump
+  await assertFails(update(ref(db(A), `rate/alice/${AB}`), { t: Date.now() - 120000 }));                        // move the window start back
+  await assertFails(update(ref(db(A), `rate/alice/${AB}`), { t: Date.now() + 120000, n: 1 }));                  // or forward
+  await assertFails(remove(ref(db(A), `rate/alice/${AB}`)));                                                   // delete a live counter
+  await assertFails(remove(ref(db(A), 'rate/alice')));
+  await assertFails(remove(ref(db(A), 'rate_all/alice')));
+  await assertFails(set(ref(db(A), `rate/alice/${AB}/extra`), 1));
+  await assertFails(update(ref(db(B)), { [`rate/alice/${AB}/n`]: increment(1) }));                              // bob touching alice's counter
+  await assertFails(set(ref(db(B), `rate/alice/${AB}`), { t: serverTimestamp(), n: 1 }));
+  await assertFails(get(ref(db(B), `rate/alice/${AB}`)));                                                       // nobody reads another person's counters
+  await assertFails(get(ref(db(B), 'rate')));
+  await assertFails(set(ref(anon(), `rate/alice/${AB}`), { t: 1, n: 1 }));
+  await assertSucceeds(get(ref(db(A), `rate/alice/${AB}`)));
+  // bob cannot write alice's message-less counter to lock her out either
+  await assertFails(update(ref(db(B)), { 'rate_all/alice/n': increment(1) }));
+});
+
+test('rate: skipping or faking only part of the counter write is refused', async () => {
+  await rlEnforce(true);
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { delete u[`rate/alice/${AB}`]; } }));             // no per-chat counter
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/alice/${AB}`] = { t: serverTimestamp(), n: 0 }; } }));
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/alice/${AB}`] = { t: Date.now() - 1000, n: 1 }; } }));   // an old start time
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/alice/${AB}`] = { t: serverTimestamp(), n: 1, junk: 'x' }; } }));
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/alice/${AB}`] = { t: serverTimestamp(), n: 1, hn: 1 }; } }));   // a repeat count without a hash
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/alice/${AB}`] = { t: serverTimestamp(), n: 1, h: 'ZZZZZZ', hn: 1 }; } }));
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/alice/${AB}`] = { t: serverTimestamp(), n: 1, h: 'abcdef', hn: 2 }; } }));
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { delete u['rate_all/alice']; } }));
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u['rate_all/alice'] = { t: serverTimestamp(), n: 2 }; } }));
+  await assertFails(rlSend(A, AB, 'm1', { newChat: true, mutate: (u) => { u[`rate/bob/${AB}`] = u[`rate/alice/${AB}`]; delete u[`rate/alice/${AB}`]; } }));   // counting on somebody else's counter
+  if ((await get(ref(db(A), `messages/${AB}`))).exists()) throw new Error('no message may have been written');
+  await assertSucceeds(rlSend(A, AB, 'm1', { newChat: true }));
+});
+
+test('rate: after the minute is over the window can be restarted, and only then', async () => {
+  await rlEnforce(true);
+  await rlSeed(`rate/alice/${AB}`, { t: Date.now() - 61000, n: 20 });
+  await rlSeed('rate_all/alice', { t: Date.now() - 61000, n: 60 });
+  await rlSeed('quota/alice', { d: rlToday(), g: 0, c: 0, n: 1 });
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/m1`]: msg(A), [`rate/alice/${AB}/n`]: increment(1), 'rate_all/alice/n': increment(1) }));   // 21st in an expired window: must restart
+  await assertSucceeds(rlSend(A, AB, 'm1'));                                                                    // restart: t = now, n = 1
+  await assertSucceeds(rlSend(A, AB, 'm2'));
+  const c = (await get(ref(db(A), `rate/alice/${AB}`))).val();  if (c.n !== 2) throw new Error('window should be at 2, is ' + c.n);
+  await rlSeed(`rate/alice/${AB}`, { t: Date.now() - 61000, n: 3 });
+  await assertSucceeds(remove(ref(db(A), `rate/alice/${AB}`)));                                                 // an expired counter may be cleaned up
+});
+
+test('rate: repeated-message hash: the same hash is refused after 5 in the window; a different one starts again', async () => {
+  await rlEnforce(true);
+  for (let i = 0; i < 5; i++) await assertSucceeds(rlSend(A, AB, `r${i}`, { h: 'a1b2c3', newChat: true }));
+  await assertFails(rlSend(A, AB, 'r5', { h: 'a1b2c3' }));
+  await assertSucceeds(rlSend(A, AB, 'r6', { h: 'ffeedd' }));                                                  // other text: fine
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/r7`]: msg(A), [`rate/alice/${AB}/n`]: increment(1), [`rate/alice/${AB}/h`]: 'ffeedd', [`rate/alice/${AB}/hn`]: 1, 'rate_all/alice/n': increment(1) }));  // resetting the repeat count by lying
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/r8`]: msg(A), [`rate/alice/${AB}/n`]: increment(1), [`rate/alice/${AB}/h`]: 'ffeedd', [`rate/alice/${AB}/hn`]: 3, 'rate_all/alice/n': increment(1) }));
+});
+
+test('rate: new chats per day: a new account (younger than a day) may start 10, an old one 60; replying to a stranger does not count', async () => {
+  await rlEnforce(true);
+  await rlAge(A, 5 * 3600000);
+  const peers = []; for (let i = 0; i < 12; i++) peers.push(`p${String(i).padStart(2, '0')}`);
+  const cidOf = (p) => (A < p ? `${A}_${p}` : `${p}_${A}`);
+  let ok = 0;
+  for (const p of peers) { try { await rlSend(A, cidOf(p), 'hello', { newChat: true }); ok++; } catch (e) {} }
+  if (ok !== 10) throw new Error(`a new account may start exactly 10 chats a day, got ${ok}`);
+  // a stranger wrote first: answering is not "starting a chat" and needs no quota
+  await rlSeed(`rate/p11/${cidOf('p11')}`, { t: Date.now() - 5000, n: 1 });
+  await assertSucceeds(rlSend(A, cidOf('p11'), 'reply'));
+  // the quota cannot be dodged by skipping it or by lowering it
+  await assertFails(rlSend(A, cidOf('p10'), 'again', { newChat: false }));
+  await assertFails(update(ref(db(A), 'quota/alice'), { n: 0 }));
+  await assertFails(set(ref(db(A), 'quota/alice'), { d: rlToday(), g: 0, c: 0, n: 1 }));
+  await assertFails(remove(ref(db(A), 'quota/alice')));
+  await assertFails(update(ref(db(A), 'quota/alice'), { n: increment(2) }));
+  await assertFails(update(ref(db(A), 'quota/alice'), { d: rlToday() - 1 }));
+});
+
+test('rate: an established account (no createdAt) can start 60 chats a day, not 61', async () => {
+  await rlEnforce(true);
+  await rlSeed('quota/alice', { d: rlToday(), g: 0, c: 0, n: 59 });
+  await assertSucceeds(rlSend(A, 'alice_zed1', 'hello', { newChat: true }));
+  await assertFails(rlSend(A, 'alice_zed2', 'hello', { newChat: true }));
+});
+
+test('rate: quota belongs to its owner and cannot be read or written by others', async () => {
+  await assertSucceeds(set(ref(db(A), 'quota/alice'), { d: rlToday(), g: 0, c: 0, n: 0 }));
+  await assertFails(get(ref(db(B), 'quota/alice')));
+  await assertFails(set(ref(db(B), 'quota/alice'), { d: rlToday(), g: 0, c: 0, n: 9 }));
+  await assertFails(set(ref(db(A), 'quota/alice'), { d: rlToday() + 1, g: 0, c: 0, n: 0 }));                      // a made-up day
+  await assertFails(set(ref(db(A), 'quota/alice'), { d: rlToday(), g: 0, c: 0 }));                               // missing counter
+  await assertSucceeds(update(ref(db(A), 'quota/alice'), { g: increment(1), c: increment(1), n: increment(1) }));
+});
+
+test('rate: new link-type messages from a new account need the other person to have written in the chat first', async () => {
+  await rlEnforce(true);
+  await rlAge(A, 2 * 3600000);
+  await assertSucceeds(rlSend(A, AB, 'plain', { newChat: true }));                                              // plain text is fine
+  await assertFails(rlSend(A, AB, 'card1', { type: 'link' }));                                                  // a link card to somebody who has not answered
+  await rlSeed(`rate/bob/${AB}`, { t: Date.now() - 5000, n: 1 });                                                  // bob answered
+  await assertSucceeds(rlSend(A, AB, 'card2', { type: 'link' }));
+  await assertFails(rlSend(A, 'alice_zed', 'card3', { type: 'link', newChat: true }));                         // to a stranger who never wrote
+});
+
+test('rate: turning a text into a link card later (preview attached after sending) follows the same rule', async () => {
+  await rlEnforce(true);
+  await rlAge(A, 2 * 3600000);
+  await assertSucceeds(rlSend(A, AB, 'm1', { newChat: true }));
+  await assertFails(update(ref(db(A), `messages/${AB}/m1`), { type: 'link', body: 'ct2' }));                      // young account, bob silent
+  await rlSeed(`rate/bob/${AB}`, { t: Date.now() - 5000, n: 1 });
+  await assertSucceeds(update(ref(db(A), `messages/${AB}/m1`), { type: 'link', body: 'ct2' }));
+  await assertFails(update(ref(db(A), `messages/${AB}/m1`), { type: 'image' }));                                 // still no other type changes
+});
+
+test('rate: an established account may send link cards at any time, and enforcement OFF never blocks them', async () => {
+  await rlEnforce(true);
+  await assertSucceeds(rlSend(A, AB, 'card', { type: 'link', newChat: true }));
+  await rlEnforce(false);
+  await rlAge(B, 600000);
+  await assertSucceeds(set(ref(db(B), `messages/${AB}/old`), { ...msg(B), type: 'link' }));
+});
+
+test('rate: self chat ("saved messages") works for a new account', async () => {
+  await rlEnforce(true);
+  await rlAge(A, 600000);
+  await assertSucceeds(rlSend(A, 'alice_alice', 'note1', { type: 'text' }));
+  await assertSucceeds(rlSend(A, 'alice_alice', 'note2', { type: 'link' }));
+});
+
+test('rate: edits and deletes are not counted', async () => {
+  await rlEnforce(true);
+  await assertSucceeds(rlSend(A, AB, 'm1', { newChat: true }));
+  await assertSucceeds(update(ref(db(A), `messages/${AB}/m1`), { body: 'edited', edited: true }));
+  await assertSucceeds(remove(ref(db(A), `messages/${AB}/m1`)));
+  await assertSucceeds(remove(ref(db(B), `messages/${AB}/nothing`)));
+});
+
+test('create: ENFORCEMENT OFF: group and channel creation as before (no quota needed)', async () => {
+  await rlAge(A, 60000);
+  await assertSucceeds(set(ref(db(A), 'groups/gOff1'), { name: 'x', owner: A, kv: 1, members: { alice: 'admin' } }));
+  await assertSucceeds(set(ref(db(A), 'channels/cOff1'), { name: 'x', handle: 'xx', handleLower: 'xx', owner: A, subCount: 1, admins: { alice: true } }));
+});
+
+test('create: ENFORCEMENT ON: no group or channel in the first hour, and the quota must be written with it', async () => {
+  await rlEnforce(true);
+  const grp = (id) => ({ [`groups/${id}`]: { name: 'x', owner: A, kv: 1, members: { alice: 'admin' } } });
+  const chn = (id) => ({ [`channels/${id}`]: { name: 'x', handle: 'xx' + id, handleLower: 'xx' + id, owner: A, subCount: 1, admins: { alice: true } } });
+  await rlAge(A, 600000);                                                                                        // 10 minutes old
+  await assertFails(update(ref(db(A)), { ...grp('g10'), 'quota/alice': { d: rlToday(), g: 1, c: 0, n: 0 } }));
+  await assertFails(update(ref(db(A)), { ...chn('c10'), 'quota/alice': { d: rlToday(), g: 0, c: 1, n: 0 } }));
+  await rlAge(A, 2 * 3600000);                                                                                   // 2 hours old
+  await assertFails(set(ref(db(A), 'groups/g11'), { name: 'x', owner: A, kv: 1, members: { alice: 'admin' } }));  // quota skipped
+  await assertFails(update(ref(db(A)), { ...grp('g11'), 'quota/alice': { d: rlToday(), g: 0, c: 0, n: 0 } }));    // quota not counted
+  await assertFails(update(ref(db(A)), { ...grp('g11'), 'quota/alice': { d: rlToday(), g: 2, c: 0, n: 0 } }));    // counted twice
+  await assertFails(update(ref(db(A)), { 'groups/g11/owner': A, 'groups/g11/members/alice': 'admin' }));       // splitting the creation into child writes does not help
+  await assertSucceeds(update(ref(db(A)), { ...grp('g11'), 'quota/alice': { d: rlToday(), g: 1, c: 0, n: 0 } }));
+  await assertSucceeds(update(ref(db(A)), { ...grp('g12'), 'quota/alice/g': increment(1) }));
+  await assertFails(update(ref(db(A)), { ...grp('g13'), 'quota/alice/g': increment(1) }));                      // third group of the day for an account younger than a day
+  await assertSucceeds(update(ref(db(A)), { ...chn('c11'), 'quota/alice/c': increment(1) }));
+  await assertFails(update(ref(db(A)), { ...chn('c12'), 'quota/alice/c': increment(1) }));                      // second channel
+  await assertSucceeds(update(ref(db(A), 'groups/g11'), { about: 'edits are never counted' }) );
+});
+
+test('create: an established account may create 10 groups and 5 channels a day, not more', async () => {
+  await rlEnforce(true);
+  for (let i = 0; i < 10; i++) {
+    const up = { [`groups/ge${i}`]: { name: 'x', owner: A, kv: 1, members: { alice: 'admin' } } };
+    if (i === 0) up['quota/alice'] = { d: rlToday(), g: 1, c: 0, n: 0 }; else up['quota/alice/g'] = increment(1);
+    await assertSucceeds(update(ref(db(A)), up));
+  }
+  await assertFails(update(ref(db(A)), { 'groups/ge10': { name: 'x', owner: A, kv: 1, members: { alice: 'admin' } }, 'quota/alice/g': increment(1) }));
+  for (let i = 0; i < 5; i++) await assertSucceeds(update(ref(db(A)), { [`channels/ce${i}`]: { name: 'x', handle: 'h' + i, handleLower: 'h' + i, owner: A, subCount: 1, admins: { alice: true } }, 'quota/alice/c': increment(1) }));
+  await assertFails(update(ref(db(A)), { 'channels/ce5': { name: 'x', handle: 'h5', handleLower: 'h5', owner: A, subCount: 1, admins: { alice: true } }, 'quota/alice/c': increment(1) }));
+  await assertFails(update(ref(db(A)), { 'channels/ce6': { name: 'x', owner: B, subCount: 1 }, 'quota/alice/c': increment(1) }));   // somebody else as owner
+});
+
+test('create: the group-creation flood: 50 groups in a loop, only the quota\'s worth exist afterwards', async () => {
+  await rlEnforce(true);
+  let ok = 0;
+  for (let i = 0; i < 50; i++) {
+    const q = (await get(ref(db(A), 'quota/alice'))).val();
+    const up = { [`groups/gf${i}`]: { name: 'x', owner: A, kv: 1, members: { alice: 'admin' } } };
+    if (q && q.d === rlToday()) up['quota/alice/g'] = increment(1); else up['quota/alice'] = { d: rlToday(), g: 1, c: 0, n: 0 };
+    try { await update(ref(db(A)), up); ok++; } catch (e) {}
+  }
+  if (ok !== 10) throw new Error('expected 10 groups, got ' + ok);
+});
+
+test('create: users/createdAt is written once with the server time and never changed or removed', async () => {
+  const fresh = db('newbie');
+  await assertSucceeds(update(ref(fresh), { 'users/newbie': { name: 'N', username: 'newbie', usernameLower: 'newbie', pk: 'z', createdAt: serverTimestamp() } }));
+  const t = (await get(ref(fresh, 'users/newbie/createdAt'))).val();  if (Math.abs(t - Date.now()) > 20000) throw new Error('createdAt should be the server time');
+  await assertFails(set(ref(fresh, 'users/newbie/createdAt'), t - 10 * RL_DAY));                                 // make the account look older
+  await assertFails(set(ref(fresh, 'users/newbie/createdAt'), serverTimestamp()));                              // or younger (it may not change at all)
+  await assertFails(remove(ref(fresh, 'users/newbie/createdAt')));                                              // or remove it
+  await assertFails(update(ref(fresh, 'users/newbie'), { createdAt: null, about: 'x' }));
+  await assertSucceeds(update(ref(fresh, 'users/newbie'), { about: 'hello' }));                                 // other profile edits are untouched
+  await assertFails(set(ref(db('other1'), 'users/other1'), { name: 'O', username: 'other1', usernameLower: 'other1', pk: 'z', createdAt: Date.now() - 10 * RL_DAY }));   // forged at creation
+});
+
+test('create: with enforcement ON a new profile must carry createdAt; old profiles without it keep working', async () => {
+  await rlEnforce(true);
+  await assertFails(update(ref(db('newbie2')), { 'users/newbie2': { name: 'N', username: 'newbie2', usernameLower: 'newbie2', pk: 'z' } }));
+  await assertFails(set(ref(db('newbie2'), 'users/newbie2/name'), 'N'));                                        // child by child does not help
+  await assertSucceeds(update(ref(db('newbie2')), { 'users/newbie2': { name: 'N', username: 'newbie2', usernameLower: 'newbie2', pk: 'z', createdAt: serverTimestamp() } }));
+  await assertSucceeds(update(ref(db(A), 'users/alice'), { about: 'an old profile without createdAt is fine' }));
+  await rlEnforce(false);
+  await assertSucceeds(update(ref(db('newbie3')), { 'users/newbie3': { name: 'N', username: 'newbie3', usernameLower: 'newbie3', pk: 'z' } }));   // an old app while the switch is off
+});
