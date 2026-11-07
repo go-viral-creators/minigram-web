@@ -66,7 +66,7 @@ object Sfx {
     /** Plays [name] unless sounds are off, the phone is silent, or the same sound just played. */
     fun play(name: String) {
         val c = app ?: return
-        if (!enabled) return
+        if (!enabled || com.kafisir.wetalks.voice.Recording.active) return
         val now = System.currentTimeMillis()
         if (now - (last[name] ?: 0L) < 120) return
         last[name] = now
@@ -79,7 +79,7 @@ object Sfx {
 
     fun vibrate(ms: Long = 45) {
         val c = app ?: return
-        if (!enabled) return
+        if (!enabled || com.kafisir.wetalks.voice.Recording.active) return
         try {
             val v = c.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             if (Build.VERSION.SDK_INT >= 26) v.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE)) else @Suppress("DEPRECATION") v.vibrate(ms)
