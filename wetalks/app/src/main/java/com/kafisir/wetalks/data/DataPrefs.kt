@@ -35,7 +35,7 @@ object DataPrefs {
     }
     fun setLimit(v: Int) { cacheLimitMb = v; sp().edit().putInt("limit", v).apply(); Thread { trim() }.start() }
     fun setClean(v: Int) { cleanDays = v; sp().edit().putInt("clean", v).apply(); Thread { autoClean() }.start() }
-    fun setAutoRules(v: MediaPolicy.Settings) { autoRules = v; sp().edit().putString("auto_rules", MediaPolicy.encode(v)).apply() }
+    fun saveAutoRules(v: MediaPolicy.Settings) { autoRules = v; sp().edit().putString("auto_rules", MediaPolicy.encode(v)).apply() }
     fun setAuto(v: String) { autoPhotos = v; sp().edit().putString("auto", v).apply() }
     fun updateSaver(v: Boolean) { saver = v; sp().edit().putBoolean("saver", v).apply() }
     fun resetUsage() { down = 0; up = 0; sp().edit().putLong("down", 0).putLong("up", 0).apply() }

@@ -34,7 +34,7 @@ fun AutoDownloadScreen() {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text("Choose what downloads by itself. Everything else shows a tap-to-download tile with its size. Tapping always works.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
             Row2(Ic.Database, "Use less data", "On mobile data and roaming only voice messages download by themselves. On Wi-Fi big files stop at " + MediaPolicy.LESS_DATA_WIFI_MAX_MB + " MB.",
-                trailing = { Toggle(s.useLessData) { DataPrefs.setAutoRules(s.copy(useLessData = it)) } })
+                trailing = { Toggle(s.useLessData) { DataPrefs.saveAutoRules(s.copy(useLessData = it)) } })
             Text(when {
                 now.net == Net.OFFLINE -> "Right now: no connection"
                 now.systemDataSaver && now.net != Net.WIFI -> "Right now: " + now.net.name.lowercase().replaceFirstChar { it.uppercase() } + ". Android Data Saver is on, so only voice messages download by themselves."
@@ -44,21 +44,21 @@ fun AutoDownloadScreen() {
             for (n in listOf(Net.WIFI, Net.MOBILE, Net.ROAMING)) {
                 val r = s.rule(n)
                 SectionLabel(n.label + if (now.net == n) "  ·  now" else "")
-                for (t in Type.values()) Row2(typeIcon(t), t.label, typeHint(t), trailing = { Toggle(r.has(t)) { DataPrefs.setAutoRules(s.withRule(n, r.with(t, it))) } })
+                for (t in Type.values()) Row2(typeIcon(t), t.label, typeHint(t), trailing = { Toggle(r.has(t)) { DataPrefs.saveAutoRules(s.withRule(n, r.with(t, it))) } })
                 if (r.has(Type.VIDEO) || r.has(Type.AUDIO) || r.has(Type.DOC)) {
                     Text("Only up to this size (video, audio, documents)", color = We.text2, style = T.small, modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 4.dp))
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         for (mb in MediaPolicy.SIZE_CHOICES) {
                             val on = r.maxMb == mb
                             Text(MediaPolicy.sizeLabel(mb), color = if (on) We.onPrimary else We.text, style = T.small.copy(fontWeight = FontWeight.SemiBold), maxLines = 1,
-                                modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) We.primary else We.field).clickable { DataPrefs.setAutoRules(s.withRule(n, r.copy(maxMb = mb))) }.padding(horizontal = 16.dp, vertical = 9.dp))
+                                modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (on) We.primary else We.field).clickable { DataPrefs.saveAutoRules(s.withRule(n, r.copy(maxMb = mb))) }.padding(horizontal = 16.dp, vertical = 9.dp))
                         }
                     }
                     if (r.maxMb > 0) Text("Files whose size is not known wait for a tap.", color = We.text2, style = T.tiny, modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
                 }
             }
             Text("Photos you sent yourself and anything already on this phone are never held back. Stickers are tiny and always show. If you tap a download while roaming, you get a short warning first.", color = We.text2, style = T.small, modifier = Modifier.padding(20.dp))
-            Box(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) { OutlineButton("Reset to the default choices", { DataPrefs.setAutoRules(MediaPolicy.defaults()); Nav.say("Auto-download choices reset") }) }
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) { OutlineButton("Reset to the default choices", { DataPrefs.saveAutoRules(MediaPolicy.defaults()); Nav.say("Auto-download choices reset") }) }
             Spacer(Modifier.height(30.dp))
         }
     }
