@@ -46,8 +46,10 @@ firebase database:update /config/maintenance --project wetalks-78e5a --force --d
 ```bash
 python3 tools/site/build.py --apk dist/WeTalks-vX-arm64.apk     # builds hosting/public from hosting/site + tools/site/pages.py
 # get a temporary upload URL with the Hostinger MCP (hosting_files_generate-upload-url), then:
-URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/hostinger/api wetalks/api   # PHP API
-URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/public wetalks              # website (+ download/*.apk)
+URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/hostinger/api api          # PHP API
+# Note: use domain=wetalks.fireclashpro.com for the upload URL; its doc root IS already wetalks/, so DST="" for site files
+URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/public ""                  # website HTML/CSS/JS
+URL=... AUTH=... REST=... tools/hostinger_upload.sh hosting/public/download "download" # APKs + latest.json (copy APKs here first)
 firebase deploy --only hosting --project wetalks-78e5a                                   # web.app mirror (deep links)
 ```
 * API code: `hosting/hostinger/api/` (lib, media, dev, service). Data lives outside the web root in `wt_store/` (SQLite, encrypted-file store, relay login).
