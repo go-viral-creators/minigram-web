@@ -265,6 +265,7 @@ fun ProfileScreen(uid: String) {
     val safety by produceState<String?>(null, uid) { value = try { Repo.safetyNumber(uid) } catch (e: Exception) { null } }
     var showSafety by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf(false) }
     val startCall = rememberCallStarter(uid)
     val me = uid == Repo.uid
     val link = Repo.Links.user(u?.username ?: "")
@@ -309,7 +310,9 @@ fun ProfileScreen(uid: String) {
         SheetItem(Ic.Shield, "Verify encryption") { more = false; showSafety = true }
         if ((u?.username ?: "").isNotEmpty()) SheetItem(Ic.Share, "Share profile link") { more = false; shareText(ctx, link) }
         SheetItem(Ic.Block, if (uid in blocked) "Unblock" else "Block", danger = uid !in blocked) { Repo.block(uid, uid !in blocked); more = false }
+        SheetItem(Ic.Alert, "Report", danger = true) { more = false; reporting = true }
     }
+    if (reporting) ReportSheet(ReportTarget.User(uid), u?.name ?: "this person") { reporting = false }
     if (showSafety) Sheet({ showSafety = false }) {
         Text("Verify safety number", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
         Text("Compare this number with ${u?.name ?: "your contact"} in person or on a call. If it matches on both phones, nobody is intercepting your chat.", color = We.text2, style = T.body, modifier = Modifier.padding(horizontal = 24.dp))
@@ -330,6 +333,7 @@ fun ChannelInfoScreen(id: String) {
     var joined by remember { mutableStateOf<Boolean?>(null) }
     val isSub = joined ?: subscribed
     var editing by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf(false) }
     val ch = c ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Channel", onBack = { Nav.pop() }) }; return }
     val owner = ch.owner == Repo.uid
     if (editing) { EditNameScreen("Edit channel", ch.name, ch.about, ch.photo, ch.id, { n, a, p -> Repo.updateChannel(id, n, a, p) }) { editing = false }; return }
@@ -353,9 +357,11 @@ fun ChannelInfoScreen(id: String) {
             ActionTiles(buildList {
                 add(Tile(Ic.Chat, if (isSub || owner) "Open" else "Preview") { Nav.pop(); Nav.push(RChat(ChatRef(id, Kind.CHANNEL))) })
                 if (!owner) add(if (isSub) Tile(if (muted) Ic.Bell else Ic.BellOff, if (muted) "Unmute" else "Mute") { Repo.setMuted(id, !muted) }
-                    else Tile(Ic.Plus, "Join") { scope.launch { try { Repo.subscribe(id); joined = true } catch (e: Exception) { Nav.say("Could not join") } } })
+                    else Tile(Ic.Plus, "Join") { scope.launch { try { Repo.subscribe(id); joined = true } catch (e: Exception) { Nav.say(if (Reports.isBanned(Kind.CHANNEL, id)) "You were banned from this channel" else "Could not join") } } })
                 if (!ch.priv || owner) { add(Tile(Ic.Share, "Share") { shareText(ctx, "Join ${ch.name} on WeTalks: $link") }); add(Tile(Ic.Qr, "QR code") { Nav.push(qr) }) }
                 if (owner) add(Tile(Ic.Sliders, "Settings") { Nav.push(RChannelSettings(id)) })
+                if (owner || Repo.uid in ch.admins) add(Tile(Ic.Shield, "Moderation") { Nav.push(RModeration(id, Kind.CHANNEL)) })
+                if (!owner) add(Tile(Ic.Alert, "Report", We.danger) { reporting = true })
                 if (!owner && isSub) add(Tile(Ic.Logout, "Leave", We.danger) { scope.launch { Repo.unsubscribe(id); joined = false; Nav.say("You left the channel") } })
             })
             Spacer(Modifier.height(14.dp))
@@ -370,6 +376,7 @@ fun ChannelInfoScreen(id: String) {
             Spacer(Modifier.height(24.dp))
         }
     }
+    if (reporting) ReportSheet(ReportTarget.Channel(id), ch.name) { reporting = false }
 }
 
 // ------------------------------------------------------------------------------------------------ group
@@ -382,6 +389,7 @@ fun GroupInfoScreen(id: String) {
     var editing by remember { mutableStateOf(false) }
     var memberMenu by remember { mutableStateOf<String?>(null) }
     var confirmLeave by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf<ReportTarget?>(null) }
     val group = g ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Group", onBack = { Nav.pop() }) }; return }
     val me = Repo.uid
     val admin = group.members[me] == "admin"
@@ -400,6 +408,8 @@ fun GroupInfoScreen(id: String) {
                 add(Tile(if (muted) Ic.Bell else Ic.BellOff, if (muted) "Unmute" else "Mute") { Repo.setMuted(id, !muted) })
                 if (admin) add(Tile(Ic.UserPlus, "Add") { Nav.push(RAddMembers(id)) })
                 if (admin) add(Tile(Ic.Sliders, "Settings") { Nav.push(RGroupSettings(id)) })
+                if (admin) add(Tile(Ic.Shield, "Moderation") { Nav.push(RModeration(id, Kind.GROUP)) })
+                add(Tile(Ic.Alert, "Report", We.danger) { reporting = ReportTarget.Group(id) })
                 add(Tile(Ic.Logout, "Leave", We.danger) { confirmLeave = true })
             })
             Spacer(Modifier.height(14.dp))
@@ -431,6 +441,8 @@ fun GroupInfoScreen(id: String) {
         Sheet({ memberMenu = null }) {
             SheetItem(Ic.User, "View profile") { memberMenu = null; Nav.push(RProfile(uid)) }
             SheetItem(Ic.Shield, if (role == "admin") "Remove admin" else "Make admin") { scope.launch { Repo.setAdmin(id, uid, role != "admin") }; memberMenu = null }
+            SheetItem(Ic.Alert, "Report", danger = true) { memberMenu = null; reporting = ReportTarget.User(uid, ChatRef(id, Kind.GROUP)) }
+            if (uid != group.owner) SheetItem(Ic.Block, "Ban from group", danger = true) { scope.launch { try { Reports.banFromGroup(id, uid); Nav.say("Banned. They can't join again until unbanned.") } catch (e: Exception) { Nav.say(Repo.explain(e, "Ban")) } }; memberMenu = null }
             SheetItem(Ic.Trash, "Remove from group", danger = true) { scope.launch { try { Repo.removeMember(id, uid); Nav.say("Removed. The group key was rotated.") } catch (e: Exception) { Nav.say("Could not remove") } }; memberMenu = null }
         }
     }
@@ -438,4 +450,5 @@ fun GroupInfoScreen(id: String) {
         Text("Leave this group?", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 8.dp))
         SheetItem(Ic.Logout, "Leave group", danger = true) { confirmLeave = false; scope.launch { Repo.leaveGroup(id); Nav.reset() } }
     }
+    reporting?.let { t -> ReportSheet(t, if (t is ReportTarget.User) (Repo.user(t.uid).value?.name ?: "this person") else group.name) { reporting = null } }
 }

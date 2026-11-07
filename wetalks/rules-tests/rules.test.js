@@ -819,3 +819,217 @@ test('scenario: declined and cancelled-before-answer give each side exactly one 
   const b = Object.keys((await get(ref(db(B), 'call_log/bob'))).val()), a = Object.keys((await get(ref(db(A), 'call_log/alice'))).val());
   if (b.length !== 2 || a.length !== 2) throw new Error('two lines each expected');
 });
+
+// ======================================================================= reports + moderation (team/reports)
+const D = 'dave';
+const dayNow = () => Math.floor(Date.now() / 86400000);
+const repBody = (by, kind, extra) => ({ by, ts: serverTimestamp(), kind, r: 'spam', ...extra });
+/** One atomic update: the private report, the quota counter and (optionally) the admin copy. */
+async function fileReport(user, tk, body, { q = 1, quota = true, copyTo = null, quotaN = null } = {}) {
+  const up = { [`reports/${user}/${tk}`]: { ...body, q } };
+  if (quota) up[`report_quota/${user}`] = { d: dayNow(), n: quotaN ?? q };
+  if (copyTo) up[`group_reports/${copyTo}/${user}~${tk}`] = { by: user, ts: serverTimestamp(), kind: body.kind, r: body.r, tk, ...(body.tid ? { tid: body.tid } : {}), ...(body.mid ? { mid: body.mid } : {}), ...(body.snap ? { snap: body.snap } : {}) };
+  return update(ref(db(user)), up);
+}
+async function seedMore() {
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database();
+    for (const u of [C, D]) await set(ref(d, `users/${u}`), { name: u, username: u, usernameLower: u, pk: 'z' });
+    await set(ref(d, 'messages/alice_bob/m1'), { from: B, ts: 1, type: 'text', body: 'ct' });
+    await set(ref(d, 'messages/g1/gm1'), { from: B, ts: 1, type: 'text', body: 'ct' });
+    await set(ref(d, 'messages/c1/p1'), { from: A, ts: 1, type: 'text', body: 'hello' });
+    await set(ref(d, 'groups/g1/members/carol'), 'member'); });
+}
+
+test('reports: a user report is stored once; only the reporter can read it, nobody lists the whole node', async () => {
+  await seedMore();
+  await assertSucceeds(fileReport(A, `user~${B}`, repBody(A, 'user', { tid: B, note: 'rude' })));
+  await assertSucceeds(get(ref(db(A), `reports/alice/user~${B}`)));
+  await assertFails(get(ref(db(B), `reports/alice/user~${B}`)));            // the reported person cannot read it
+  await assertFails(get(ref(db(A), 'reports')));                             // the whole node is closed
+  await assertFails(get(ref(db(B), 'reports')));
+  await assertFails(get(ref(anon(), 'reports/alice')));
+  await assertFails(fileReport(A, `user~${B}`, repBody(A, 'user', { tid: B }), { q: 2 }));   // one report per target per user: create-only
+  await assertSucceeds(fileReport(C, `user~${B}`, repBody(C, 'user', { tid: B })));          // another person may report the same target
+  await assertFails(update(ref(db(A), `reports/alice/user~${B}`), { note: 'edit' }));        // no editing afterwards
+  await assertFails(remove(ref(db(A), `reports/alice/user~${B}`)));                          // no deleting afterwards
+});
+
+test('reports: no self-report, no forged reporter, target must exist, no anonymous', async () => {
+  await seedMore();
+  await assertFails(fileReport(A, `user~${A}`, repBody(A, 'user', { tid: A })));                          // self
+  await assertFails(fileReport(A, `user~${B}`, repBody(B, 'user', { tid: B })));                          // `by` is someone else
+  await assertFails(update(ref(db(C)), { [`reports/alice/user~${B}`]: { ...repBody(A, 'user', { tid: B }), q: 1 }, 'report_quota/alice': { d: dayNow(), n: 1 } }));   // writing into another reporter's node
+  await assertFails(fileReport(A, 'user~ghost', repBody(A, 'user', { tid: 'ghost' })));                   // unknown user
+  await assertFails(fileReport(A, `user~${B}`, { ...repBody(A, 'user', { tid: B }), ts: 5 }));            // client-chosen time
+  await assertFails(update(ref(anon()), { [`reports/alice/user~${B}`]: { ...repBody(A, 'user', { tid: B }), q: 1 } }));
+  await assertFails(fileReport(A, `user~${C}`, repBody(A, 'user', { tid: B })));                          // key does not match the target
+});
+
+test('reports: size limits, reason list and unknown fields', async () => {
+  await seedMore();
+  const ok = (extra) => repBody(A, 'user', { tid: B, ...extra });
+  await assertFails(fileReport(A, `user~${B}`, ok({ note: 'x'.repeat(501) })));
+  await assertFails(fileReport(A, `user~${B}`, { ...ok(), r: 'because' }));
+  await assertFails(fileReport(A, `user~${B}`, { ...ok(), r: '' }));
+  await assertFails(fileReport(A, `user~${B}`, ok({ extra: 'x' })));
+  await assertFails(fileReport(A, `user~${B}`, ok({ snap: 'x' })));                                        // a user report carries no message snapshot
+  await assertFails(fileReport(A, `user~${B}`, ok({ cid: 'c'.repeat(200) })));
+  await assertFails(fileReport(A, `user~${B}`, { ...ok(), kind: 'everything' }));
+  await assertSucceeds(fileReport(A, `user~${B}`, ok({ note: 'x'.repeat(500) })));                        // exactly the limit
+});
+
+test('reports: rate limit of 10 a day is enforced by the counter and cannot be skipped', async () => {
+  await seedMore();
+  await env.withSecurityRulesDisabled(async (ctx) => { for (let i = 0; i < 12; i++) await set(ref(ctx.database(), `users/t${i}`), { name: 't' + i, username: 'tt' + i, usernameLower: 'tt' + i, pk: 'p' }); });
+  await assertFails(fileReport(A, 'user~t0', repBody(A, 'user', { tid: 't0' }), { quota: false }));        // no counter write: refused
+  await assertFails(fileReport(A, 'user~t0', repBody(A, 'user', { tid: 't0' }), { q: 1, quotaN: 5 }));    // counter does not match
+  await assertFails(fileReport(A, 'user~t0', repBody(A, 'user', { tid: 't0' }), { q: 5, quotaN: 5 }));    // cannot start at 5
+  for (let i = 0; i < 10; i++) await assertSucceeds(fileReport(A, `user~t${i}`, repBody(A, 'user', { tid: 't' + i }), { q: i + 1 }));
+  await assertFails(fileReport(A, 'user~t10', repBody(A, 'user', { tid: 't10' }), { q: 11 }));            // 11th today
+  await assertFails(fileReport(A, 'user~t10', repBody(A, 'user', { tid: 't10' }), { q: 10, quotaN: 10 }));   // counter cannot be reused
+  await assertFails(set(ref(db(A), 'report_quota/alice'), { d: dayNow(), n: 3 }));                         // cannot rewind the counter
+  await assertFails(set(ref(db(A), 'report_quota/alice'), { d: dayNow() - 1, n: 1 }));                     // nor change the day
+  await assertFails(get(ref(db(B), 'report_quota/alice')));
+  await assertSucceeds(fileReport(B, 'user~t10', repBody(B, 'user', { tid: 't10' })));                    // other people have their own limit
+});
+
+test('reports: a new day starts the counter again', async () => {
+  await seedMore();
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'report_quota/alice'), { d: dayNow() - 1, n: 10 }); });
+  await assertFails(fileReport(A, `user~${B}`, repBody(A, 'user', { tid: B }), { q: 11 }));
+  await assertSucceeds(fileReport(A, `user~${B}`, repBody(A, 'user', { tid: B }), { q: 1 }));
+});
+
+test('reports: message report in a DM (snapshot stored, reporter must be a participant, real sender)', async () => {
+  await seedMore();
+  const tk = 'msg~alice_bob~m1';
+  const body = repBody(A, 'message', { cid: 'alice_bob', mid: 'm1', tid: B, snap: 'buy cheap pills', st: 'text', sts: 1, note: 'spam' });
+  await assertFails(fileReport(C, tk, { ...body, by: C }));                                              // stranger
+  await assertFails(fileReport(A, tk, { ...body, tid: A }));                                             // wrong / self sender
+  await assertFails(fileReport(A, 'msg~alice_bob~nope', { ...body, mid: 'nope' }));                      // no such message
+  await assertFails(fileReport(A, tk, { ...body, snap: 'x'.repeat(4001) }));
+  await assertFails(fileReport(A, tk, { ...body, copyOf: 1 }));
+  await assertFails(fileReport(A, tk, body, { copyTo: 'g1' }));                                          // copy needs a matching cid
+  await assertSucceeds(fileReport(A, tk, body));
+  await assertFails(get(ref(db(B), `reports/alice/${tk}`)));
+  let own; await env.withSecurityRulesDisabled(async (ctx) => { own = (await get(ref(ctx.database(), `reports/alice/${tk}`))).val(); });
+  if (own.snap !== 'buy cheap pills' || own.ts < 1e12) throw new Error('snapshot or server time missing');
+});
+
+test('reports: own message cannot be reported; DM chat report; group and channel reports need access', async () => {
+  await seedMore();
+  await assertFails(fileReport(B, 'msg~alice_bob~m1', repBody(B, 'message', { cid: 'alice_bob', mid: 'm1', tid: B })));   // own message
+  await assertSucceeds(fileReport(A, 'chat~alice_bob', repBody(A, 'chat', { cid: 'alice_bob', tid: B })));
+  await assertFails(fileReport(C, 'chat~alice_bob', repBody(C, 'chat', { cid: 'alice_bob', tid: B })));                    // not your chat
+  await assertFails(fileReport(A, 'chat~alice_alice', repBody(A, 'chat', { cid: 'alice_alice', tid: A })));
+  await assertSucceeds(fileReport(B, 'group~g1', repBody(B, 'group', { cid: 'g1' }), { copyTo: 'g1' }));
+  await assertFails(fileReport(D, 'group~g1', repBody(D, 'group', { cid: 'g1' })));                                         // not a member
+  await assertSucceeds(fileReport(C, 'channel~c1', repBody(C, 'channel', { cid: 'c1' })));
+  await assertFails(fileReport(A, 'channel~c1', repBody(A, 'channel', { cid: 'c1' })));                                    // the owner cannot report his own channel
+  await assertFails(fileReport(C, 'channel~nope', repBody(C, 'channel', { cid: 'nope' }), { q: 2 }));
+  await assertFails(fileReport(D, 'channel~c1', repBody(D, 'channel', { cid: 'c1', mid: 'p1' })));                         // stray fields for the kind
+});
+
+test('reports: group admins get a copy they can read and dismiss; members and strangers cannot', async () => {
+  await seedMore();
+  const tk = 'msg~g1~gm1';
+  const body = repBody(C, 'message', { cid: 'g1', mid: 'gm1', tid: B, snap: 'insult', st: 'text' });
+  await assertFails(fileReport(C, tk, body, { copyTo: 'g2' }));                                           // copy into another group
+  await assertSucceeds(fileReport(C, tk, body, { copyTo: 'g1' }));
+  await assertSucceeds(get(ref(db(A), 'group_reports/g1')));                                              // admin reads
+  await assertFails(get(ref(db(B), 'group_reports/g1')));                                                 // plain member does not
+  await assertFails(get(ref(db(D), 'group_reports/g1')));
+  await assertFails(get(ref(db(C), 'group_reports/g1')));                                                 // not even the reporter (he has his private copy)
+  await assertFails(remove(ref(db(B), `group_reports/g1/carol~${tk}`)));
+  await assertFails(remove(ref(db(C), `group_reports/g1/carol~${tk}`)));
+  await assertSucceeds(remove(ref(db(A), `group_reports/g1/carol~${tk}`)));                               // admin dismisses
+  await assertFails(get(ref(db(A), 'reports')));                                                           // admins never see the private node
+});
+
+test('reports: nobody can plant admin copies without a real report, in someone else\'s name, or overwrite them', async () => {
+  await seedMore();
+  const copy = (by, tk, extra) => ({ by, ts: serverTimestamp(), kind: 'message', r: 'spam', tk, ...extra });
+  await assertFails(set(ref(db(C), 'group_reports/g1/carol~msg~g1~gm1'), copy(C, 'msg~g1~gm1')));          // no report in the same update
+  await assertFails(set(ref(db(C), 'group_reports/g1/bob~msg~g1~gm1'), copy(B, 'msg~g1~gm1')));            // forged reporter
+  await assertFails(set(ref(db(D), 'group_reports/g1/dave~x'), copy(D, 'x')));
+  await assertSucceeds(fileReport(C, 'msg~g1~gm1', repBody(C, 'message', { cid: 'g1', mid: 'gm1', tid: B, snap: 's' }), { copyTo: 'g1' }));
+  await assertFails(set(ref(db(C), 'group_reports/g1/carol~msg~g1~gm1'), copy(C, 'msg~g1~gm1', { note: 'again' })));   // cannot overwrite / edit
+  await assertFails(set(ref(db(C), 'group_reports/g1/carol~msg~g1~gm1/note'), 'x'));
+  await assertFails(set(ref(db(C), 'group_reports/g1/carol~msg~g1~gm1'), null));                           // reporter cannot withdraw it either
+});
+
+test('reports: channel owner and channel admins read channel reports', async () => {
+  await seedMore();
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'channels/c1/admins/dave'), true); });
+  const tk = 'msg~c1~p1';
+  await assertSucceeds(fileReport(C, tk, repBody(C, 'message', { cid: 'c1', mid: 'p1', tid: A, snap: 'hello', st: 'text' }), { copyTo: 'c1' }));
+  await assertSucceeds(get(ref(db(A), 'group_reports/c1')));
+  await assertSucceeds(get(ref(db(D), 'group_reports/c1')));
+  await assertFails(get(ref(db(B), 'group_reports/c1')));
+  await assertFails(remove(ref(db(B), `group_reports/c1/carol~${tk}`)));
+  await assertSucceeds(remove(ref(db(D), `group_reports/c1/carol~${tk}`)));
+});
+
+test('bans (group): admins ban, the banned cannot be added or rejoin, unban restores, others cannot ban', async () => {
+  await seedMore();
+  await assertFails(set(ref(db(B), 'group_bans/g1/dave'), { by: B, ts: serverTimestamp() }));              // plain member
+  await assertFails(set(ref(db(D), 'group_bans/g1/dave'), { by: D, ts: serverTimestamp() }));
+  await assertFails(set(ref(db(A), 'group_bans/g1/dave'), { by: B, ts: serverTimestamp() }));             // forged `by`
+  await assertFails(set(ref(db(A), 'group_bans/g1/alice'), { by: A, ts: serverTimestamp() }));            // self
+  await assertSucceeds(set(ref(db(A), 'group_bans/g1/dave'), { by: A, ts: serverTimestamp(), n: 'Dave' }));
+  await assertSucceeds(get(ref(db(D), 'group_bans/g1/dave')));                                            // he can see his own ban
+  await assertFails(get(ref(db(D), 'group_bans/g1')));                                                    // but not the list
+  await assertFails(get(ref(db(B), 'group_bans/g1')));
+  await assertSucceeds(get(ref(db(A), 'group_bans/g1')));
+  await assertFails(set(ref(db(A), 'groups/g1/members/dave'), 'member'));                                 // admin cannot add the banned
+  await assertFails(set(ref(db(D), 'groups/g1/members/dave'), 'member'));                                 // nor can he rejoin himself
+  await assertSucceeds(set(ref(db(A), 'groups/g1/members/erin'), 'member'));                              // others still can be added
+  await assertFails(remove(ref(db(B), 'group_bans/g1/dave')));
+  await assertSucceeds(remove(ref(db(A), 'group_bans/g1/dave')));
+  await assertSucceeds(set(ref(db(A), 'groups/g1/members/dave'), 'member'));                              // after unban
+});
+
+test('bans (group): ban + remove in one step, the owner cannot be banned, group creation still works', async () => {
+  await seedMore();
+  await assertSucceeds(update(ref(db(A)), { 'group_bans/g1/bob': { by: A, ts: serverTimestamp() }, 'groups/g1/members/bob': null }));
+  await assertFails(set(ref(db(B), 'groups/g1/members/bob'), 'member'));
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'groups/g1/members/carol'), 'admin'); });
+  await assertFails(set(ref(db(C), 'group_bans/g1/alice'), { by: C, ts: serverTimestamp() }));            // owner is untouchable
+  await assertSucceeds(set(ref(db(C), 'groups/g9'), { name: 'New', owner: C, kv: 1, members: { carol: 'admin' } }));   // creation flow unaffected
+});
+
+test('bans (channel): staff ban, the banned cannot join (public or invite), staff can remove followers and the count follows', async () => {
+  await seedMore();
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database();
+    await set(ref(d, 'channels/c1/admins/dave'), true); await set(ref(d, 'channel_subs/c1/bob'), true); await set(ref(d, 'channels/c1/subCount'), 2); });
+  await assertFails(set(ref(db(B), 'channel_bans/c1/carol'), { by: B, ts: serverTimestamp() }));          // a follower
+  await assertFails(set(ref(db(C), 'channel_bans/c1/carol'), { by: C, ts: serverTimestamp() }));
+  await assertFails(set(ref(db(A), 'channel_bans/c1/alice'), { by: A, ts: serverTimestamp() }));          // owner cannot be banned
+  await assertFails(set(ref(db(D), 'channel_bans/c1/alice'), { by: D, ts: serverTimestamp() }));
+  await assertSucceeds(set(ref(db(D), 'channel_bans/c1/carol'), { by: D, ts: serverTimestamp() }));       // channel admin bans a person
+  await assertFails(set(ref(db(C), 'channel_subs/c1/carol'), true));                                       // banned: public join refused
+  await assertSucceeds(get(ref(db(C), 'channel_bans/c1/carol')));
+  await assertFails(get(ref(db(B), 'channel_bans/c1')));
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database(); await set(ref(d, 'channels/c1/priv'), true); await set(ref(d, `channel_invites/c1/${TOK}`), { by: A, exp: 0, created: 1 }); });
+  await assertFails(set(ref(db(C), 'channel_subs/c1/carol'), { t: TOK, ts: Date.now() }));                // private channel with a valid invite: still refused
+  await assertSucceeds(remove(ref(db(A), 'channel_bans/c1/carol')));                                       // unban
+  await assertSucceeds(set(ref(db(C), 'channel_subs/c1/carol'), { t: TOK, ts: Date.now() }));
+  await assertSucceeds(remove(ref(db(C), 'channel_subs/c1/carol')));                                       // leaving always works
+  await assertFails(set(ref(db(D), 'channel_bans/c1/dave'), { by: D, ts: serverTimestamp() }));            // self
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'channels/c1/admins/erin'), true); });
+  await assertFails(set(ref(db(D), 'channel_bans/c1/erin'), { by: D, ts: serverTimestamp() }));           // an admin cannot ban another admin
+  await assertSucceeds(set(ref(db(A), 'channel_bans/c1/erin'), { by: A, ts: serverTimestamp() }));        // the owner can
+  await assertFails(remove(ref(db(C), 'channel_subs/c1/bob')));                                            // strangers cannot remove followers
+  await assertFails(remove(ref(db(B), 'channel_subs/c1/alice')));
+  await assertSucceeds(update(ref(db(D)), { 'channel_subs/c1/bob': null, 'channels/c1/subCount': 1 }));
+  await assertFails(update(ref(db(D)), { 'channels/c1/subCount': -1 }));
+});
+
+test('bans (channel): followers list is readable by owner and admins only', async () => {
+  await seedMore();
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database(); await set(ref(d, 'channels/c1/admins/dave'), true); await set(ref(d, 'channel_subs/c1/bob'), true); });
+  await assertSucceeds(get(ref(db(A), 'channel_subs/c1')));
+  await assertSucceeds(get(ref(db(D), 'channel_subs/c1')));
+  await assertFails(get(ref(db(B), 'channel_subs/c1')));
+  await assertFails(get(ref(db(C), 'channel_subs/c1')));
+});

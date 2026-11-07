@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import com.kafisir.wetalks.data.ChatRef
+import com.kafisir.wetalks.data.Kind
 
 sealed interface Route
 data class RChat(val ref: ChatRef) : Route
@@ -39,6 +40,7 @@ data class RCallBack(val uid: String, val video: Boolean) : Route
 data object RLanguage : Route
 data class RGroupSettings(val id: String) : Route
 data class RChannelSettings(val id: String) : Route
+data class RModeration(val id: String, val kind: Kind) : Route
 data class RQr(val title: String, val subtitle: String, val photo: String, val seed: String, val link: String) : Route
 
 object Nav {

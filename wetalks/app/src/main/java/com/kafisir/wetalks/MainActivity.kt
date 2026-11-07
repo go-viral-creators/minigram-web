@@ -213,6 +213,7 @@ fun Main() {
                 RLanguage -> LanguageScreen()
                 is RGroupSettings -> GroupSettingsScreen(r.id)
                 is RChannelSettings -> ChannelSettingsScreen(r.id)
+                is RModeration -> com.kafisir.wetalks.screens.ModerationScreen(r.id, r.kind)
             }
         }
     }

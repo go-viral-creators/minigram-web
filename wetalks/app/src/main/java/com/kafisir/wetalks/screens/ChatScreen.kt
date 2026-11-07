@@ -233,6 +233,7 @@ fun ChatScreen(ref: ChatRef) {
     var stickers by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var delChat by remember { mutableStateOf(false) }
+    var reportTarget by remember { mutableStateOf<Pair<ReportTarget, String>?>(null) }
     var clearAsk by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var typedPreview by remember { mutableStateOf<LinkPreview?>(null) }
@@ -744,8 +745,10 @@ fun ChatScreen(ref: ChatRef) {
             onTranscribe = if (m.type == "voice") ({ menuMsg = null; doTranscribe(m) }) else null,
             onHideNotes = if (trNotes.containsKey(m.id) || txNotes.containsKey(m.id)) ({ menuMsg = null; trNotes.remove(m.id); txNotes.remove(m.id) }) else null,
             onSave = { menuMsg = null; Repo.scope.launch { val b = try { m.mediaId?.let { Repo.loadMedia(ref, it) } } catch (e: Exception) { null }; toast(if (b != null && Gallery.save(ctx, b, m.mime.ifEmpty { "image/jpeg" })) "Saved to gallery" else "Could not save") } },
+            onReport = if (m.from != me && !m.deleted && !m.pending && !saved) ({ reportTarget = ReportTarget.Message(ref, m.id, m.from, ReportLogic.snapshotOf(m.type, m.text), m.type, m.ts) to "this message"; menuMsg = null }) else null,
             onDelete = { deleting = listOf(m); menuMsg = null })
     }
+    reportTarget?.let { (t, what) -> ReportSheet(t, what) { reportTarget = null } }
     deleting?.let { list ->
         val canAll = when (ref.kind) { Kind.DM -> true; Kind.GROUP -> list.all { it.from == me } || group?.members?.get(me) == "admin"; Kind.CHANNEL -> canPost }
         val peerName = if (ref.kind == Kind.DM && !saved) title else null
@@ -809,12 +812,14 @@ fun ChatScreen(ref: ChatRef) {
             Kind.DM -> if (!saved) {
                 SheetItem(Ic.User, "View profile") { menu = false; Nav.push(RProfile(ref.peer!!)) }
                 SheetItem(Ic.Block, if (ref.peer in blocked) "Unblock" else "Block", danger = ref.peer !in blocked) { Repo.block(ref.peer!!, ref.peer !in blocked); menu = false }
+                SheetItem(Ic.Alert, "Report", danger = true) { menu = false; reportTarget = ReportTarget.Chat(ref.peer!!) to title }
                 SheetItem(Ic.Trash2, "Clear chat history") { menu = false; clearAsk = true }
                 SheetItem(Ic.Trash, "Delete chat", danger = true) { menu = false; delChat = true }
             } else { SheetItem(Ic.Trash2, "Clear all notes") { menu = false; clearAsk = true }; SheetItem(Ic.Info, "Only you can see this chat") { menu = false } }
-            Kind.GROUP -> { SheetItem(Ic.Group, "Group info") { menu = false; Nav.push(RGroupInfo(ref.id)) }; SheetItem(Ic.Trash2, "Clear history (only for me)") { menu = false; clearAsk = true } }
+            Kind.GROUP -> { SheetItem(Ic.Group, "Group info") { menu = false; Nav.push(RGroupInfo(ref.id)) }; SheetItem(Ic.Trash2, "Clear history (only for me)") { menu = false; clearAsk = true }; SheetItem(Ic.Alert, "Report group", danger = true) { menu = false; reportTarget = ReportTarget.Group(ref.id) to "this group" } }
             Kind.CHANNEL -> {
                 SheetItem(Ic.Info, "Channel info") { menu = false; Nav.push(RChannelInfo(ref.id)) }
+                if (channel?.owner != me) SheetItem(Ic.Alert, "Report channel", danger = true) { menu = false; reportTarget = ReportTarget.Channel(ref.id) to "this channel" }
                 if (isMember && channel?.owner != me) SheetItem(Ic.Logout, "Leave channel", danger = true) { menu = false; scope.launch { Repo.unsubscribe(ref.id); Nav.pop() } }
             }
         }
@@ -1118,7 +1123,7 @@ private fun StickerBody(payload: String) {
 // ---------------------------------------------------------------------------------------------------- long-press menu
 @Composable
 private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean, pinned: Boolean, mine: Boolean, onDismiss: () -> Unit, onReact: (String) -> Unit,
-                        speakText: String, onSaveFile: (() -> Unit)?, onReply: () -> Unit, onCopy: () -> Unit, onSpeak: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit) {
+                        speakText: String, onSaveFile: (() -> Unit)?, onReply: () -> Unit, onCopy: () -> Unit, onSpeak: () -> Unit, onPin: () -> Unit, onForward: () -> Unit, onEdit: () -> Unit, onSelect: () -> Unit, onSave: () -> Unit, onTranslate: (() -> Unit)?, onTranslateTo: (() -> Unit)?, onTranscribe: (() -> Unit)?, onHideNotes: (() -> Unit)?, onDelete: () -> Unit, onReport: (() -> Unit)? = null) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true, usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) }, contentAlignment = Alignment.Center) {
             Column(Modifier.padding(horizontal = 20.dp).widthIn(max = 340.dp).pointerInput(Unit) { awaitEachGesture { awaitFirstDown().consume() } }, horizontalAlignment = Alignment.Start) {
@@ -1142,6 +1147,7 @@ private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean
                     onTranslateTo?.let { MenuRow(Ic.Globe, "Translate to…", onClick = it) }
                     onHideNotes?.let { MenuRow(Ic.Close, "Hide translation / transcript", onClick = it) }
                     MenuRow(Ic.Select, "Select", onClick = onSelect)
+                    onReport?.let { MenuRow(Ic.Alert, "Report", danger = true, onClick = it) }
                     MenuRow(Ic.Trash, "Delete", danger = true, onClick = onDelete)
                 }
             }
