@@ -134,8 +134,10 @@ fun CallScreen() {
                     Icon(Ic.Lock, Color.White.copy(alpha = .55f), 12.dp); Spacer(Modifier.width(5.dp))
                     Text("End-to-end encrypted", color = Color.White.copy(alpha = .55f), style = T.tiny)
                 }
+                if (phase == CallPhase.ACTIVE) NetBars(Modifier.padding(top = 10.dp))
             }
         }
+        NetBanner(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 200.dp))
         // avatar with real spacing under the text (voice calls and while video is not flowing yet)
         if (!bigShows) Box(Modifier.align(Alignment.Center).padding(top = 60.dp)) { Avatar(user?.name ?: "", user?.photo ?: "", 140.dp, peerId) }
 

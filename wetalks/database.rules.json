@@ -77,7 +77,8 @@
     },
 
     "config": {
-      "maintenance": { ".read": true, ".write": false }
+      "maintenance": { ".read": true, ".write": false },
+      "turn": { ".read": "auth != null", ".write": false }
     },
 
     "fcm_tokens": {
