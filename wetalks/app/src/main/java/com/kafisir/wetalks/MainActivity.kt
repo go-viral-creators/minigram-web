@@ -130,6 +130,7 @@ fun App() {
                     else if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
+        if (Repo.uid.isNotEmpty() && Repo.twoStepChecked.collectAsState().value && !Repo.twoStepRequired.collectAsState().value) com.kafisir.wetalks.screens.TwoStepReminder()
         val maint by Repo.maint.collectAsState()
         val myVer = remember { try { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(ctxApp.packageManager.getPackageInfo(ctxApp.packageName, 0)) } catch (_: Exception) { Long.MAX_VALUE } }
         if (maint.on || maint.minVersion > myVer) com.kafisir.wetalks.screens.MaintenanceScreen(maint, update = !maint.on)

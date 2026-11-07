@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -137,6 +138,8 @@ fun TwoStepScreen() {
     val enabled by produceState<Boolean?>(null, tick) { value = Repo.twoStepEnabled() }
     val resetAt by produceState(0L, tick, enabled) { value = if (enabled == true) Repo.pinResetAt() else 0L }
     var sheet by remember { mutableStateOf("") }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var remind by remember { mutableStateOf(PinReminder.on(ctx)) }
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Two-step verification", onBack = { Nav.pop() })
         Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -154,6 +157,7 @@ fun TwoStepScreen() {
                 }
                 Row2(Ic.Check, "Two-step verification is on", "This phone is trusted")
                 Row2(Ic.Edit, "Change PIN", "Other phones will ask for the new PIN", onClick = { sheet = "change" })
+                Row2(Ic.Bell, "PIN reminder", "Ask for the PIN now and then (every 30 days) so you do not forget it", trailing = { Toggle(remind) { remind = it; PinReminder.setOn(ctx, it) } })
                 Row2(Ic.Trash, "Turn off", "Needs your PIN", tint = We.danger, onClick = { sheet = "off" })
                 Text("Forgot the PIN? Open WeTalks on a new phone and choose Forgot PIN: after 7 days it can be removed, and anyone who still has the PIN can cancel that.", color = We.text2, style = T.small, modifier = Modifier.padding(20.dp))
             }
@@ -161,7 +165,7 @@ fun TwoStepScreen() {
     }
     when (sheet) {
         "on" -> PinSheet("Create a PIN", listOf("New PIN (6 digits)", "Repeat PIN"), "Turn on", { sheet = "" }) { p ->
-            if (p[0] != p[1]) "The two PINs do not match" else { Repo.enableTwoStep(p[0]); tick++; Nav.say("Two-step verification is on"); null }
+            if (p[0] != p[1]) "The two PINs do not match" else { Repo.enableTwoStep(p[0]); PinReminder.scheduleFromNow(ctx, 30); tick++; Nav.say("Two-step verification is on"); null }
         }
         "change" -> PinSheet("Change PIN", listOf("Current PIN", "New PIN (6 digits)", "Repeat new PIN"), "Change", { sheet = "" }) { p ->
             if (p[1] != p[2]) "The new PINs do not match" else { val r = Repo.changeTwoStep(p[0], p[1]); if (r.ok) { tick++; Nav.say("PIN changed"); null } else pinMessage(r) }
@@ -171,6 +175,48 @@ fun TwoStepScreen() {
         }
         "cancel" -> PinSheet("Cancel the reset", listOf("Current PIN"), "Cancel the reset", { sheet = "" }) { p ->
             val r = Repo.cancelPinReset(p[0]); if (r.ok) { tick++; Nav.say("Reset cancelled"); null } else pinMessage(r)
+        }
+    }
+}
+
+/** The optional "enter your PIN now and then" reminder, so it is not forgotten. Kept on this phone. */
+object PinReminder {
+    private fun sp(c: android.content.Context) = c.getSharedPreferences("wt_2sv", android.content.Context.MODE_PRIVATE)
+    fun on(c: android.content.Context) = sp(c).getBoolean("remind", true)
+    fun setOn(c: android.content.Context, v: Boolean) { sp(c).edit().putBoolean("remind", v).apply() }
+    fun due(c: android.content.Context) = on(c) && System.currentTimeMillis() >= sp(c).getLong("next", 0L)
+    fun scheduleFromNow(c: android.content.Context, days: Int) { sp(c).edit().putLong("next", System.currentTimeMillis() + days * 86_400_000L).apply() }
+}
+
+/** Every 30 days (if 2-step is on and the reminder is not switched off) asks for the PIN once; "Later" asks again in a week. */
+@Composable
+fun TwoStepReminder() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    var show by remember { mutableStateOf(false) }
+    var pin by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { if (PinReminder.due(ctx) && Repo.twoStepEnabled()) show = true }
+    if (!show) return
+    androidx.compose.ui.window.Dialog(onDismissRequest = { }) {
+        Column(Modifier.clip(RoundedCornerShape(20.dp)).background(We.surface).padding(22.dp)) {
+            Text("Remember your PIN", color = We.text, style = T.title); Spacer(Modifier.height(8.dp))
+            Text("Enter your 6-digit two-step PIN so you do not forget it. You will need it when you sign in on a new phone.", color = We.text2, style = T.body)
+            Spacer(Modifier.height(12.dp))
+            PinField(pin, { pin = it; err = null }, "PIN", err)
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.End) {
+                Text("Later", color = We.primary, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { PinReminder.scheduleFromNow(ctx, 7); show = false }.padding(horizontal = 14.dp, vertical = 10.dp))
+                Text(if (busy) "Checking…" else "Confirm", color = if (pin.length == 6) We.primary else We.text2, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable {
+                    if (pin.length != 6 || busy) return@clickable
+                    scope.launch {
+                        busy = true
+                        val r = try { Repo.verifyPin(pin) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Repo.PinResult(false) }
+                        busy = false
+                        if (r.ok) { PinReminder.scheduleFromNow(ctx, 30); show = false } else { err = pinMessage(r); pin = "" }
+                    }
+                }.padding(horizontal = 14.dp, vertical = 10.dp))
+            }
         }
     }
 }
