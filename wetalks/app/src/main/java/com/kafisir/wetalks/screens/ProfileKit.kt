@@ -336,6 +336,7 @@ fun ChannelInfoScreen(id: String) {
     var reporting by remember { mutableStateOf(false) }
     val ch = c ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Channel", onBack = { Nav.pop() }) }; return }
     val owner = ch.owner == Repo.uid
+    val flagged by remember(id, owner, ch.admins) { NsfwAlerts.unread(id, owner || Repo.uid in ch.admins) }.collectAsState(0)      // unread "sensitive image" warnings
     if (editing) { EditNameScreen("Edit channel", ch.name, ch.about, ch.photo, ch.id, { n, a, p -> Repo.updateChannel(id, n, a, p) }) { editing = false }; return }
     val link by produceState(Repo.Links.channel(ch.handle), ch.priv, ch.handle) { value = if (ch.priv && owner) try { Repo.inviteLink(id, ch.handle) } catch (_: Exception) { Repo.Links.channel(ch.handle) } else Repo.Links.channel(ch.handle) }
     val qr = RQr(ch.name, "@" + ch.handle, ch.photo, ch.id, link)
@@ -360,7 +361,7 @@ fun ChannelInfoScreen(id: String) {
                     else Tile(Ic.Plus, "Join") { scope.launch { try { Repo.subscribe(id); joined = true } catch (e: Exception) { Nav.say(if (Reports.isBanned(Kind.CHANNEL, id)) "You were banned from this channel" else "Could not join") } } })
                 if (!ch.priv || owner) { add(Tile(Ic.Share, "Share") { shareText(ctx, "Join ${ch.name} on WeTalks: $link") }); add(Tile(Ic.Qr, "QR code") { Nav.push(qr) }) }
                 if (owner) add(Tile(Ic.Sliders, "Settings") { Nav.push(RChannelSettings(id)) })
-                if (owner || Repo.uid in ch.admins) add(Tile(Ic.Shield, "Moderation") { Nav.push(RModeration(id, Kind.CHANNEL)) })
+                if (owner || Repo.uid in ch.admins) add(Tile(Ic.Shield, "Moderation" + if (flagged > 0) " ($flagged)" else "") { Nav.push(RModeration(id, Kind.CHANNEL)) })
                 if (!owner) add(Tile(Ic.Alert, "Report", We.danger) { reporting = true })
                 if (!owner && isSub) add(Tile(Ic.Logout, "Leave", We.danger) { scope.launch { Repo.unsubscribe(id); joined = false; Nav.say("You left the channel") } })
             })
@@ -393,6 +394,7 @@ fun GroupInfoScreen(id: String) {
     val group = g ?: run { Column(Modifier.fillMaxSize().background(We.bg)) { TopBar("Group", onBack = { Nav.pop() }) }; return }
     val me = Repo.uid
     val admin = group.members[me] == "admin"
+    val flagged by remember(id, admin) { NsfwAlerts.unread(id, admin) }.collectAsState(0)      // unread "sensitive image" warnings
     if (editing) { EditNameScreen("Edit group", group.name, group.about, group.photo, group.id, { n, a, p -> Repo.updateGroup(id, n, a, p) }) { editing = false }; return }
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Group", onBack = { Nav.pop() }, actions = { if (admin) IconBtn(Ic.Edit, We.onAppBar, { editing = true }) })
@@ -408,7 +410,7 @@ fun GroupInfoScreen(id: String) {
                 add(Tile(if (muted) Ic.Bell else Ic.BellOff, if (muted) "Unmute" else "Mute") { Repo.setMuted(id, !muted) })
                 if (admin) add(Tile(Ic.UserPlus, "Add") { Nav.push(RAddMembers(id)) })
                 if (admin) add(Tile(Ic.Sliders, "Settings") { Nav.push(RGroupSettings(id)) })
-                if (admin) add(Tile(Ic.Shield, "Moderation") { Nav.push(RModeration(id, Kind.GROUP)) })
+                if (admin) add(Tile(Ic.Shield, "Moderation" + if (flagged > 0) " ($flagged)" else "") { Nav.push(RModeration(id, Kind.GROUP)) })
                 add(Tile(Ic.Alert, "Report", We.danger) { reporting = ReportTarget.Group(id) })
                 add(Tile(Ic.Logout, "Leave", We.danger) { confirmLeave = true })
             })

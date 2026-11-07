@@ -45,6 +45,7 @@ object Notifier {
         if (!enabled(app) || Repo.uid.isEmpty() || job?.isActive == true) return
         baseline = false; last.clear()
         job = Repo.scope.launch { Repo.chats().collect { list -> try { handle(list) } catch (_: Exception) {} } }
+        NsfwAlerts.start(app)                        // admins: "A message in <group> was flagged"
         svcJob?.cancel()
         svcJob = Repo.scope.launch { Repo.watchServiceInbox(); Repo.serviceMsgs.collect { list -> try { serviceNotify(list) } catch (_: Exception) {} } }
     }
@@ -73,7 +74,7 @@ object Notifier {
         }
     }
     fun clearServices() { if (!::app.isInitialized) return; try { val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager; nm.activeNotifications.filter { it.id in 9000..13095 }.forEach { nm.cancel(it.id) } } catch (_: Exception) {} }
-    fun stop() { job?.cancel(); job = null; svcJob?.cancel(); svcJob = null; svcFirst = true; try { NotificationManagerCompat.from(app).cancelAll() } catch (_: Exception) {}; lines.clear(); convs.clear() }
+    fun stop() { NsfwAlerts.stop(); job?.cancel(); job = null; svcJob?.cancel(); svcJob = null; svcFirst = true; try { NotificationManagerCompat.from(app).cancelAll() } catch (_: Exception) {}; lines.clear(); convs.clear() }
     fun cancel(cid: String) { if (!::app.isInitialized) return; try { NotificationManagerCompat.from(app).cancel(cid.hashCode()) } catch (_: Exception) {}; lines.remove(cid); deferred.remove(cid) }
 
     private fun isOpen(ref: ChatRef) = Calls.foreground && (Nav.stack.lastOrNull() as? RChat)?.ref?.id == ref.id

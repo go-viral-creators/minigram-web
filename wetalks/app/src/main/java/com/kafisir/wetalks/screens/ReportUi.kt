@@ -3,6 +3,7 @@ package com.kafisir.wetalks.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -116,6 +117,7 @@ fun ModerationScreen(id: String, kind: Kind) {
     var tick by remember { mutableIntStateOf(0) }
     var confirm by remember { mutableStateOf<Triple<String, String, suspend () -> Unit>?>(null) }
     val reports by remember(id) { Reports.adminReports(id) }.collectAsState(emptyList())
+    val flaggedUnread by remember(id, staff) { NsfwAlerts.unread(id, staff) }.collectAsState(0)
     val bans by produceState<List<BanEntry>>(emptyList(), id, tick, staff) { value = if (staff) try { Reports.bans(kind, id) } catch (_: Exception) { emptyList() } else emptyList() }
     val followers by produceState<List<String>>(emptyList(), id, tick, staff) { value = if (kind == Kind.CHANNEL && staff) try { Repo.subscribers(id) } catch (_: Exception) { emptyList() } else emptyList() }
     val people: List<String> = if (kind == Kind.GROUP) (g?.members?.keys?.toList() ?: emptyList()) else followers
@@ -125,8 +127,8 @@ fun ModerationScreen(id: String, kind: Kind) {
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Moderation", onBack = { Nav.pop() }, subtitle = if (kind == Kind.GROUP) g?.name else c?.name)
         if (!staff) { Empty(Ic.Lock, "Admins only", "Only admins can see reports and manage people."); return@Column }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Reports" + if (reports.isNotEmpty()) " (${reports.size})" else "", if (kind == Kind.GROUP) "Members" else "Followers", "Banned" + if (bans.isNotEmpty()) " (${bans.size})" else "").forEachIndexed { i, t ->
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Reports" + if (reports.isNotEmpty()) " (${reports.size})" else "", if (kind == Kind.GROUP) "Members" else "Followers", "Banned" + if (bans.isNotEmpty()) " (${bans.size})" else "", "Flagged" + if (flaggedUnread > 0) " ($flaggedUnread)" else "").forEachIndexed { i, t ->
                 Text(t, color = if (tab == i) We.onPrimary else We.text, style = T.small.copy(fontWeight = FontWeight.SemiBold), maxLines = 1,
                     modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(if (tab == i) We.primary else We.field).clickable { tab = i }.padding(horizontal = 14.dp, vertical = 9.dp))
             }
@@ -169,6 +171,7 @@ fun ModerationScreen(id: String, kind: Kind) {
                     }
                 }
             } }
+            3 -> NsfwAlertsPane(id, kind)
             else -> if (bans.isEmpty()) Empty(Ic.Block, "No one is banned", "People you ban can't join again until you unban them.") else LazyColumn { items(bans, key = { it.uid }) { b ->
                 val u by Repo.user(b.uid).collectAsState()
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -51,6 +51,7 @@ fun PrivacyScreen() {
             LaunchedEffect(Unit) { ScamPrefs.ensureLoaded() }
             Row2(Ic.Shield, "Warn me about possible scams", "Checks incoming messages on this phone only. Nothing is sent anywhere", trailing = { Toggle(ScamPrefs.enabled) { ScamPrefs.set(it) } })
             Row2(Ic.Check2, "Read receipts", "Show blue ticks when you read messages", trailing = { Toggle(me?.readReceipts ?: true) { Repo.setPrivacy("readReceipts", it) } })
+            NsfwLocalRow()
             SectionLabel("Key backup")
             val backedUp by produceState<Boolean?>(null, backupTick) { value = Repo.hasKeyBackup() }
             Row2(Ic.Key, "Back up encryption key", if (backedUp == true) "Backed up · tap to update the passphrase" else "Protects your old chats if you reinstall or change phone", onClick = { showBackup = true })
