@@ -54,23 +54,35 @@ fun FileBody(m: Msg, ref: ChatRef, mine: Boolean, fg: Color, onLong: () -> Unit)
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val out = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id } else null
-    val cached = remember(m.mediaId, m.name) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).let { f -> f.exists() && f.length() > 0 } } == true }
+    val cached = remember(m.mediaId, m.name, AutoFetch.doneTick) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).let { f -> f.exists() && f.length() > 0 } } == true }
     var progress by remember(m.id) { mutableFloatStateOf(-1f) }
-    var ready by remember(m.id) { mutableStateOf(cached) }
+    var ready by remember(m.id, cached) { mutableStateOf(cached) }
     var failed by remember(m.id) { mutableStateOf("") }
-    val busy = out != null && !out.failed || progress >= 0f
-    val shown = if (out != null) out.progress else progress.coerceAtLeast(0f)
+    // automatic download: the rule for the current network (Wi-Fi / mobile / roaming) decides; otherwise the tile waits for a tap
+    val mtype = MediaPolicy.typeOf(m.type) ?: MediaPolicy.Type.DOC
+    val verdict = DataPrefs.autoVerdict(mtype, m.size, ready, m.from == Repo.uid)
+    val autoKey = m.mediaId ?: ""
+    LaunchedEffect(m.mediaId, verdict.auto, ready) {
+        val id = m.mediaId
+        if (id != null && ready) MediaLedger.noteFile(ref.id, m.id, id, m.name, m.type)
+        else if (id != null && verdict.auto && !m.pending && m.fkey.isNotEmpty()) AutoFetch.start(autoKey, mtype, m.size, m.from == Repo.uid) { p -> Repo.fetchFile(m, ref.id, p) }
+    }
+    val autoBusy = AutoFetch.progress[autoKey]
+    val busy = out != null && !out.failed || progress >= 0f || autoBusy != null
+    val shown = if (out != null) out.progress else if (autoBusy != null && progress < 0f) autoBusy else progress.coerceAtLeast(0f)
     val icon = when (m.type) { "video" -> Ic.Video; "audio" -> Ic.Audio; else -> Ic.File }
     val playing = m.type == "audio" && FilePlayer.playingId == m.id
     LaunchedEffect(playing) { while (playing) { FilePlayer.tick(); delay(250) } }
 
     fun open() {
         if (m.pending || progress >= 0f) return
+        if (AutoFetch.running(autoKey)) { AutoFetch.promote(autoKey); return }       // already coming by itself: let it finish
         failed = ""
+        if (!ready) MediaNet.warnIfRoaming()
         scope.launch {
             try {
                 progress = 0f
-                val f = Repo.fetchFile(m) { progress = it }
+                val f = Repo.fetchFile(m, ref.id) { progress = it }
                 progress = -1f; ready = true
                 when (m.type) {
                     "video" -> Nav.push(RVideo(f.absolutePath, m.name))
@@ -90,9 +102,9 @@ fun FileBody(m: Msg, ref: ChatRef, mine: Boolean, fg: Color, onLong: () -> Unit)
         Box(Modifier.size(46.dp).clip(CircleShape).background(We.primary.copy(alpha = .16f)), contentAlignment = Alignment.Center) {
             if (busy) androidx.compose.material3.CircularProgressIndicator(progress = { shown.coerceIn(0.03f, 1f) }, modifier = Modifier.size(34.dp), color = We.primary, strokeWidth = 2.5.dp)
             else if (out?.failed == true || failed.isNotEmpty()) Icon(Ic.Alert, We.danger, 22.dp)
+            else if (!ready && !m.pending) Icon(Ic.Download, We.primary, 22.dp)
             else if (m.type == "audio") Icon(if (playing) Ic.Pause else Ic.Play, We.primary, 24.dp)
-            else if (m.type == "file" || ready) Icon(icon, We.primary, 22.dp)
-            else Icon(Ic.Download, We.primary, 22.dp)
+            else Icon(icon, We.primary, 22.dp)
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -102,7 +114,7 @@ fun FileBody(m: Msg, ref: ChatRef, mine: Boolean, fg: Color, onLong: () -> Unit)
                 out?.failed == true -> "Not sent · tap the bubble to retry"
                 busy -> (if (out != null) "Sending… " else "Downloading… ") + (shown * 100).toInt() + "%"
                 playing -> fmtMs(FilePlayer.pos) + " / " + fmtMs(FilePlayer.len)
-                else -> FileKit.size(m.size) + " · " + FileKit.extOf(m.name).uppercase()
+                else -> (if (!ready && !m.pending) "Tap to download · " else "") + FileKit.size(m.size) + " · " + FileKit.extOf(m.name).uppercase()
             }
             Text(sub, color = fg.copy(alpha = .6f), style = T.small)
         }
@@ -148,23 +160,33 @@ fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val out = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id } else null
-    val localFile = remember(m.mediaId, m.name) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).takeIf { f -> f.exists() && f.length() > 0 } } }
+    val localFile = remember(m.mediaId, m.name, AutoFetch.doneTick) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).takeIf { f -> f.exists() && f.length() > 0 } } }
     // videos sent before previews existed (or received ones): take the picture and length from the copy on this phone
     val info by produceState<FileKit.VideoInfo?>(null, localFile, m.thumb) { if (localFile != null && (m.thumb.isEmpty() || m.dur == 0)) value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { FileKit.videoInfoOf(ctx, localFile) } }
     val thumb = remember(m.thumb, m.id, out, info) { out?.thumb ?: if (m.thumb.isNotEmpty()) try { Pics.decode(Crypto.unb64(m.thumb)) } catch (_: Exception) { null } else info?.thumb?.let { Pics.decode(it) } }
     val seconds = if (m.dur > 0) m.dur else info?.seconds ?: 0
     var progress by remember(m.id) { mutableFloatStateOf(-1f) }
-    val local = remember(m.mediaId, m.name) { m.mediaId?.let { FileKit.cachedFile(ctx, it, m.name).let { f -> f.exists() && f.length() > 0 } } == true }
-    val busy = (out != null && !out.failed) || progress >= 0f
-    val shown = if (out != null) out.progress else progress.coerceAtLeast(0f)
+    val local = localFile != null
+    val verdict = DataPrefs.autoVerdict(MediaPolicy.Type.VIDEO, m.size, local, m.from == Repo.uid)
+    val autoKey = m.mediaId ?: ""
+    LaunchedEffect(m.mediaId, verdict.auto, local) {
+        val id = m.mediaId
+        if (id != null && local) MediaLedger.noteFile(ref.id, m.id, id, m.name, "video")
+        else if (id != null && verdict.auto && !m.pending && m.fkey.isNotEmpty()) AutoFetch.start(autoKey, MediaPolicy.Type.VIDEO, m.size, m.from == Repo.uid) { p -> Repo.fetchFile(m, ref.id, p) }
+    }
+    val autoBusy = AutoFetch.progress[autoKey]
+    val busy = (out != null && !out.failed) || progress >= 0f || autoBusy != null
+    val shown = if (out != null) out.progress else if (autoBusy != null && progress < 0f) autoBusy else progress.coerceAtLeast(0f)
     val vw = if (m.w > 0) m.w else info?.w ?: 0; val vh = if (m.h > 0) m.h else info?.h ?: 0
     val ratio = if (vw > 0 && vh > 0) (vw.toFloat() / vh).coerceIn(.6f, 1.8f) else 1.6f
     fun play() {
         if (m.pending || progress >= 0f) return
+        if (AutoFetch.running(autoKey)) { AutoFetch.promote(autoKey); return }
+        if (!local) MediaNet.warnIfRoaming()
         scope.launch {
             try {
                 progress = 0f
-                val f = Repo.fetchFile(m) { progress = it }
+                val f = Repo.fetchFile(m, ref.id) { progress = it }
                 progress = -1f
                 Nav.push(RVideo(f.absolutePath, m.name))
             } catch (e: kotlinx.coroutines.CancellationException) { throw e
@@ -179,6 +201,7 @@ fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
                 else if (busy) androidx.compose.material3.CircularProgressIndicator(progress = { shown.coerceIn(0.04f, 1f) }, modifier = Modifier.size(38.dp), color = Color.White, strokeWidth = 3.dp, trackColor = Color(0x44FFFFFF))
                 else Icon(if (local || m.pending) Ic.Play else Ic.Download, Color.White, 28.dp)
             }
+            if (!local && !m.pending && !busy && m.size > 0) Text(FileKit.size(m.size), color = Color.White, style = T.small, modifier = Modifier.align(Alignment.Center).offset(y = 42.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 1.dp))
             Row(Modifier.align(Alignment.BottomStart).padding(8.dp).clip(RoundedCornerShape(8.dp)).background(Color(0x99000000)).padding(horizontal = 7.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Ic.Video, Color.White, 13.dp); Spacer(Modifier.width(4.dp))
                 Text((if (seconds > 0) "%d:%02d".format(seconds / 60, seconds % 60) else "Video") + (if (!local && !m.pending && m.size > 0) " · " + FileKit.size(m.size) else ""), color = Color.White, style = T.tiny)

@@ -27,7 +27,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kafisir.wetalks.data.AutoFetch
 import com.kafisir.wetalks.data.ChatRef
+import com.kafisir.wetalks.data.DataPrefs
+import com.kafisir.wetalks.data.MediaKinds
+import com.kafisir.wetalks.data.MediaLedger
+import com.kafisir.wetalks.data.MediaNet
+import com.kafisir.wetalks.data.MediaPolicy
 import com.kafisir.wetalks.data.Msg
 import com.kafisir.wetalks.data.Repo
 import com.kafisir.wetalks.ui.*
@@ -58,7 +64,16 @@ fun VoiceBody(m: Msg, ref: ChatRef, fg: Color, onSelect: () -> Unit = {}) {
     val who by Repo.user(m.from).collectAsState()
     val active = VoicePlayer.currentId == m.id
     val playing = active && VoicePlayer.playing
-    val loading = VoicePlayer.loadingId == m.id || m.pending
+    // is the voice note on this phone? if not, does the auto-download rule for the current network say to fetch it now?
+    val vid = m.mediaId
+    val onPhone = remember(vid, AutoFetch.doneTick) { vid != null && DataPrefs.hasDisk(vid) }
+    val verdict = DataPrefs.autoVerdict(MediaPolicy.Type.VOICE, m.size, onPhone, m.from == Repo.uid)
+    LaunchedEffect(vid, verdict.auto, onPhone) {
+        if (vid != null && onPhone) MediaLedger.seenMedia(ref.id, m.id, vid, "voice")
+        else if (vid != null && verdict.auto && !m.pending) AutoFetch.start("v$vid", MediaPolicy.Type.VOICE, m.size, m.from == Repo.uid) { _ -> Repo.loadMedia(ref, vid) }
+    }
+    val needsTap = !onPhone && !verdict.auto && !m.pending
+    val loading = VoicePlayer.loadingId == m.id || m.pending || (vid != null && AutoFetch.progress.containsKey("v$vid"))
     val pos = if (active) VoicePlayer.pos else 0
     val total = if (active && VoicePlayer.total > 0) VoicePlayer.total else m.dur * 1000
     val speed = VoicePlayer.speed
@@ -66,8 +81,9 @@ fun VoiceBody(m: Msg, ref: ChatRef, fg: Color, onSelect: () -> Unit = {}) {
     val heard = listened.getBoolean(m.id, false) || m.from == Repo.uid || active
 
     Row(Modifier.width(236.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { if (selecting) onSelect() else if (!m.pending) VoicePlayer.toggle(ctx, ref, m, if (m.from == Repo.uid) "You" else who?.name ?: "Voice message") }), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(We.primary).combinedClickable(onClick = { if (selecting) onSelect() else if (!m.pending) { if (needsTap) MediaNet.warnIfRoaming(); VoicePlayer.toggle(ctx, ref, m, if (m.from == Repo.uid) "You" else who?.name ?: "Voice message") } }), contentAlignment = Alignment.Center) {
             if (loading) androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.onPrimary, strokeWidth = 2.dp)
+            else if (needsTap) Icon(Ic.Download, We.onPrimary, 22.dp)
             else Icon(if (playing) Ic.Pause2 else Ic.Play, We.onPrimary, 22.dp)
         }
         Spacer(Modifier.width(10.dp))
@@ -75,7 +91,7 @@ fun VoiceBody(m: Msg, ref: ChatRef, fg: Color, onSelect: () -> Unit = {}) {
             Waveform(m.wave, if (active && total > 0) (pos.toFloat() / total).coerceIn(0f, 1f) else 0f, We.primary, fg.copy(alpha = .28f), Modifier.fillMaxWidth().height(30.dp)) { frac -> if (active) VoicePlayer.seek(frac) }
             Row(Modifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                 val shown = if (active && (playing || pos > 0)) pos / 1000 else m.dur
-                Text("%d:%02d".format(shown / 60, shown % 60), color = fg.copy(alpha = .65f), style = T.tiny)
+                Text("%d:%02d".format(shown / 60, shown % 60) + (if (needsTap && m.size > 0) " · " + MediaKinds.bytes(m.size) else ""), color = fg.copy(alpha = .65f), style = T.tiny)
                 if (!heard) { Spacer(Modifier.width(6.dp)); Box(Modifier.size(7.dp).clip(CircleShape).background(We.primary)) }
                 Spacer(Modifier.weight(1f))
                 if (active) Text(if (speed == 1f) "1x" else if (speed == 1.5f) "1.5x" else "2x", color = We.primary, style = T.tiny.copy(fontSize = 11.sp),

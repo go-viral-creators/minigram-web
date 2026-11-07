@@ -205,6 +205,8 @@ fun Main() {
                 RStorage -> StorageScreen()
                 RBackup -> com.kafisir.wetalks.screens.BackupScreen()
                 RRestoreBackup -> com.kafisir.wetalks.screens.RestoreBackupScreen()
+                RAutoDownload -> com.kafisir.wetalks.screens.AutoDownloadScreen()
+                RStorageManager -> com.kafisir.wetalks.screens.StorageManagerScreen()
                 RAppLock -> AppLockScreen()
                 is RFolder -> com.kafisir.wetalks.screens.FolderScreen(r.locked, r.tab)
                 RLabels -> com.kafisir.wetalks.screens.LabelsScreen()

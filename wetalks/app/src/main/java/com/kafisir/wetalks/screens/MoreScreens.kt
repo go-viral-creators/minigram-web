@@ -205,6 +205,7 @@ fun StorageScreen() {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Row2(Ic.Database, "Chat backup", "Back up your messages, restore them on a new phone", onClick = { Nav.push(com.kafisir.wetalks.ui.RBackup) })
             SectionLabel("Storage on this phone")
+            Row2(Ic.Database, "Manage storage", "See what uses space, per chat, and free it up", onClick = { Nav.push(RStorageManager) })
             // usage bar
             val total = (media + other).coerceAtLeast(1L)
             Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(We.field)) {
@@ -223,10 +224,8 @@ fun StorageScreen() {
             val days = listOf(0 to "Never", 7 to "7 days", 30 to "30 days", 90 to "90 days")
             chips(days.map { it.second to (DataPrefs.cleanDays == it.first) }) { DataPrefs.setClean(days[it].first) }
 
-            SectionLabel("Auto-download photos & GIFs")
-            val modes = listOf("always" to "Always", "wifi" to "Wi-Fi only", "never" to "Never")
-            chips(modes.map { it.second to (DataPrefs.autoPhotos == it.first) }) { DataPrefs.setAuto(modes[it].first) }
-            Text("Photos that don't download automatically show a tap-to-download tile.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+            SectionLabel("Auto-download")
+            Row2(Ic.Download, "Auto-download media", "Choose what downloads on Wi-Fi, mobile data and roaming", onClick = { Nav.push(RAutoDownload) })
             Row2(Ic.Camera, "Data saver for sending", "Send photos smaller (about 900 px) so they upload faster on slow networks", trailing = { Toggle(DataPrefs.saver) { DataPrefs.updateSaver(it) } })
 
             SectionLabel("Data used by media")

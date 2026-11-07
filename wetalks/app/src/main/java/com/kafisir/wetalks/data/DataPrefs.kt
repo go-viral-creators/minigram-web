@@ -16,6 +16,8 @@ object DataPrefs {
     var cleanDays by mutableIntStateOf(0); private set                 // 0 = never
     var autoPhotos by mutableStateOf("always"); private set            // always | wifi | never
     var saver by mutableStateOf(false); private set                    // send smaller photos
+    /** Per-network auto-download rules (Wi-Fi / mobile / roaming); see [MediaPolicy]. [autoPhotos] is kept only so old saved choices carry over. */
+    var autoRules by mutableStateOf(MediaPolicy.defaults()); private set
     var down by mutableLongStateOf(0L); private set
     var up by mutableLongStateOf(0L); private set
     private lateinit var app: Context
@@ -27,10 +29,13 @@ object DataPrefs {
         val s = sp()
         cacheLimitMb = s.getInt("limit", 250); cleanDays = s.getInt("clean", 0); autoPhotos = s.getString("auto", "always") ?: "always"; saver = s.getBoolean("saver", false)
         down = s.getLong("down", 0); up = s.getLong("up", 0)
+        autoRules = if (s.contains("auto_rules")) MediaPolicy.decode(s.getString("auto_rules", null)) else MediaPolicy.migrateLegacy(if (s.contains("auto")) autoPhotos else null)
+        MediaNet.start(app); MediaLedger.init(app)
         Thread { autoClean() }.start()
     }
     fun setLimit(v: Int) { cacheLimitMb = v; sp().edit().putInt("limit", v).apply(); Thread { trim() }.start() }
     fun setClean(v: Int) { cleanDays = v; sp().edit().putInt("clean", v).apply(); Thread { autoClean() }.start() }
+    fun saveAutoRules(v: MediaPolicy.Settings) { autoRules = v; sp().edit().putString("auto_rules", MediaPolicy.encode(v)).apply() }
     fun setAuto(v: String) { autoPhotos = v; sp().edit().putString("auto", v).apply() }
     fun updateSaver(v: Boolean) { saver = v; sp().edit().putBoolean("saver", v).apply() }
     fun resetUsage() { down = 0; up = 0; sp().edit().putLong("down", 0).putLong("up", 0).apply() }
@@ -72,10 +77,10 @@ object DataPrefs {
         dir.listFiles()?.forEach { if (it.lastModified() < cut) it.delete() }
     }
 
-    /** May photos / GIFs download by themselves right now? */
-    fun mayAutoDownload(): Boolean = when (autoPhotos) {
-        "never" -> false
-        "wifi" -> { val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager; cm.getNetworkCapabilities(cm.activeNetwork)?.let { it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) } == true }
-        else -> true
-    }
+    /** Should this media message download by itself right now? [size] <= 0 = unknown. Reads Compose state, so the caller redraws when the network or the rules change. */
+    fun autoVerdict(type: MediaPolicy.Type, size: Long = 0, cached: Boolean = false, mine: Boolean = false): MediaPolicy.Verdict =
+        MediaPolicy.decide(type, size, MediaNet.state, autoRules, cached, mine)
+
+    /** May photos / GIFs download by themselves right now? (kept for older callers) */
+    fun mayAutoDownload(): Boolean = autoVerdict(MediaPolicy.Type.PHOTO).auto
 }

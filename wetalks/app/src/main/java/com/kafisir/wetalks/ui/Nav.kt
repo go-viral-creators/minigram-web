@@ -32,6 +32,8 @@ data object RChatSettings : Route
 data object RStorage : Route
 data object RBackup : Route
 data object RRestoreBackup : Route
+data object RAutoDownload : Route
+data object RStorageManager : Route
 data object RAppLock : Route
 data class RFolder(val locked: Boolean, val tab: Int) : Route
 data object RLabels : Route

@@ -919,7 +919,7 @@ object Repo {
                     "call" -> { dur = j.optInt("d"); mime = j.optString("s"); w = j.optInt("v") }
                     "link" -> { text = j.optString("t"); link = LinkPreview(j.optString("u"), j.optString("ti"), j.optString("d"), j.optString("i")) }
                     else -> {
-                        mediaId = j.optString("m"); album = j.optString("ag"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
+                        mediaId = j.optString("m"); fsize = j.optLong("s"); album = j.optString("ag"); dur = j.optInt("d"); text = j.optString("c"); mime = j.optString("mime"); w = j.optInt("w"); h = j.optInt("h")
                         if (r.type == "video" || r.type == "audio" || r.type == "file") { fname = FileKit.cleanName(j.optString("n")); fsize = j.optLong("s"); fkey = j.optString("k"); fthumb = j.optString("th"); mime = FileKit.mimeOf(FileKit.extOf(fname)) }
                         j.optJSONArray("w")?.let { a -> wave = (0 until a.length()).map { a.optInt(it) } }
                     }
@@ -1027,6 +1027,7 @@ object Repo {
             try { if (repairGroupKeys(ref.id, force = true)) { groupKeys.clear(); key = chatKey(ref, 0) } } catch (_: Exception) {}
         }
         if (ref.kind != Kind.CHANNEL && key == null) throw IllegalStateException(if (ref.kind == Kind.GROUP) "This group's key is not on your phone yet. Ask a group admin to open WeTalks once, then try again." else "Encryption key not available yet. The other person must open WeTalks once.")
+        val payload = MediaLedger.stampSize(type, payload)           // photo / voice / GIF: the upload size rides inside the encrypted message
         val body = if (key == null) payload else Crypto.sealText(key, payload)
         val listBody = if (type == "link") {
             val slim = try { org.json.JSONObject(payload).apply { remove("i") }.toString() } catch (e: Exception) { payload }
@@ -1220,6 +1221,7 @@ object Repo {
         val id = MediaApi.upload(ref.id, sealed, mime)
         DataPrefs.addUp(sealed.size.toLong())
         DataPrefs.putPlain(id, bytes)               // what I sent is shown from my own file, never fetched back
+        MediaLedger.rememberUpload(id, sealed.size.toLong()); MediaLedger.noteMedia(ref.id, id, bytes)
         return id
     }
 
@@ -1250,6 +1252,7 @@ object Repo {
         } catch (e: Exception) { return null }
         mediaCache.put(id, bytes)
         DataPrefs.putPlain(id, bytes)
+        MediaLedger.noteMedia(ref.id, id, bytes)
         return bytes
     }
 
@@ -1283,15 +1286,16 @@ object Repo {
             if (info != null) { j.put("d", info.seconds).put("w", info.w).put("h", info.h); if (info.thumb != null) j.put("th", Crypto.b64(info.thumb)) }
             // the sender already has the file: keep a copy under the new id so opening it later never needs a download
             withContext(Dispatchers.IO) { FileKit.keepSent(ctx, id, p.name, uri) }
+            MediaLedger.noteFile(ref.id, "", id, p.name, p.kind)
             send(ref, p.kind, j.toString(), rid, when (p.kind) { "video" -> "Video"; "audio" -> "Audio"; else -> "Document" }, fwd)
         } finally { tmp.delete() }
     }
 
     /** Downloads and decrypts a received file into the cache (once); returns the readable copy. */
-    suspend fun fetchFile(m: Msg, onProgress: (Float) -> Unit): java.io.File {
+    suspend fun fetchFile(m: Msg, chat: String? = null, onProgress: (Float) -> Unit): java.io.File {
         val id = m.mediaId?.takeIf { it.isNotEmpty() } ?: throw IllegalStateException("This file is not available")
         val out = FileKit.cachedFile(app, id, m.name)
-        if (out.exists() && out.length() > 0) { out.setLastModified(System.currentTimeMillis()); return out }
+        if (out.exists() && out.length() > 0) { out.setLastModified(System.currentTimeMillis()); if (chat != null) MediaLedger.noteFile(chat, m.id, id, m.name, m.type); return out }
         val key = try { Crypto.unb64(m.fkey) } catch (_: Exception) { throw IllegalStateException("This file can't be opened (missing key)") }
         if (key.size != 32) throw IllegalStateException("This file can't be opened (bad key)")
         val enc = java.io.File(app.cacheDir, "dl_" + System.nanoTime() + ".enc")
@@ -1299,7 +1303,7 @@ object Repo {
             if (!MediaApi.downloadToFile(id, enc) { onProgress(it * 0.85f) }) throw IllegalStateException("Could not download the file. It may have been deleted.")
             return withContext(Dispatchers.IO) {
                 try { FileKit.decrypt(enc, key, out, m.size, FileKit.extOf(m.name)) } catch (e: Exception) { out.delete(); throw IllegalStateException(e.message ?: "The file could not be decrypted") }
-            }
+            }.also { if (chat != null) MediaLedger.noteFile(chat, m.id, id, m.name, m.type) }
         } finally { enc.delete() }
     }
 
