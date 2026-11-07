@@ -220,6 +220,19 @@
       }
     },
 
+    "starred": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$cid": {
+          ".validate": "$cid.matches(/^[A-Za-z0-9_-]{1,300}$/) && newData.hasChildren()",
+          "$mid": {
+            ".validate": "$mid.matches(/^[A-Za-z0-9_-]{1,40}$/) && newData.isNumber() && newData.val() === now"
+          }
+        }
+      }
+    },
+
     "chat_labels": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

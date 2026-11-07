@@ -110,6 +110,7 @@ object Repo {
 
     fun signOut() {
         Crash.user("")
+        SearchIndexer.onSignOut()
         unregisterPush()
         setOnline(false)
         detachAll()
@@ -123,6 +124,7 @@ object Repo {
         if (u != null && u.username.isNotEmpty()) db.getReference("usernames/${u.username.lowercase()}").removeValue().await()
         db.getReference("users/$me").removeValue().await()
         db.getReference("user_chats/$me").removeValue().await()
+        SearchIndexer.onSignOut()
         auth.currentUser?.delete()?.await()
         Crypto.clear(app)
     }
@@ -857,6 +859,13 @@ object Repo {
         val s = db.getReference("messages/${ref.id}/$id").get().await()
         if (s.exists()) decrypt(ref, rawOf(s)) else null
     } catch (_: Exception) { null }
+
+    /** A page of older messages for the on-phone search index: up to [n] messages before the key [before] (null = the newest [n]). Oldest first. */
+    suspend fun rawPage(ref: ChatRef, before: String?, n: Int): List<Raw> {
+        val base = db.getReference("messages/${ref.id}").orderByKey()
+        val q = if (before == null) base.limitToLast(n) else base.endAt(before).limitToLast(n + 1)
+        return q.get().await().children.filter { it.key != before }.map { rawOf(it) }
+    }
 
     fun rawMessages(ref: ChatRef, limit: Int): Flow<List<Raw>> = callbackFlow {
         val q = db.getReference("messages/${ref.id}").orderByKey().limitToLast(limit)
