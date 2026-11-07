@@ -1,0 +1,190 @@
+# Synthetic, hand-written normal messages in English, including tricky ones that look like scams. One per line.
+Hey, are you coming to dinner tonight?
+Did you get the OTP? Mine has not come yet.
+My bank sent a message: never share your OTP, PIN or CVV with anyone, not even bank staff.
+Reminder from SBI: Do not share your OTP with anyone. SBI will never ask for your PIN or password.
+Your OTP is 482913. Do not share it with anyone. Valid for 10 minutes.
+Mum, I paid the electricity bill online, you do not need to go to the office.
+Check this out https://www.youtube.com/watch?v=dQw4w9WgXcQ
+Meet me here: https://maps.app.goo.gl/AbC123xyz
+I'll send you the location in 5 minutes.
+Can you send me the notes from yesterday's class?
+The delivery guy just called, he is outside the gate.
+My Amazon parcel arrived today, it was the blue headphones.
+Flipkart has a sale this weekend, I want to buy a phone cover.
+Congratulations on your new job! Let's celebrate on Friday.
+We got the job offer! Salary is 12 LPA, I join on the 1st.
+HR said the interview is at 11 am tomorrow, please bring your original documents.
+I need to update my KYC at the bank branch tomorrow, will take half a day.
+Papa, the bank called about the loan EMI, I will pay it on Monday.
+Did you pay the rent? The landlord is asking.
+Send me the account number of the shop, I will transfer the money for the sofa.
+I sent you Rs 500 on GPay, please check.
+Please pay me back the Rs 300 for pizza when you can, no hurry.
+Split the bill? It comes to 450 each.
+Can you check if the payment went through? It shows pending on my side.
+My card got declined at the restaurant, can you pay? I will send it back right now.
+Just got a 20% discount code from the app, want to use it for the bag?
+Use my referral code, we both get 100 rupees.
+Thanks for the recharge brother, I will return it next week.
+There is a 50% off on shoes at the mall, shall we go?
+The lottery stall at the fair was so funny, I lost every game.
+My cousin won a prize at the quiz competition!
+Winner of the cricket match was Mumbai, what a game!
+Reminder: your AnyDesk session is scheduled with our IT team at 4 pm, the ticket number is 4471.
+Can you do a screen share on Zoom for the presentation? I want to show you the slides.
+Install the new Zoom update before the meeting, it fixes the audio bug.
+I'll share the screen in the team call to walk you through the code.
+What is the password for the office wifi? I forgot it.
+Do not share the Netflix password with others, it will lock the account.
+Why did you change your Instagram password? I could not log in.
+The password manager saved all my logins, super handy.
+I forgot my PIN code at the bank, I have to go to the branch.
+Pin this message in the group please.
+What is the pin code of your area? I want to send a courier.
+My ATM card is blocked, I need to visit the bank tomorrow.
+I lost my debit card, blocked it from the app already.
+Hi, can you give me a lift to the station at 6?
+Happy birthday! Wishing you a wonderful year ahead.
+Don't forget to bring your Aadhaar card for the exam registration.
+The Aadhaar centre is closed today, going tomorrow.
+I linked my PAN with Aadhaar yesterday, took 2 minutes online.
+Income tax filing last date is July 31, did you file yours?
+Got my income tax refund today, finally!
+Tax season is so stressful, my CA is helping this year.
+Take a look at this article: https://www.thehindu.com/news/national/story.ece
+https://en.wikipedia.org/wiki/Mumbai
+Here is the link to the Google Doc: https://docs.google.com/document/d/1AbCdEf/edit
+Zoom link for the call: https://us02web.zoom.us/j/123456789
+Join the Google Meet: https://meet.google.com/abc-defg-hij
+My portfolio is at https://github.com/priya/portfolio
+Look at this reel https://www.instagram.com/reel/Cx1234/
+Check my LinkedIn https://www.linkedin.com/in/rahul-sharma
+Try this recipe https://www.bbcgoodfood.com/recipes/easy-pancakes
+Book the train on https://www.irctc.co.in and send me the PNR.
+Flight tickets from https://www.makemytrip.com are cheaper today.
+Order is here: https://www.amazon.in/dp/B09XYZ
+I shared the photos: https://photos.app.goo.gl/AbCdEfGh
+Here is the Drive folder https://drive.google.com/drive/folders/1xyz
+Our wedding invitation is at https://wedding.example.com/rahul-priya
+Short link for the form: https://forms.gle/AbCdEf123
+Voting results here https://bit.ly/results-team-2024 look at slide 3
+Try the link I sent: https://tinyurl.com/mom-recipe-pdf
+Can you send me the invoice PDF?
+I'll call you after the meeting.
+Where are you? We are waiting at the cafe.
+Happy Diwali to you and your family!
+Please share the project file by evening.
+Can you share your location? I am near the park.
+Share the excel sheet with me please.
+Send me the photos from the trip!
+Tell me when you reach home.
+I will give you the book tomorrow.
+Mom wants to know if you are coming for lunch on Sunday.
+The doctor said I should rest for two days.
+The exam results will be declared on Monday.
+I submitted the assignment, the portal said success.
+My bank balance is low this month, I need to be careful.
+The bank manager was very helpful today.
+Opened a new savings account at HDFC, the process was quick.
+SBI branch closes at 4 pm, so I have to hurry.
+I withdrew some cash from the ATM near the metro.
+The ATM was out of cash again.
+Our company is hiring a backend engineer, please share your CV with HR at careers@company.com.
+Are you looking for a job? My friend's company has an opening.
+I got a part time job at the library, 4 hours a day.
+Work from home again today, the office AC is broken.
+He earns about 50k a month working remotely.
+I am trying to make some money by tutoring on weekends.
+The investment seminar was boring, they only talked about mutual funds.
+My dad invested in a fixed deposit at 7 percent.
+Bitcoin dropped again today, I am glad I did not buy.
+Mutual fund SIP of Rs 2000 goes out on the 5th of every month.
+Did the loan get approved? Call the bank manager and ask.
+Home loan EMI is due, remind me on the 3rd.
+Your order has been shipped and will arrive by Thursday. Track it in the app.
+Your Swiggy order is on the way, delivery partner Ravi is 5 minutes away.
+Your Uber is arriving in 2 minutes, driver name Suresh, OTP 4821.
+Cab OTP is 3392, tell it to the driver when he arrives.
+Please tell the driver the OTP only when you sit in the cab.
+Tell the delivery person the OTP 6621 to receive the parcel.
+The OTP for the parcel is 1088, the rider will ask for it.
+Your Zomato verification code is 553201.
+Netflix: someone signed in from a new device. If this was you, ignore this message.
+The bank has changed its working hours, now it opens at 10.
+Free entry for ladies at the club tonight!
+Free parking available behind the building.
+Buy one get one free at the bakery today.
+Lucky draw at the society event tomorrow, bring your coupon.
+The prize distribution is at 5 pm in the school ground.
+We won the first prize in the dance competition!
+Click on the photo to see it bigger.
+Do you want to install the game? It is really fun.
+The apk file for the app is attached, it is the debug build.
+Can you download the report and check the numbers?
+The refund for my flight came yesterday, took 7 days.
+The shop gave me a refund for the broken mixer.
+Urgent: submit the form before 5 pm today, the office is closing.
+Quick, the movie starts in 10 minutes!
+Hurry up, we will miss the train!
+Last date for the exam form is tomorrow, please fill it.
+Your account is almost ready, let me know when you want to start.
+My Facebook account got hacked last year, I am more careful now.
+I received a scam message today pretending to be from the bank, so annoying.
+Beware of fake calls asking for your OTP. Banks never ask for it.
+Be careful, a friend of mine lost money after sharing his UPI PIN with a stranger.
+Do not click on unknown links, they can steal your data.
+Never share your card number or CVV on a call, remember that.
+Warning: a fake KYC update message is going around. Ignore it and delete it.
+Mom, someone called saying I won a lottery, I just hung up, right?
+Police advisory: do not share OTP, screen or remote access with unknown callers.
+Cyber crime helpline number is 1930, save it in your phone.
+The police station is near the market, we can ask them.
+I am calling from the new number, the old one is lost.
+Is this your new number? Save it, please.
+Aadhaar update camp is at the community hall on Saturday.
+Electricity bill is Rs 2,340 this month, the AC is costing us.
+The bill payment is due on the 10th, set a reminder.
+The cashback from the app came to my wallet, it was just Rs 12.
+I got Rs 50 cashback on the recharge.
+Use code SAVE10 at checkout for a discount.
+I'll scan the QR code at the shop and pay.
+Scan the QR to join the wifi.
+QR code for the event entry is in your email.
+He asked me to scan a QR code at the petrol pump to pay.
+Please enter the code on the TV to log in to Prime.
+The 6 digit code on the screen is for the device pairing, I just did it myself.
+Enter the PIN on the door lock, it is the same as last time.
+Turn on screen mirroring on the TV, I want to show you the photos.
+Your friend Rahul invited you to join the group.
+Join the group using this invite link https://chat.whatsapp.com/AbCdEfGh123
+Joined the Telegram channel for the cricket updates https://t.me/cricketupdates
+Do you have the Telegram link for the study group?
+The prize money for the hackathon is Rs 50,000, we are going to try.
+Lottery tickets are illegal in our state, I think.
+Rs 1 coin is no more in use in many shops.
+Pay Rs 10 for the parking at the gate.
+Rs 20 for the toll at the highway, keep change ready.
+Gift card for Flipkart came as a Diwali gift from my company.
+Buy the gift card from the store and gift it to Rahul for his birthday.
+My salary got credited today, finally.
+My account statement shows the rent debit properly.
+I will transfer the money by evening, the net banking is slow.
+Do you have the UPI ID of the shop? I will pay.
+Your UPI ID is rahul@okhdfc right? Sending now.
+Can you send your bank account number for the salary advance? HR needs it for the form.
+The CA asked for my bank statement and PAN, I gave it to him in person.
+Customer care picked up after 20 minutes of waiting.
+I called customer care, they said the refund will take 5 working days.
+Amazon customer service was really good, they replaced the phone.
+The helpline was busy all day.
+Tell me your order id and I will check the status.
+Tell me your favourite colour, I want to gift you something.
+Give me your number, I will call back.
+Please send your resume and a cover letter by Friday.
+Send me the link to the meeting.
+What is the code for the gate? I am outside.
+Gate code is 4521, my mom will let you in too.
+Wifi password is guest1234, please do not tell others.
+Lock screen PIN of the tablet is 1234, kids know it.
+Her new phone number ends with 4421.

@@ -48,6 +48,8 @@ fun PrivacyScreen() {
             val cc = androidx.compose.ui.platform.LocalContext.current
             var crash by remember { mutableStateOf(com.kafisir.wetalks.data.Crash.enabled(cc)) }
             Row2(Ic.Alert, "Send crash reports", "Helps fix crashes. No messages, names or numbers are sent", trailing = { Toggle(crash) { crash = it; com.kafisir.wetalks.data.Crash.setEnabled(cc, it) } })
+            LaunchedEffect(Unit) { ScamPrefs.ensureLoaded() }
+            Row2(Ic.Shield, "Warn me about possible scams", "Checks incoming messages on this phone only. Nothing is sent anywhere", trailing = { Toggle(ScamPrefs.enabled) { ScamPrefs.set(it) } })
             Row2(Ic.Check2, "Read receipts", "Show blue ticks when you read messages", trailing = { Toggle(me?.readReceipts ?: true) { Repo.setPrivacy("readReceipts", it) } })
             SectionLabel("Key backup")
             val backedUp by produceState<Boolean?>(null, backupTick) { value = Repo.hasKeyBackup() }

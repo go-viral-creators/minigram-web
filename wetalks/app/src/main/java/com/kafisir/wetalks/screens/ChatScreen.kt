@@ -923,6 +923,7 @@ fun Bubble(m: Msg, mine: Boolean, ref: ChatRef, quoted: Msg?, showName: Boolean,
                 if (m.type != "image" && !isSticker) MetaRow(m, mine, read, fg, pinned)
             }
             if (isSticker) MetaRow(m, mine, read, We.text2, pinned)
+            if (!mine) ScamBannerFor(m)
             if (m.reactions.isNotEmpty()) {
                 val groups = m.reactions.values.groupingBy { it }.eachCount()
                 Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {

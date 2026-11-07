@@ -1,0 +1,37 @@
+# Extra synthetic normal messages (mixed languages), written after the first tuning round, so they act as a small hold-out set.
+Bro did you get the verification code from Instagram? I did not get mine.
+Yaar mujhe bhi Instagram ka code nahi aaya, shayad network slow hai.
+मुझे भी इंस्टाग्राम का कोड नहीं आया, शायद नेटवर्क धीमा है।
+Can you tell me the time of the train? I forgot to note it.
+Please share the PAN of the company in the email, the accountant needs it for the invoice.
+Mama bank se aaya tha, bola ki khata band nahi hoga, bas form bharna hai.
+My account at the gym will be closed next month, I am moving to another city.
+Your gym membership expires on Sunday, renew at the front desk.
+The shop will be closed tomorrow because of the festival.
+Your electricity bill for October is Rs 1,820 and is due on 15 Nov. Pay on the official app.
+Bijli board ki website par bill dekh liya, 15 tarikh tak bharna hai.
+Free Wi-Fi at the airport but the speed is slow.
+We are giving away free samples at the stall, come by!
+Won the quiz at school today! The prize is a book voucher.
+Link to the match highlights https://www.espncricinfo.com/series/ipl-2024
+Check the weather https://weather.com/en-IN/weather/today
+I found the cheaper hotel on https://www.booking.com/hotel/in/taj.html
+Here is the news in Hindi https://www.bhaskar.com/national/news/abc
+Mera naya blog dekho https://priya-sharma.blogspot.com/2024/05/trip.html
+Join the Zoom class https://zoom.us/j/987654321?pwd=AbCdEf
+Here is my UPI QR, scan it to pay me for the tickets.
+Ye mera QR hai, tickets ke paise isse bhej do.
+Amma ne bola ki OTP kisi ko mat dena, maine sabko bata diya.
+Kal bank me khata kholne jana hai, Aadhaar aur PAN saath le jana.
+Do you know how to block someone on WhatsApp? A guy keeps messaging me.
+Block karne ke liye contact open karo aur block dabao.
+I saved the number as 'Bank' in my phone, it keeps calling about the credit card.
+The credit card company called to offer an upgrade, I said no.
+Tell the guard the code 4471 at the gate and he will let you in.
+Enter the PIN 2024 on the locker and take the keys.
+Transfer Rs 2,000 to my account, I will return it on Friday.
+Mera account number 1234 se khatam hota hai, SBI ka hai, paise bhej do.
+Subscribe to my YouTube channel, it would mean a lot!
+Is the part time tutor job still open? My sister is interested.
+Is the lottery result out? Dad bought a ticket at the temple fair.
+Can you install Anydesk on mom's laptop? I will fix her printer from here.
