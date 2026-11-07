@@ -344,7 +344,7 @@ object BackupReader {
 
 /** One message as one line of JSON. Only readable, normal messages are written: deleted, undecryptable and still-sending ones are not. */
 object BackupMsgCodec {
-    fun keep(m: Msg) = !m.deleted && !m.unreadable && !m.pending && m.id.isNotEmpty() && !m.id.startsWith("out_")
+    fun keep(m: Msg) = !m.deleted && !m.unreadable && !m.pending && m.id.isNotEmpty() && !m.id.startsWith("out_") && m.exp == 0L   // a disappearing message must never outlive its timer inside a backup
 
     fun encode(m: Msg): String {
         val j = JSONObject().put("id", m.id).put("from", m.from).put("ts", m.ts).put("type", m.type).put("text", m.text)
