@@ -7,6 +7,7 @@
 //    and no HTTP endpoint (only database triggers), so there is nothing for an outsider to call or steal.
 //  * A user cannot make the server push to someone else: triggers fire only after the database rules accepted the write.
 const { onValueCreated } = require("firebase-functions/v2/database");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 
@@ -57,6 +58,38 @@ exports.onMessage = onValueCreated({ ref: "/messages/{cid}/{mid}" }, async (even
 exports.onCall = onValueCreated({ ref: "/incoming_calls/{uid}/{cid}" }, async (event) => {
   const { uid, cid } = event.params;
   await push(uid, { t: "call", cid }, 45 * 1000).catch(() => {});
+});
+
+// Disappearing messages: server-side sweep (the strongest guarantee, it needs no phone to be awake). Needs Blaze + Cloud Scheduler.
+// The app writes expiry/<hour>/<cid>/<mid> = exp in the same atomic update as every message that has an exp (see database.rules.json),
+// so this walks only the hours that are over: no scan of all messages. A bucket is removed once it is processed.
+// It deletes the message (and the pin of a DM message). It cannot delete media files: those live on the media server and only the
+// uploader's phone (or a future media-server TTL) removes them.
+const HOUR = 3600000;
+exports.sweepExpired = onSchedule({ schedule: "every 15 minutes", timeoutSeconds: 300 }, async () => {
+  const now = Date.now();
+  const lastDone = Math.floor(now / HOUR) - 1; // the newest hour that is completely over
+  const snap = await db.ref("expiry").orderByKey().endAt(String(lastDone)).limitToFirst(24).get();
+  const all = snap.val() || {};
+  let n = 0;
+  for (const b of Object.keys(all)) {
+    const chats = all[b] || {};
+    for (const cid of Object.keys(chats)) {
+      const up = {};
+      for (const mid of Object.keys(chats[cid] || {})) {
+        const e = await db.ref(`messages/${cid}/${mid}/exp`).get();
+        if (e.exists() && typeof e.val() === "number" && e.val() < now) {
+          up[`messages/${cid}/${mid}`] = null;
+          if (cid.includes("_")) up[`pins/${cid}/${mid}`] = null;
+          n++;
+        }
+        up[`expiry/${b}/${cid}/${mid}`] = null;
+      }
+      if (Object.keys(up).length) await db.ref().update(up);
+    }
+    await db.ref(`expiry/${b}`).remove();
+  }
+  console.log(`sweepExpired: removed ${n} messages`);
 });
 
 // missed call -> tell the person who called, even though their app is closed. The caller (or the person's own app) writes the "missed" line

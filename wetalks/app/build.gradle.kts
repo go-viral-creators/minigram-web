@@ -80,6 +80,7 @@ dependencies {
     implementation("androidx.media:media:1.7.0")
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.5")
+    implementation("androidx.work:work-runtime:2.7.0")      // disappearing messages: clean-up while the app is closed (already in the build through ML Kit)
     testImplementation("junit:junit:4.13.2")
 }
 
