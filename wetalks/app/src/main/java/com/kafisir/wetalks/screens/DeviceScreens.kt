@@ -98,7 +98,7 @@ fun LinkedDevicesScreen() {
                     Text(if (busy) "Linking…" else "Link", color = We.primary, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable {
                         if (busy) return@clickable
                         busy = true
-                        scope.launch { try { Repo.grantLink(r); Nav.say("Linked. The new phone will open in a moment") } catch (e: Exception) { Nav.say("Could not link. Try again") }; busy = false; request = null }
+                        scope.launch { try { Repo.grantLink(r); Nav.say("Linked. The new phone will open in a moment") } catch (e: Exception) { Nav.say(Repo.explain(e, "Linking")) }; busy = false; request = null }
                     }.padding(horizontal = 14.dp, vertical = 10.dp))
                 }
             }
@@ -111,7 +111,7 @@ fun LinkedDevicesScreen() {
                 Text("That phone is signed out the next time it connects to the internet.", color = We.text2, style = T.body)
                 Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                     Text("Cancel", color = We.primary, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { logout = null }.padding(horizontal = 14.dp, vertical = 10.dp))
-                    Text("Log out", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.logOutDevice(d.id) } catch (e: Exception) { Nav.say("Could not log out that phone") } }; logout = null }.padding(horizontal = 14.dp, vertical = 10.dp))
+                    Text("Log out", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.logOutDevice(d.id) } catch (e: Exception) { Nav.say(Repo.explain(e, "Log out of that phone")) } }; logout = null }.padding(horizontal = 14.dp, vertical = 10.dp))
                 }
             }
         }

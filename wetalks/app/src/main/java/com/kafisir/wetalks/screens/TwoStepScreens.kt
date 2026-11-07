@@ -97,7 +97,7 @@ private fun ForgotPinDialog(onDismiss: () -> Unit) {
             }, color = We.text2, style = T.body)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                 Text("Close", color = We.primary, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { onDismiss() }.padding(horizontal = 14.dp, vertical = 10.dp))
-                if (at == 0L) Text("Start", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.requestPinReset() } catch (e: Exception) { Nav.say("Could not start the reset") }; tick++ } }.padding(horizontal = 14.dp, vertical = 10.dp))
+                if (at == 0L) Text("Start", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.requestPinReset() } catch (e: Exception) { Nav.say(Repo.explain(e, "PIN reset request")) }; tick++ } }.padding(horizontal = 14.dp, vertical = 10.dp))
                 if (at > 0 && System.currentTimeMillis() >= at + 7 * day) Text("Remove PIN", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { val ok = try { Repo.completePinReset() } catch (e: Exception) { false }; if (!ok) Nav.say("Could not remove the PIN yet"); onDismiss() } }.padding(horizontal = 14.dp, vertical = 10.dp))
             }
         }
@@ -122,7 +122,7 @@ private fun PinSheet(title: String, labels: List<String>, button: String, onDism
             PrimaryButton(button, loading = busy, enabled = pins.value.all { it.length == 6 }, onClick = {
                 scope.launch {
                     busy = true
-                    val e = try { submit(pins.value) } catch (x: kotlinx.coroutines.CancellationException) { throw x } catch (x: Exception) { "Could not save. Check your connection." }
+                    val e = try { submit(pins.value) } catch (x: kotlinx.coroutines.CancellationException) { throw x } catch (x: Exception) { Repo.explain(x, "Two-step setup") }
                     busy = false
                     if (e == null) onDismiss() else { err = e; pins.value = List(labels.size) { "" } }
                 }

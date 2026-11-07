@@ -331,6 +331,27 @@ object Repo {
         db.getReference("key_backups/$uid").setValue(hashMapOf("s" to Crypto.b64(salt), "i" to iter, "c" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub), "ts" to ServerValue.TIMESTAMP)).await()
     }
 
+    // ------------------------------------------------------------------------------------------ errors
+    /** Set when the server refused a write to a node this app version needs: the database rules on the server are older than the app. */
+    val rulesOutdated = MutableStateFlow(false)
+
+    /**
+     * A readable reason for a failed save. The real error is also written to the log and the crash note, so "could not save" is never a guess.
+     * [what] names the action ("Label save"). Permission denied means the server rules do not allow it (not a connection problem).
+     */
+    fun explain(e: Throwable, what: String): String {
+        val chain = generateSequence(e) { it.cause }.toList()
+        val text = chain.joinToString(" | ") { it.javaClass.simpleName + ": " + (it.message ?: "") }
+        android.util.Log.w("WeTalks", "$what failed: $text", e)
+        try { CrashLog.note(app, "$what failed: " + text.take(300)) } catch (_: Exception) {}
+        val low = text.lowercase()
+        return when {
+            "permission_denied" in low || "permission denied" in low -> { rulesOutdated.value = true; "$what was refused by the server (permission denied). The server's database rules are older than this app version." }
+            "unavailable" in low || "network" in low || "timeout" in low || "disconnected" in low || "unable to resolve" in low -> "$what failed: no connection to the server."
+            else -> "$what failed: " + (chain.firstOrNull { !it.message.isNullOrBlank() }?.message ?: e.javaClass.simpleName).take(120)
+        }
+    }
+
     // ------------------------------------------------------------------------------------------ 2-step verification
     /** True while this phone has to enter the 2-step PIN before anything else. */
     val twoStepRequired = MutableStateFlow(false)
@@ -342,7 +363,7 @@ object Repo {
         try {
             if (!db.getReference("two_step_pub/$uid").get().await().exists()) twoStepRequired.value = false
             else twoStepRequired.value = !db.getReference("trusted_devices/$uid/$deviceId").get().await().exists()
-        } catch (_: Exception) { /* the new database rules are not live yet, or no network */ }
+        } catch (e: Exception) { explain(e, "Two-step check") }
         twoStepChecked.value = true
     }
 
@@ -445,7 +466,7 @@ object Repo {
         try {
             if (!r.get().await().exists()) r.setValue(hashMapOf("name" to deviceName(), "model" to android.os.Build.MODEL.take(60), "added" to ServerValue.TIMESTAMP, "last" to ServerValue.TIMESTAMP, "ver" to ver)).await()
             else r.updateChildren(mapOf("last" to ServerValue.TIMESTAMP, "ver" to ver, "name" to deviceName())).await()
-        } catch (_: Exception) { /* the new database rules are not live yet */ }
+        } catch (e: Exception) { explain(e, "Registering this phone") }
     }
 
     private var devWatching = ""

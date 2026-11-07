@@ -104,13 +104,13 @@ fun LabelPickerSheet(c: ChatItem, onDismiss: () -> Unit) {
     val labels by Repo.labels.collectAsState()
     val scope = rememberCoroutineScope()
     var creating by remember { mutableStateOf(false) }
-    if (creating) { LabelEditor(null, { creating = false }) { name, color -> scope.launch { try { val id = Repo.createLabel(name, color); Repo.setChatLabel(c.ref.id, id, true) } catch (e: Exception) { Nav.say("Could not save the label") } } }; return }
+    if (creating) { LabelEditor(null, { creating = false }) { name, color -> scope.launch { try { val id = Repo.createLabel(name, color); Repo.setChatLabel(c.ref.id, id, true) } catch (e: Exception) { Nav.say(Repo.explain(e, "Label save")) } } }; return }
     Sheet(onDismiss) {
         Text("Labels", color = We.text, style = T.title, modifier = Modifier.padding(start = 24.dp, bottom = 6.dp))
         if (labels.isEmpty()) Text("You have no labels yet.", color = We.text2, style = T.small, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         labels.forEach { l ->
             val on = l.id in c.labels
-            Row(Modifier.fillMaxWidth().clickable { scope.launch { try { Repo.setChatLabel(c.ref.id, l.id, !on) } catch (e: Exception) { Nav.say("Could not change the label") } } }.padding(horizontal = 24.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clickable { scope.launch { try { Repo.setChatLabel(c.ref.id, l.id, !on) } catch (e: Exception) { Nav.say(Repo.explain(e, "Label change")) } } }.padding(horizontal = 24.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(14.dp).clip(CircleShape).background(labelColor(l.color))); Spacer(Modifier.width(14.dp))
                 Text(l.name, color = We.text, style = T.body, modifier = Modifier.weight(1f))
                 if (on) Icon(Ic.Check, We.primary, 22.dp)
@@ -168,8 +168,8 @@ fun LabelsScreen() {
             }
         }
     }
-    if (creating) LabelEditor(null, { creating = false }) { n, c -> scope.launch { try { Repo.createLabel(n, c) } catch (e: Exception) { Nav.say("Could not save the label") } } }
-    edit?.let { l -> LabelEditor(l, { edit = null }) { n, c -> scope.launch { try { Repo.editLabel(l.id, n, c) } catch (e: Exception) { Nav.say("Could not save the label") } } } }
+    if (creating) LabelEditor(null, { creating = false }) { n, c -> scope.launch { try { Repo.createLabel(n, c) } catch (e: Exception) { Nav.say(Repo.explain(e, "Label save")) } } }
+    edit?.let { l -> LabelEditor(l, { edit = null }) { n, c -> scope.launch { try { Repo.editLabel(l.id, n, c) } catch (e: Exception) { Nav.say(Repo.explain(e, "Label save")) } } } }
     del?.let { l ->
         androidx.compose.ui.window.Dialog(onDismissRequest = { del = null }) {
             Column(Modifier.clip(RoundedCornerShape(20.dp)).background(We.surface).padding(22.dp)) {
@@ -177,7 +177,7 @@ fun LabelsScreen() {
                 Text("\"${l.name}\" is removed from all chats. The chats themselves are not touched.", color = We.text2, style = T.body)
                 Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.End) {
                     Text("Cancel", color = We.primary, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { del = null }.padding(horizontal = 14.dp, vertical = 10.dp))
-                    Text("Delete", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.deleteLabel(l.id) } catch (e: Exception) { Nav.say("Could not delete") } }; del = null }.padding(horizontal = 14.dp, vertical = 10.dp))
+                    Text("Delete", color = We.danger, style = T.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.deleteLabel(l.id) } catch (e: Exception) { Nav.say(Repo.explain(e, "Label delete")) } }; del = null }.padding(horizontal = 14.dp, vertical = 10.dp))
                 }
             }
         }
@@ -218,4 +218,18 @@ fun ChatLockGate(ref: ChatRef) {
         TopBar("Locked chat", onBack = { Nav.pop() })
         Empty(Ic.Lock, "This chat is locked", "Use your fingerprint or screen lock to open it.", action = { PrimaryButton("Unlock", { ask() }) })
     }
+}
+
+/** Shown when the server refused a write the app needs: the database rules on the server are older than this app. */
+@Composable
+fun RulesBanner() {
+    val outdated by Repo.rulesOutdated.collectAsState()
+    var hidden by remember { mutableStateOf(false) }
+    if (!outdated || hidden) return
+    Row(Modifier.fillMaxWidth().background(We.surface).padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Ic.Alert, We.danger, 20.dp); Spacer(Modifier.width(10.dp))
+        Text("Some new features (labels, linked phones, 2-step) cannot save yet: the server's database rules are older than this app. The owner has to deploy the latest rules.", color = We.text2, style = T.small, modifier = Modifier.weight(1f))
+        IconBtn(Ic.Close, We.text2, { hidden = true }, 18.dp, Modifier.size(38.dp))
+    }
+    Divider()
 }

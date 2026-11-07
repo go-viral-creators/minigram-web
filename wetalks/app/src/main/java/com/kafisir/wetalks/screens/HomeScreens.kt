@@ -65,7 +65,7 @@ fun HomeScreen() {
         })
         Box(Modifier.weight(1f)) {
             when (tab) {
-                0 -> ChatList(main(Kind.DM), Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.", header = { ServicesRow(); LabelBar(labelFilter) { labelPicked = it }; FolderRows(0, visible) })
+                0 -> ChatList(main(Kind.DM), Ic.Chat, "No chats yet", "Tap the + button to start a private conversation.", header = { RulesBanner(); ServicesRow(); LabelBar(labelFilter) { labelPicked = it }; FolderRows(0, visible) })
                 1 -> ChatList(main(Kind.GROUP), Ic.Group, "No groups yet", "Create a group to chat with several people at once.", header = { LabelBar(labelFilter) { labelPicked = it }; FolderRows(1, visible) })
                 2 -> ChatList(main(Kind.CHANNEL), Ic.Mega, "No channels yet", "Tap the search icon to find public channels, or + to start your own.", header = { LabelBar(labelFilter) { labelPicked = it }; FolderRows(2, visible) })
                 else -> MeScreen()
@@ -115,7 +115,7 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
     menu?.let { c ->
         Sheet({ menu = null }) {
             SheetItem(Ic.Pin, if (c.pinned) "Unpin from top" else "Pin to top") { if (!Repo.setPinned(c.ref.id, !c.pinned)) Nav.say("You can pin up to ${Repo.MAX_PINNED} chats"); menu = null }
-            SheetItem(Ic.Archive, if (c.archived) "Unarchive" else "Archive") { Repo.scope.launch { try { Repo.setArchived(c.ref.id, !c.archived) } catch (e: Exception) { Nav.say("Could not archive. Update the app and try again.") } }; menu = null }
+            SheetItem(Ic.Archive, if (c.archived) "Unarchive" else "Archive") { Repo.scope.launch { try { Repo.setArchived(c.ref.id, !c.archived) } catch (e: Exception) { Nav.say(Repo.explain(e, "Archive")) } }; menu = null }
             SheetItem(Ic.Tag, "Labels") { labelsFor = c; menu = null }
             SheetItem(Ic.Lock, if (com.kafisir.wetalks.data.ChatLock.isLocked(c.ref.id)) "Unlock chat" else "Lock chat") { toggleChatLock(ctx as androidx.fragment.app.FragmentActivity, c); menu = null }
             if (c.ref.kind != Kind.CHANNEL || true) SheetItem(if (c.muted) Ic.Bell else Ic.BellOff, if (c.muted) "Unmute" else "Mute") { Repo.setMuted(c.ref.id, !c.muted); menu = null }
