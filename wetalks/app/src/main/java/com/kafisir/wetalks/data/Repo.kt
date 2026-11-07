@@ -109,6 +109,7 @@ object Repo {
     }
 
     fun signOut() {
+        Crash.user("")
         unregisterPush()
         setOnline(false)
         detachAll()
@@ -387,7 +388,7 @@ object Repo {
         return when {
             "permission_denied" in low || "permission denied" in low -> { rulesOutdated.value = true; "$what was refused by the server (permission denied). The server's database rules are older than this app version." }
             "unavailable" in low || "network" in low || "timeout" in low || "disconnected" in low || "unable to resolve" in low -> "$what failed: no connection to the server."
-            else -> "$what failed: " + (chain.firstOrNull { !it.message.isNullOrBlank() }?.message ?: e.javaClass.simpleName).take(120)
+            else -> { Crash.record(e, what); "$what failed: " + (chain.firstOrNull { !it.message.isNullOrBlank() }?.message ?: e.javaClass.simpleName).take(120) }
         }
     }
 

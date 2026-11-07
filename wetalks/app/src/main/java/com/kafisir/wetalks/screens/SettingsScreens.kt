@@ -45,6 +45,9 @@ fun PrivacyScreen() {
             Row2(Ic.Bell, "Messages from apps & services", "Codes and alerts sent through the WeTalks developer API", trailing = { Toggle((pv["services"] ?: "all") != "nobody") { v -> scope.launch { try { Repo.setPrivacyChoice("services", if (v) "all" else "nobody") } catch (_: Exception) { Nav.say("Could not save") } } } })
             val blocked by produceState(emptySet<String>(), pv) { value = try { Repo.blockedServices() } catch (_: Exception) { emptySet() } }
             if (blocked.isNotEmpty()) Row2(Ic.Block, "Blocked services", blocked.size.toString() + " blocked · tap to unblock all", onClick = { scope.launch { try { blocked.forEach { Repo.setServiceBlocked(it, false) }; Nav.say("Unblocked") } catch (_: Exception) {} } })
+            val cc = androidx.compose.ui.platform.LocalContext.current
+            var crash by remember { mutableStateOf(com.kafisir.wetalks.data.Crash.enabled(cc)) }
+            Row2(Ic.Alert, "Send crash reports", "Helps fix crashes. No messages, names or numbers are sent", trailing = { Toggle(crash) { crash = it; com.kafisir.wetalks.data.Crash.setEnabled(cc, it) } })
             Row2(Ic.Check2, "Read receipts", "Show blue ticks when you read messages", trailing = { Toggle(me?.readReceipts ?: true) { Repo.setPrivacy("readReceipts", it) } })
             SectionLabel("Key backup")
             val backedUp by produceState<Boolean?>(null, backupTick) { value = Repo.hasKeyBackup() }

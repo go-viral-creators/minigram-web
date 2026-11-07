@@ -45,7 +45,7 @@ import kotlinx.coroutines.delay
 
 class WeTalksApp : Application() {
     override fun onCreate() { super.onCreate(); if (Application.getProcessName().endsWith(":tts")) return   // the voice engine process needs none of the app
-        com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.data.ChatLock.load(this); com.kafisir.wetalks.screens.CallSeen.load(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
+        com.kafisir.wetalks.data.Crash.init(this); com.kafisir.wetalks.data.NotifChannels.ensureAll(this); com.kafisir.wetalks.data.CrashLog.install(this); com.kafisir.wetalks.data.ChatLock.load(this); com.kafisir.wetalks.screens.CallSeen.load(this); com.kafisir.wetalks.ui.Sfx.init(this); Repo.init(this); Repo.watchConfig(); com.kafisir.wetalks.data.Calls.init(this); ThemeMode.load(this); UiPrefs.load(this); AppLock.load(this); com.kafisir.wetalks.voice.VoiceFx.load(this); I18n.load(this); com.kafisir.wetalks.data.DataPrefs.load(this); com.kafisir.wetalks.voice.VoiceFx.warmUp(this); com.kafisir.wetalks.data.FileKit.sweep(this); com.kafisir.wetalks.screens.ServicePrefs.load(this); com.kafisir.wetalks.voice.NeuralTts.load(this) }
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
@@ -103,6 +103,7 @@ fun App() {
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
             val needPin by Repo.twoStepRequired.collectAsState()
             val pinChecked by Repo.twoStepChecked.collectAsState()
+            LaunchedEffect(uid) { com.kafisir.wetalks.data.Crash.user(uid ?: "") }
             LaunchedEffect(uid, me) { if (me == true) { try { Repo.checkTwoStep() } catch (_: Exception) {} } }
             // nothing starts (chat list, notifications, keys) until 2-step verification, if it is on, has been passed on this phone
             LaunchedEffect(uid, me, needPin, pinChecked) { if (me == true && pinChecked && !needPin) {

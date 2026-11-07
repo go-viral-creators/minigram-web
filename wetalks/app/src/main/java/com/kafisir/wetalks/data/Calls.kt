@@ -432,10 +432,7 @@ object Calls {
         if (serverNow() - ts < 24 * 3_600_000L) notifyMissed(from, video, ts, id)
     }
 
-    private fun missedChannel() {
-        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(MISSED_CH) == null) nm.createNotificationChannel(NotificationChannel(MISSED_CH, "Missed calls", NotificationManager.IMPORTANCE_HIGH).apply { enableVibration(true) })
-    }
+    private fun missedChannel() { NotifChannels.ensureAll(app) }
 
     /** "Missed video call · 10:42 am" from the person, with a Call back button. Shown once per call. */
     fun notifyMissed(from: String, video: Boolean, ts: Long, id: String) {
@@ -537,11 +534,7 @@ object Calls {
     private fun stopRingback() { try { tone?.stopTone(); tone?.release() } catch (_: Exception) {}; tone = null }
 
     private const val CH = "calls"
-    private fun channel() {
-        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CH) == null)
-            nm.createNotificationChannel(NotificationChannel(CH, "Calls", NotificationManager.IMPORTANCE_HIGH).apply { setSound(null, null); enableVibration(false) })
-    }
+    private fun channel() { NotifChannels.ensureAll(app) }
     private fun openIntent() = PendingIntent.getActivity(app, 7, Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
     private fun notifyIncoming() {

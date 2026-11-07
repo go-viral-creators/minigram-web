@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -66,6 +67,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-crashlytics")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
     implementation("com.google.crypto.tink:tink-android:1.15.0")
     implementation("com.airbnb.android:lottie-compose:6.6.2")
@@ -83,3 +85,6 @@ dependencies {
 
 // unit tests run on the desktop JVM: use the desktop ONNX Runtime jar (it bundles the native library) instead of the Android AAR
 configurations.all { if (name.lowercase().contains("unittest")) exclude(group = "com.microsoft.onnxruntime", module = "onnxruntime-android") }
+
+// The R8 mapping file is uploaded to Crashlytics (readable stack traces) only when asked for: WT_UPLOAD_MAPPING=1 gradle :app:assembleRelease
+tasks.configureEach { if (name.startsWith("uploadCrashlyticsMappingFile")) enabled = System.getenv("WT_UPLOAD_MAPPING") == "1" }

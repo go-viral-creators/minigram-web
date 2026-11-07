@@ -84,7 +84,7 @@ object Notifier {
             val id = c.ref.id; val prev = last[id] ?: 0L; last[id] = c.unread
             if (c.unread == 0L) { if (prev > 0) cancel(id); continue }
             if (first || c.unread <= prev) continue
-            if (c.ref.kind == Kind.CHANNEL || c.muted || c.lastFrom.isEmpty() || c.lastFrom == Repo.uid || isOpen(c.ref)) continue
+            if (!ChatNotif.shouldNotify(c.ref.kind, c.muted, ChatNotif.mutedUntil(app, id), System.currentTimeMillis()) || c.lastFrom.isEmpty() || c.lastFrom == Repo.uid || isOpen(c.ref)) continue
             val blockedNow = Repo.blockedUsers.value
             if (c.lastFrom in blockedNow || (c.ref.kind == Kind.DM && c.ref.peer in blockedNow)) continue   // blocked people never ring the phone
             post(c)
@@ -93,8 +93,9 @@ object Notifier {
 
     private suspend fun post(c: ChatItem) {
         val locked = ChatLock.isLocked(c.ref.id)
+        val hideText = locked || ChatNotif.hidePreview(app, c.ref.id)
         val m = Repo.decrypt(c.ref, Repo.Raw("", c.lastFrom, c.lastTs, c.lastType, c.lastBody, 0, null, false, false, emptyMap()))
-        val text = if (locked || m.unreadable) "New message" else when (m.type) { "call" -> "Call"; else -> previewText(m.type, m.text).ifEmpty { "New message" } }
+        val text = if (hideText || m.unreadable) "New message" else when (m.type) { "call" -> "Call"; else -> previewText(m.type, m.text).ifEmpty { "New message" } }
         val who = if (locked) "Locked chat" else (Repo.user(c.lastFrom).value ?: try { Repo.userOnce(c.lastFrom) } catch (_: Exception) { null })?.name ?: "Someone"
         val group = c.ref.kind == Kind.GROUP && !locked
         val title = if (locked) "Locked chat" else if (group) (Repo.group(c.ref.id).value?.name ?: "Group") else who
@@ -104,10 +105,7 @@ object Notifier {
         show(c.ref.id, alert = true)
     }
 
-    private fun channel() {
-        val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CH) == null) nm.createNotificationChannel(NotificationChannel(CH, "Messages", NotificationManager.IMPORTANCE_HIGH).apply { enableVibration(true) })
-    }
+    private fun channel() { NotifChannels.ensureAll(app) }
 
     private fun show(cid: String, alert: Boolean) {
         val cv = convs[cid] ?: return; val l = lines[cid] ?: return
@@ -123,7 +121,7 @@ object Notifier {
         val mutePi = PendingIntent.getBroadcast(app, code + 2, extras(Intent(app, NotifReceiver::class.java).setAction(ACT_MUTE)), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val open = PendingIntent.getActivity(app, code + 3, extras(Intent(app, MainActivity::class.java)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP).setAction("wt.open." + cid), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val reply = NotificationCompat.Action.Builder(R.drawable.ic_act_reply, "Reply", replyPi).addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build()).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY).setAllowGeneratedReplies(true).build()
-        val n = NotificationCompat.Builder(app, CH).setSmallIcon(R.mipmap.ic_launcher).setContentTitle(cv.title).setContentText(l.last().text).setStyle(style)
+        val n = NotificationCompat.Builder(app, NotifChannels.forChat(cv.ref.kind)).setSmallIcon(R.mipmap.ic_launcher).setContentTitle(cv.title).setContentText(l.last().text).setStyle(style).setSilent(ChatNotif.silent(app, cid))
             .setCategory(NotificationCompat.CATEGORY_MESSAGE).setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).setOnlyAlertOnce(!alert).setWhen(l.last().ts).setShowWhen(true)
             .setContentIntent(open).setGroup(GROUP)
             .addAction(reply)

@@ -51,6 +51,7 @@ class PlaybackService : Service() {
 
     private fun show() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        com.kafisir.wetalks.data.NotifChannels.ensureAll(this)
         if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CH) == null) nm.createNotificationChannel(NotificationChannel(CH, "Voice message playback", NotificationManager.IMPORTANCE_LOW).apply { setShowBadge(false) })
         val s = session ?: MediaSessionCompat(this, "WeTalks").also { ms ->
             ms.setCallback(object : MediaSessionCompat.Callback() {

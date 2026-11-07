@@ -104,6 +104,7 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
     var menu by remember { mutableStateOf<ChatItem?>(null) }
     var delete by remember { mutableStateOf<ChatItem?>(null) }
     var labelsFor by remember { mutableStateOf<ChatItem?>(null) }
+    var notifFor by remember { mutableStateOf<ChatItem?>(null) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     if (items.isEmpty()) {
         Column(Modifier.fillMaxSize()) { header?.invoke(); Box(Modifier.weight(1f)) { Empty(emptyIcon, emptyTitle, emptySub) } }
@@ -119,6 +120,7 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
             SheetItem(Ic.Pin, if (c.pinned) "Unpin from top" else "Pin to top") { if (!Repo.setPinned(c.ref.id, !c.pinned)) Nav.say("You can pin up to ${Repo.MAX_PINNED} chats"); menu = null }
             SheetItem(Ic.Archive, if (c.archived) "Unarchive" else "Archive") { Repo.scope.launch { try { Repo.setArchived(c.ref.id, !c.archived) } catch (e: Exception) { Nav.say(Repo.explain(e, "Archive")) } }; menu = null }
             SheetItem(Ic.Tag, "Labels") { labelsFor = c; menu = null }
+            if (c.ref.kind != Kind.CHANNEL) SheetItem(Ic.Bell, "Notifications") { notifFor = c; menu = null }
             SheetItem(Ic.Lock, if (com.kafisir.wetalks.data.ChatLock.isLocked(c.ref.id)) "Unlock chat" else "Lock chat") { toggleChatLock(ctx as androidx.fragment.app.FragmentActivity, c); menu = null }
             if (c.ref.kind != Kind.CHANNEL || true) SheetItem(if (c.muted) Ic.Bell else Ic.BellOff, if (c.muted) "Unmute" else "Mute") { Repo.setMuted(c.ref.id, !c.muted); menu = null }
             SheetItem(Ic.Trash, if (c.ref.kind == Kind.DM) "Delete chat" else "Remove from list", danger = true) { delete = c; menu = null }
@@ -126,6 +128,7 @@ fun ChatList(items: List<ChatItem>, emptyIcon: ImageVector, emptyTitle: String, 
     }
     delete?.let { c -> val (n, _, _) = titleOf(c.ref); DeleteChatDialog(c.ref, n, { delete = null }) }
     labelsFor?.let { c -> LabelPickerSheet(items.firstOrNull { it.ref.id == c.ref.id } ?: c) { labelsFor = null } }
+    notifFor?.let { c -> ChatNotifSheet(items.firstOrNull { it.ref.id == c.ref.id } ?: c) { notifFor = null } }
 }
 
 @Composable
@@ -250,6 +253,7 @@ fun MeScreen() {
             Row2(Ic.Fingerprint, "App lock", if (AppLock.enabled) "On · fingerprint or screen lock" else "Off", onClick = { Nav.push(RAppLock) })
             Row2(Ic.Key, "Two-step verification", "Ask for a 6-digit PIN when this account is opened on a new phone", onClick = { Nav.push(RTwoStep) })
             Row2(Ic.Phone, "Linked devices", "Use WeTalks on more than one phone", onClick = { Nav.push(RDevices) })
+            Row2(Ic.Bell, "Notification categories", "Sound and importance of messages, groups, calls and background work", onClick = { openSystemNotificationSettings(ctx) })
             Row2(Ic.Tag, "Labels", "Name and colour your chats, then filter by them", onClick = { Nav.push(RLabels) })
             Row2(Ic.Type, "Chat settings", "Text size, bubble shape, wallpaper", onClick = { Nav.push(RChatSettings) })
             Row2(Ic.Globe, "Language", I18n.byCode(I18n.lang).native + " · translate to " + I18n.byCode(I18n.translateTo).english, onClick = { Nav.push(RLanguage) })
