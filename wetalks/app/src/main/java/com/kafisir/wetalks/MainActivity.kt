@@ -202,6 +202,8 @@ fun Main() {
                 is RBrowser -> BrowserScreen(r.url)
                 RChatSettings -> ChatSettingsScreen()
                 RStorage -> StorageScreen()
+                RAutoDownload -> com.kafisir.wetalks.screens.AutoDownloadScreen()
+                RStorageManager -> com.kafisir.wetalks.screens.StorageManagerScreen()
                 RAppLock -> AppLockScreen()
                 is RFolder -> com.kafisir.wetalks.screens.FolderScreen(r.locked, r.tab)
                 RLabels -> com.kafisir.wetalks.screens.LabelsScreen()

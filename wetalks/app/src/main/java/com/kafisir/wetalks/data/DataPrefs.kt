@@ -30,7 +30,7 @@ object DataPrefs {
         cacheLimitMb = s.getInt("limit", 250); cleanDays = s.getInt("clean", 0); autoPhotos = s.getString("auto", "always") ?: "always"; saver = s.getBoolean("saver", false)
         down = s.getLong("down", 0); up = s.getLong("up", 0)
         autoRules = if (s.contains("auto_rules")) MediaPolicy.decode(s.getString("auto_rules", null)) else MediaPolicy.migrateLegacy(if (s.contains("auto")) autoPhotos else null)
-        MediaNet.start(app)
+        MediaNet.start(app); MediaLedger.init(app)
         Thread { autoClean() }.start()
     }
     fun setLimit(v: Int) { cacheLimitMb = v; sp().edit().putInt("limit", v).apply(); Thread { trim() }.start() }

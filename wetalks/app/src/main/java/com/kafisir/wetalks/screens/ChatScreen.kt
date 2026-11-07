@@ -949,13 +949,15 @@ private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color,
 private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean, onLong: () -> Unit, all: List<String> = emptyList()) {
     var manual by remember(m.id) { mutableStateOf(false) }
     val selecting = LocalSelecting.current
-    val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) } == true) || remember { DataPrefs.mayAutoDownload() }
+    val onPhone = remember(m.mediaId) { m.mediaId?.let { DataPrefs.hasDisk(it) } == true }
+    val allowed = m.pending || manual || DataPrefs.autoVerdict(MediaPolicy.Type.PHOTO, m.size, onPhone, m.from == Repo.uid).auto      // sent by me or already here: never blocked
+    LaunchedEffect(m.mediaId) { if (onPhone) MediaLedger.seenMedia(ref.id, m.id, m.mediaId, "image") }
     val bmp = rememberChatBitmap(ref, m.mediaId, allowed)
     val hasCap = m.text.isNotEmpty()
     Column(Modifier.width(236.dp)) {
         Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { if (selecting) onLong() else m.mediaId?.let { Nav.push(RImage(ref, it, all.ifEmpty { listOf(it) })) } }, onLongClick = onLong)) {
             val b = bmp ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
-            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { if (selecting) onLong() else manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
+            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { if (selecting) onLong() else { MediaNet.warnIfRoaming(); manual = true } }, onLongClick = onLong), contentAlignment = Alignment.Center) { DownloadChip(m.size) }
             else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
             else Image(b, null, Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)      // always square, centre-cropped: the chat stays short, tap to see the whole photo
             if (m.pending) SendingBadge(Modifier.align(Alignment.Center), Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true)
@@ -1008,12 +1010,14 @@ private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolea
     val last = list.last()
     @Composable fun Tile(m: Msg, mod: Modifier, more: Int = 0) {
         var manual by remember(m.id) { mutableStateOf(false) }
-        val allowed = m.pending || manual || (m.mediaId?.let { DataPrefs.hasDisk(it) || Pics.cachedBmp(it) != null } == true) || remember { DataPrefs.mayAutoDownload() }
+        val onPhone = remember(m.mediaId) { m.mediaId?.let { DataPrefs.hasDisk(it) || Pics.cachedBmp(it) != null } == true }
+        val allowed = m.pending || manual || DataPrefs.autoVerdict(MediaPolicy.Type.PHOTO, m.size, onPhone, m.from == Repo.uid).auto
+        LaunchedEffect(m.mediaId) { if (onPhone) MediaLedger.seenMedia(ref.id, m.id, m.mediaId, "image") }
         val b = rememberChatBitmap(ref, m.mediaId, allowed) ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
         Box(mod.clip(RoundedCornerShape(6.dp)).background(We.field).combinedClickable(
-            onClick = { if (selecting) onLongOf(m) else if (b == null && !allowed) manual = true else m.mediaId?.let { Nav.push(RImage(ref, it, ids)) } }, onLongClick = { onLongOf(m) }), contentAlignment = Alignment.Center) {
+            onClick = { if (selecting) onLongOf(m) else if (b == null && !allowed) { MediaNet.warnIfRoaming(); manual = true } else m.mediaId?.let { Nav.push(RImage(ref, it, ids)) } }, onLongClick = { onLongOf(m) }), contentAlignment = Alignment.Center) {
             if (b != null) Image(b, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
-            else if (!allowed) Icon(Ic.Download, We.primary, 26.dp)
+            else if (!allowed) DownloadChip(m.size, big = false)
             else androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.primary, strokeWidth = 2.dp)
             if (m.pending) Box(Modifier.matchParentSize().background(Color(0x55000000)), contentAlignment = Alignment.Center) {
                 if (Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true) Icon(Ic.Alert, Color.White, 22.dp) else androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
@@ -1069,7 +1073,11 @@ private fun SendingBadge(modifier: Modifier, failed: Boolean) {
 private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
     val selecting = LocalSelecting.current
     val ctx = LocalContext.current
-    val bytes by produceState<ByteArray?>(null, m.mediaId) { m.mediaId?.let { value = Repo.loadMedia(ref, it) } }
+    var manual by remember(m.id) { mutableStateOf(false) }
+    val onPhone = remember(m.mediaId) { m.mediaId?.let { DataPrefs.hasDisk(it) } == true }
+    val allowed = m.pending || manual || DataPrefs.autoVerdict(MediaPolicy.Type.GIF, m.size, onPhone, m.from == Repo.uid).auto
+    LaunchedEffect(m.mediaId) { if (onPhone) MediaLedger.seenMedia(ref.id, m.id, m.mediaId, "gif") }
+    val bytes by produceState<ByteArray?>(null, m.mediaId, allowed) { if (allowed) m.mediaId?.let { value = Repo.loadMedia(ref, it) } }
     val ratio = if (m.w > 0 && m.h > 0) (m.w.toFloat() / m.h).coerceIn(.5f, 2f) else 1f
     val drawable = remember(bytes) {
         bytes?.let { b ->
@@ -1082,13 +1090,14 @@ private fun GifBody(m: Msg, ref: ChatRef, onLong: () -> Unit) {
     val pendThumb = if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null
     Box(Modifier.width(if (ratio > 1f) 220.dp else 170.dp).aspectRatio(ratio).clip(RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
         if (drawable == null && pendThumb != null) { Image(pendThumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit); SendingBadge(Modifier, Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true) }
+        else if (drawable == null && !allowed) Box(Modifier.fillMaxSize().background(We.field), contentAlignment = Alignment.Center) { DownloadChip(m.size, big = false) }
         else if (drawable == null) androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = We.primary, strokeWidth = 2.dp)
         else androidx.compose.ui.viewinterop.AndroidView(factory = { c -> android.widget.ImageView(c).apply { scaleType = android.widget.ImageView.ScaleType.FIT_CENTER; outlineProvider = object : android.view.ViewOutlineProvider() { override fun getOutline(v: android.view.View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, 12f * v.resources.displayMetrics.density) } }; clipToOutline = true } },
             update = { iv ->
                 iv.setImageDrawable(drawable)
                 if (android.os.Build.VERSION.SDK_INT >= 28 && drawable is android.graphics.drawable.AnimatedImageDrawable) { drawable.repeatCount = android.graphics.drawable.AnimatedImageDrawable.REPEAT_INFINITE; drawable.start() }
             }, modifier = Modifier.fillMaxSize())
-        Box(Modifier.fillMaxSize().combinedClickable(onClick = { if (selecting) onLong() else m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong))
+        Box(Modifier.fillMaxSize().combinedClickable(onClick = { if (selecting) onLong() else if (!allowed && bytes == null) { MediaNet.warnIfRoaming(); manual = true } else m.mediaId?.let { Nav.push(RImage(ref, it)) } }, onLongClick = onLong))
     }
 }
 

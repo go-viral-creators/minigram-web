@@ -116,6 +116,20 @@ object MediaLedger {
         } catch (_: Exception) {} }
     }
 
+    // ---- the size of an upload travels inside the (encrypted) message as "s", so receivers can show "2.4 MB" before downloading
+    private val upSizes = object : LinkedHashMap<String, Long>(64, .75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<String, Long>) = size > 200 }
+    fun rememberUpload(mediaId: String, bytes: Long) { synchronized(upSizes) { upSizes[mediaId] = bytes } }
+    /** Adds the upload size to a photo / voice / GIF payload; any other payload, or one that already has a size, is returned unchanged. */
+    fun stampSize(type: String, payload: String): String {
+        if (type != "image" && type != "voice" && type != "gif") return payload
+        return try {
+            val j = org.json.JSONObject(payload)
+            val id = j.optString("m"); if (id.isEmpty() || j.has("s")) return payload
+            val n = synchronized(upSizes) { upSizes[id] } ?: return payload
+            j.put("s", n).toString()
+        } catch (_: Exception) { payload }
+    }
+
     /** Forgets the "already noted" memory after a clear, so the next chat visit writes the rows again. */
     private fun forgetNoted() { synchronized(noted) { noted.clear() } }
 
