@@ -214,6 +214,7 @@ fun StorageScreen() {
             Row2(Ic.Database, "Temporary files", mb(other) + " · recordings, previews, edits", trailing = { Text("Clear", color = We.danger, style = T.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.clickable { DataPrefs.clearOther(); tick++; Nav.say("Temporary files cleared") }.padding(8.dp)) })
             Box(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) { OutlineButton("Clear everything (" + mb(media + other) + ")", { DataPrefs.clearDisk(); DataPrefs.clearOther(); tick++; Nav.say("Storage cleared") }) }
 
+            SearchIndexSettings()
             SectionLabel("Keep media for")
             val limits = listOf(100 to "100 MB", 250 to "250 MB", 500 to "500 MB", 1024 to "1 GB", 0 to "No limit")
             chips(limits.map { it.second to (DataPrefs.cacheLimitMb == it.first) }) { DataPrefs.setLimit(limits[it].first) }

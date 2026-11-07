@@ -148,6 +148,7 @@ fun Main() {
     BackHandler(enabled = Nav.stack.isNotEmpty()) { Nav.pop() }
     // Android 13+: notifications (calls, voice-message controls) need a one-time permission
     val ctx0 = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Repo.uid) { if (Repo.uid.isNotEmpty()) com.kafisir.wetalks.data.SearchIndexer.start() }
     val notifPerm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
     var askBackup by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -216,6 +217,8 @@ fun Main() {
                 is RGroupSettings -> GroupSettingsScreen(r.id)
                 is RChannelSettings -> ChannelSettingsScreen(r.id)
                 is RModeration -> com.kafisir.wetalks.screens.ModerationScreen(r.id, r.kind)
+                RSearch -> com.kafisir.wetalks.screens.GlobalSearchScreen()
+                is RStarred -> com.kafisir.wetalks.screens.StarredScreen(r.ref)
             }
         }
     }

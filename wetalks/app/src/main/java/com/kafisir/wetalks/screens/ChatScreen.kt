@@ -133,7 +133,7 @@ fun CollapsibleText(text: String, color: Color, style: androidx.compose.ui.text.
 
 @Composable
 fun FormattedText(text: String, color: Color, style: androidx.compose.ui.text.TextStyle) {
-    if (UiPrefs.markdown.value && Markdown.hasFormatting(text)) MarkdownText(text, color, style) else Text(linkified(text, color), color = color, style = style)
+    if (UiPrefs.markdown.value && Markdown.hasFormatting(text)) MarkdownText(text, color, style) else Text(marked(linkified(text, color)), color = color, style = style)
 }
 
 /** Some recognisers return Every Word Capitalised; turn that into normal sentence case. */
@@ -166,7 +166,7 @@ fun ChatScreen(ref: ChatRef) {
     var loaded by remember(ref) { mutableStateOf(Repo.cachedMessages(ref.id) != null) }
     val msgsLive by produceState<List<Msg>>(Repo.cachedMessages(ref.id) ?: emptyList(), ref, limit) {
         launch { try { Repo.chatKey(ref) } catch (_: Exception) {} }          // the encryption key loads while the messages load, not after them
-        Repo.rawMessages(ref, limit).collect { raws -> val l = Repo.decryptAll(ref, raws); value = l; Repo.putMessages(ref.id, l); loaded = true }
+        Repo.rawMessages(ref, limit).collect { raws -> val l = Repo.decryptAll(ref, raws); com.kafisir.wetalks.data.SearchIndexer.live(ref, l); value = l; Repo.putMessages(ref.id, l); loaded = true }
     }
     // restored chat backup: archived copies of messages the server no longer has (live messages always win)
     val archived by produceState<List<Msg>>(emptyList(), ref.id) { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { try { com.kafisir.wetalks.data.ArchiveStore.get().messages(ref.id) } catch (_: Exception) { emptyList() } } }
@@ -241,6 +241,7 @@ fun ChatScreen(ref: ChatRef) {
         }
     }
     var menuMsg by remember { mutableStateOf<Msg?>(null) }
+    val cs = rememberChatSearch(ref); ChatSearchEffects(cs, msgs)
     var attach by remember { mutableStateOf(false) }
     var stickers by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
@@ -292,10 +293,11 @@ fun ChatScreen(ref: ChatRef) {
         if (idx >= 0) {
             jumpReq = null   // clearing this restarts the effect, so the scroll runs in its own scope or it would be cancelled
             scope.launch { delay(120); listState.animateScrollToItem(idx); highlightId = j }
-        } else if (msgs.size >= limit && limit < 2000) limit += 300
+        } else if (msgs.size >= limit && limit < 6400) limit += maxOf(300, limit)
         else if (msgs.isNotEmpty()) { jumpReq = null; toast("That message is no longer available") }
     }
     LaunchedEffect(highlightId) { if (highlightId != null) { delay(3200); highlightId = null } }
+    LaunchedEffect(cs.jumpTick) { if (cs.jumpTick > 0) cs.currentId?.let { jumpReq = it } }
     // new message arrives or I send one: show it (unless the reader has scrolled far up through history)
     val newestId = msgs.lastOrNull()?.id
     var seenNewest by remember(ref) { mutableStateOf<String?>(null) }
@@ -536,7 +538,7 @@ fun ChatScreen(ref: ChatRef) {
                 IconBtn(Ic.Forward, We.onAppBar, { forwarding = msgs.filter { it.id in selected } })
                 IconBtn(Ic.Trash, We.onAppBar, { deleting = msgs.filter { it.id in selected } })
             }
-        } else TopBar(title, onBack = { Nav.pop() }, subtitle = subtitleShown, subtitleIcon = if (timerSecs > 0 && !selecting && typing.isEmpty()) Ic.Clock else null,
+        } else if (cs.open) ChatSearchBar(cs) else TopBar(title, onBack = { Nav.pop() }, subtitle = subtitleShown, subtitleIcon = if (timerSecs > 0 && !selecting && typing.isEmpty()) Ic.Clock else null,
             leading = { if (saved) Box(Modifier.size(38.dp).clip(CircleShape).background(We.onAppBar.copy(alpha = .2f)), contentAlignment = Alignment.Center) { Icon(Ic.Bookmark, We.onAppBar, 20.dp) } else Avatar(title, photo, 38.dp, seed) },
             titleClick = { if (!saved) when (ref.kind) { Kind.DM -> Nav.push(RProfile(ref.peer!!)); Kind.GROUP -> Nav.push(RGroupInfo(ref.id)); Kind.CHANNEL -> Nav.push(RChannelInfo(ref.id)) } },
             actions = {
@@ -590,7 +592,7 @@ fun ChatScreen(ref: ChatRef) {
             val rows = remember(msgs) { groupAlbums(rev) }
             val quoteCache = remember(ref) { mutableStateMapOf<String, Msg>() }
             val imageIds = remember(msgs) { msgs.filter { it.type == "image" && !it.pending && !it.deleted && !it.mediaId.isNullOrEmpty() }.map { it.mediaId!! } }
-            CompositionLocalProvider(LocalSelecting provides selecting) {
+            CompositionLocalProvider(LocalSelecting provides selecting, LocalSearchQuery provides cs.query) {
             LazyColumn(Modifier.fillMaxSize(), state = listState, reverseLayout = true, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
                 itemsIndexed(rows, key = { _, g -> g.last().id }) { i, g ->
                     val m = g.last()                       // an album is represented by its first photo (its id never changes while the rest arrive)
@@ -614,7 +616,7 @@ fun ChatScreen(ref: ChatRef) {
                     Column {
                         if (older == null || dayLabel(older.ts) != dayLabel(m.ts)) DayChip(dayLabel(m.ts))
                         val sameAsOlder = older != null && older.from == m.from && dayLabel(older.ts) == dayLabel(m.ts)
-                        val hl by animateColorAsState(if (m.id == highlightId) We.primary.copy(alpha = .30f) else Color.Transparent, tween(500), label = "hl")
+                        val hl by animateColorAsState(if (m.id == highlightId || m.id == cs.currentId) We.primary.copy(alpha = .30f) else Color.Transparent, tween(500), label = "hl")
                         Row(Modifier.fillMaxWidth().background(if (sel) We.primary.copy(alpha = .14f) else hl).padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (selecting) Box(Modifier.padding(start = 4.dp, end = 6.dp).size(22.dp).clip(CircleShape).background(if (sel) We.primary else We.line), contentAlignment = Alignment.Center) { if (sel) Icon(Ic.Check, We.onPrimary, 14.dp) }
                             Box(Modifier.weight(1f)) { SwipeReply(enabled = canPost && !m.pending && !m.deleted && !selecting, onReply = { reply = m; editing = null }) {
@@ -836,6 +838,8 @@ fun ChatScreen(ref: ChatRef) {
     if (menu) Sheet({ menu = false }) {
         SheetItem(Ic.Download, "Export chat") { menu = false; exportSheet = true }
         if (!saved) SheetItem(Ic.Clock, "Disappearing messages" + (if (timerSecs > 0) " · " + DisappearRules.label(timerSecs) else "")) { menu = false; disSheet = true }
+        SheetItem(Ic.Search, "Search in chat") { menu = false; cs.show() }
+        SheetItem(Ic.Star, "Starred in this chat") { menu = false; Nav.push(RStarred(ref)) }
         when (ref.kind) {
             Kind.DM -> if (!saved) {
                 SheetItem(Ic.User, "View profile") { menu = false; Nav.push(RProfile(ref.peer!!)) }
@@ -966,6 +970,7 @@ private fun SwipeReply(enabled: Boolean, onReply: () -> Unit, content: @Composab
 private fun ColumnScope.MetaRow(m: Msg, mine: Boolean, read: Boolean, fg: Color, pinned: Boolean) {
     Row(Modifier.align(Alignment.End).padding(top = 3.dp, start = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         if (pinned) Icon(Ic.Pin, fg.copy(alpha = .55f), 11.dp)
+        if (com.kafisir.wetalks.data.Starred.isStarred(m.id)) Icon(Ic.Star, fg.copy(alpha = .7f), 11.dp)
         if (m.edited) Text("edited", color = fg.copy(alpha = .55f), style = T.tiny)
         Text(if (m.ts > 0) clock(m.ts) else "", color = fg.copy(alpha = .6f), style = T.tiny.copy(fontSize = 10.5.sp))
         if (m.pending) { val f = Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true; Icon(if (f) Ic.Alert else Ic.Clock, if (f) We.danger else fg.copy(alpha = .55f), 14.dp) }
@@ -993,7 +998,7 @@ private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Co
             }
         }
         if (hasCap) {
-            Text(linkified(m.text, fg), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp))
+            Text(marked(linkified(m.text, fg)), color = fg, style = T.body.copy(fontSize = (15 * UiPrefs.textScale.floatValue).sp), modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 5.dp))
             Box(Modifier.padding(end = 12.dp, bottom = 8.dp).align(Alignment.End)) { Column { MetaRow(m, mine, read, fg, pinned) } }
         }
     }
@@ -1166,6 +1171,7 @@ private fun MessageMenu(m: Msg, ref: ChatRef, canReply: Boolean, canPin: Boolean
                     if ((m.type == "text" || m.type == "link" || m.type == "image") && m.text.isNotEmpty()) MenuRow(Ic.Copy, if (m.type == "image") "Copy caption" else "Copy text", onClick = onCopy)
                     if (speakText.isNotEmpty()) MenuRow(Ic.Speaker, if (com.kafisir.wetalks.voice.Speaker.speakingId == m.id) "Stop listening" else "Listen", onClick = onSpeak)
                     onSaveFile?.let { MenuRow(Ic.Download, "Save to Downloads", onClick = it) }
+                    MenuRow(Ic.Star, if (com.kafisir.wetalks.data.Starred.isStarred(m.id)) "Unstar" else "Star", onClick = { com.kafisir.wetalks.data.Starred.toggle(ref.id, m.id); onDismiss() })
                     if (canPin) MenuRow(Ic.Pin, if (pinned) "Unpin" else "Pin", onClick = onPin)
                     if (m.type == "image" || m.type == "gif") MenuRow(Ic.Download, "Save to gallery", onClick = onSave)
                     MenuRow(Ic.Forward, "Forward", onClick = onForward)

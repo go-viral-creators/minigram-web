@@ -1345,3 +1345,64 @@ test('expiry index: people of the chat may clear an entry once it is due or the 
   await assertSucceeds(remove(ref(db(A), `expiry/${fb}/${AB}/orphan`)));
   await assertSucceeds(remove(ref(db(A), `expiry/${pb}/${AB}/never_existed`)));                            // deleting nothing is fine (a sweep may include it)
 });
+
+// ---------------------------------------------------------------------------------------------- starred messages (references only)
+test('starred: the owner stars, lists and unstars; the value must be the server time', async () => {
+  const mine = db(A);
+  await assertSucceeds(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), serverTimestamp()));
+  await assertSucceeds(set(ref(mine, 'starred/alice/-NgroupPushId001/-Nstar0000000002'), serverTimestamp()));
+  const all = await get(ref(mine, 'starred/alice'));
+  if (Object.keys(all.val()).length !== 2) throw new Error('two chats expected');
+  await assertSucceeds(update(ref(mine), { [`starred/alice/${AB}/-Nstar0000000003`]: serverTimestamp(), [`starred/alice/${AB}/-Nstar0000000001`]: null }));   // several changes in one write
+  await assertSucceeds(remove(ref(mine, `starred/alice/${AB}/-Nstar0000000003`)));
+  await assertSucceeds(remove(ref(mine, 'starred/alice')));                                                                                       // clear all
+});
+
+test('starred: a stranger can neither read nor write someone else\'s stars; nobody signed out can either', async () => {
+  await assertSucceeds(set(ref(db(A), `starred/alice/${AB}/-Nstar0000000001`), serverTimestamp()));
+  await assertFails(get(ref(db(B), 'starred/alice')));
+  await assertFails(get(ref(db(B), `starred/alice/${AB}`)));
+  await assertFails(get(ref(db(B), `starred/alice/${AB}/-Nstar0000000001`)));
+  await assertFails(get(ref(anon(), 'starred/alice')));
+  await assertFails(set(ref(db(B), `starred/alice/${AB}/-Nstar0000000009`), serverTimestamp()));        // plant a star in alice's list
+  await assertFails(remove(ref(db(B), `starred/alice/${AB}/-Nstar0000000001`)));                         // remove alice's star
+  await assertFails(remove(ref(db(B), 'starred/alice')));
+  await assertFails(update(ref(db(B)), { 'starred/alice/x/-Nstar0000000009': serverTimestamp() }));
+  await assertFails(set(ref(anon(), `starred/alice/${AB}/-Nstar0000000009`), serverTimestamp()));
+  await assertFails(get(ref(db(B), 'starred')));                                                          // no way to list everybody's stars
+  const still = await get(ref(db(A), `starred/alice/${AB}`));  if (Object.keys(still.val()).length !== 1) throw new Error('alice\'s star must be untouched');
+});
+
+test('starred: only references are accepted (no text, no forged time, no odd ids, no extra fields)', async () => {
+  const mine = db(A);
+  await assertFails(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), 'the message text'));         // text instead of a reference
+  await assertFails(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), true));
+  await assertFails(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), { ts: serverTimestamp(), text: 'hello' }));
+  await assertFails(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), 12345));                       // a made-up time
+  await assertFails(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), Date.now() + 86400000));       // a time in the future
+  await assertFails(set(ref(mine, `starred/alice/${AB}/bad id!`), serverTimestamp()));
+  await assertFails(set(ref(mine, `starred/alice/${AB}/${'m'.repeat(41)}`), serverTimestamp()));
+  await assertFails(set(ref(mine, `starred/alice/bad chat!/-Nstar0000000001`), serverTimestamp()));
+  await assertFails(set(ref(mine, `starred/alice/${'c'.repeat(301)}/-Nstar0000000001`), serverTimestamp()));
+  await assertFails(set(ref(mine, 'starred/alice/justAString'), 'x'));                                    // a value directly under the person
+  await assertFails(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001/extra`), serverTimestamp()));     // a child below a star
+  await assertSucceeds(set(ref(mine, `starred/alice/${AB}/-Nstar0000000001`), serverTimestamp()));
+});
+
+test('starred: a stranger cannot flood someone else\'s list; one bad key rejects a whole bulk write by the owner', async () => {
+  const flood = {};
+  for (let i = 0; i < 200; i++) flood[`starred/alice/${AB}/-Nflood${String(i).padStart(8, '0')}`] = serverTimestamp();
+  await assertFails(update(ref(db(B)), flood));
+  await assertFails(update(ref(anon()), flood));
+  await assertFails(update(ref(db(A)), { ...flood, [`starred/alice/${AB}/bad id!`]: serverTimestamp() }));
+  if ((await get(ref(db(A), 'starred/alice'))).exists()) throw new Error('nothing should have been written');
+  await assertSucceeds(update(ref(db(A)), flood));
+  await assertFails(update(ref(db(A)), { [`starred/alice/${AB}/-Nflood00000001`]: 5 }));                  // an existing star cannot be changed to a made-up time
+});
+
+test('starred: stars never change other people\'s data or the chat itself', async () => {
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/m1`), msg(A)));
+  await assertSucceeds(set(ref(db(B), `starred/bob/${AB}/m1`), serverTimestamp()));                       // bob stars alice's message: his own list only
+  const m = await get(ref(db(A), `messages/${AB}/m1`));  if (m.val().body !== 'ct' || m.val().starred) throw new Error('message must be untouched');
+  await assertFails(get(ref(db(A), 'starred/bob')));
+});
