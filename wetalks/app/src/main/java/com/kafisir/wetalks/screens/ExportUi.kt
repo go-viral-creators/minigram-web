@@ -182,8 +182,8 @@ fun ExportSheet(ref: ChatRef, title: String, onDismiss: () -> Unit) {
                     }
                     if (preset == "custom") {
                         val df = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
-                        Row2(Ic.Calendar, "From", fromDay?.let { df.format(it) } ?: "The first message", onClick = { picking = "from" })
-                        Row2(Ic.Calendar, "To", toDay?.let { df.format(it) } ?: "Today", onClick = { picking = "to" })
+                        Row2(Ic.Clock, "From", fromDay?.let { df.format(it) } ?: "The first message", onClick = { picking = "from" })
+                        Row2(Ic.Clock, "To", toDay?.let { df.format(it) } ?: "Today", onClick = { picking = "to" })
                         if (problem != null) Text(problem, color = We.danger, style = T.small, modifier = Modifier.padding(horizontal = 24.dp))
                     }
                     SectionLabel("Media")
