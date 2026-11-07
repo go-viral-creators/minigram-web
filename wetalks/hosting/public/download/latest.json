@@ -1,7 +1,14 @@
 {
- "version": "1.22.2",
- "size": "37.6 MB",
- "sha256": "de406dc20fac1a27efef2bd8a95df67221acce2023ecf71b6c5417dd776bdbe4",
- "file": "/download/WeTalks.apk",
- "updated": "2026-11-07"
+  "version": "1.23.0",
+  "versionCode": 44,
+  "size": "37.6 MB",
+  "sha256": "80bf51d2ddd10e18f3224e0fc4bd9507152e2e73d90c2a368803efe4988db08d",
+  "apk": "WeTalks-v1.23.0-arm64.apk",
+  "minSdk": 28,
+  "changelog": [
+    "Starred messages now load on app start",
+    "Me tab remembers scroll position when you navigate back",
+    "Link preview cards can be attached to existing messages",
+    "Security: rate limiting rules hardened (135/135 tests pass)"
+  ]
 }
