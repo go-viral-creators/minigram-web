@@ -110,6 +110,7 @@ object Repo {
 
     fun signOut() {
         Crash.user("")
+        Disappear.onSignOut()
         unregisterPush()
         setOnline(false)
         detachAll()
@@ -630,7 +631,7 @@ object Repo {
                     if (type.isEmpty() && c.str("peer").isEmpty() && c.str("lastBody").isEmpty() && c.lng("lastTs") == 0L) return@mapNotNull null
                     if (kind == Kind.DM && c.str("peer").isEmpty()) return@mapNotNull null
                     ChatItem(ChatRef(id, kind, c.str("peer").ifEmpty { null }), c.lng("lastTs"), c.str("lastBody"), c.str("lastType"),
-                        c.str("lastFrom"), c.lng("unread"), c.bool("pinned"), c.bool("muted"), c.bool("archived"), c.child("labels").children.mapNotNull { it.key }.toSet())
+                        c.str("lastFrom"), c.lng("unread"), c.bool("pinned"), c.bool("muted"), c.bool("archived"), c.child("labels").children.mapNotNull { it.key }.toSet(), c.lng("lastExp"))
                 }
                 chatSnapshot = list
                 warmGroupKeys(list)
@@ -833,10 +834,10 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ messages
     class Raw(val id: String, val from: String, val ts: Long, val type: String, val body: String, val kv: Int, val rid: String?,
-              val deleted: Boolean, val edited: Boolean, val react: Map<String, String>, val fwd: String? = null)
+              val deleted: Boolean, val edited: Boolean, val react: Map<String, String>, val fwd: String? = null, val exp: Long = 0L)
 
-    private fun rawOf(c: DataSnapshot) = Raw(c.key!!, c.str("from"), c.lng("ts"), c.str("type"), c.str("body"), c.lng("kv").toInt(), c.str("rid").ifEmpty { null },
-        c.bool("deleted"), c.bool("edited"), c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") }, c.str("fwd").ifEmpty { null })
+    fun rawOf(c: DataSnapshot) = Raw(c.key!!, c.str("from"), c.lng("ts"), c.str("type"), c.str("body"), c.lng("kv").toInt(), c.str("rid").ifEmpty { null },
+        c.bool("deleted"), c.bool("edited"), c.child("react").children.associate { it.key!! to (it.getValue(String::class.java) ?: "") }, c.str("fwd").ifEmpty { null }, c.lng("exp"))
 
     // the last decoded messages of the chats opened in this session: re-opening a chat shows them at once instead of an empty screen
     private val msgCache = object : LinkedHashMap<String, List<Msg>>(16, .75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<String, List<Msg>>?) = size > 12 }
@@ -882,11 +883,11 @@ object Repo {
             val cur = group(ref.id).value?.kv ?: try { groupVersion(ref.id) } catch (_: Exception) { 1 }
             raws.asSequence().filter { !it.deleted }.map { if (it.kv > 0) it.kv else cur }.distinct().forEach { v -> try { groupKey(ref.id, v, forRead = true) } catch (_: Exception) {} }
         }
-        return raws.map { decrypt(ref, it) }
+        return raws.map { decrypt(ref, it) }.also { Disappear.noteMessages(it, uid) }
     }
 
     suspend fun decrypt(ref: ChatRef, r: Raw): Msg {
-        if (r.deleted) return Msg(r.id, r.from, r.ts, r.type, "", deleted = true, rid = r.rid)
+        if (r.deleted) return Msg(r.id, r.from, r.ts, r.type, "", deleted = true, rid = r.rid, exp = r.exp)
         var plain: String
         var bad = false
         if (ref.kind == Kind.CHANNEL) plain = r.body
@@ -918,7 +919,7 @@ object Repo {
         }
         // a photo that came through the keyboard (not a sticker or GIF) is shown like any other photo
         val shownType = if (r.type == "gif" && (mime == "image/jpeg" || (mime == "image/png" && minOf(w, h) >= 600))) "image" else r.type
-        return Msg(r.id, r.from, r.ts, shownType, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb, album = album)
+        return Msg(r.id, r.from, r.ts, shownType, text, mediaId, dur, r.rid, false, r.edited, r.react, bad, wave = wave, link = link, mime = mime, w = w, h = h, fwd = r.fwd, name = fname, size = fsize, fkey = fkey, thumb = fthumb, album = album, exp = r.exp)
     }
 
     /** Opens a DM body with whichever candidate key works (AES-GCM tells us which one is right). */
@@ -930,7 +931,7 @@ object Repo {
         return null
     }
 
-    private suspend fun fanOut(ref: ChatRef, updates: HashMap<String, Any?>, type: String, body: String, preview: String) {
+    private suspend fun fanOut(ref: ChatRef, updates: HashMap<String, Any?>, type: String, body: String, preview: String, exp: Long? = null) {
         val now = ServerValue.TIMESTAMP
         fun entry(u: String, kind: String, peer: String?, mine: Boolean) {
             val b = "user_chats/$u/${ref.id}"
@@ -938,6 +939,7 @@ object Repo {
             if (peer != null) updates["$b/peer"] = peer
             updates["$b/lastTs"] = now; updates["$b/lastBody"] = body; updates["$b/lastType"] = type; updates["$b/lastFrom"] = uid
             updates["$b/unread"] = if (mine) 0 else ServerValue.increment(1)
+            if (exp != null) updates["$b/lastExp"] = exp          // only in chats that have a disappearing-messages setting (older server rules know no lastExp)
         }
         when (ref.kind) {
             Kind.DM -> { entry(uid, "dm", ref.peer, true); if (ref.peer != uid) { entry(ref.peer!!, "dm", uid, false); updates["contacts/$uid/${ref.peer}"] = true } }
@@ -1023,11 +1025,16 @@ object Repo {
         } else body
         val mid = mid ?: db.getReference("messages/${ref.id}").push().key!!       // a call uses its call id, so the same call can never leave two lines in the chat
         kotlin.coroutines.coroutineContext[OutgoingTag]?.o?.msgId = mid
+        val timer = Disappear.timerFor(ref)                                         // disappearing messages: null = this chat has never had a setting
+        val exp = DisappearRules.computeExp(Disappear.now(), timer ?: 0)
         val up = HashMap<String, Any?>()
-        up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid, "fwd" to fwd)
-        fanOut(ref, up, type, listBody, preview)
+        up["messages/${ref.id}/$mid"] = hashMapOf("from" to uid, "ts" to ServerValue.TIMESTAMP, "type" to type, "body" to body, "kv" to kv, "rid" to rid, "fwd" to fwd).also { if (exp > 0) it["exp"] = exp }
+        fanOut(ref, up, type, listBody, preview, if (timer == null) null else exp)
+        if (exp > 0) up[DisappearRules.indexPath(exp, ref.id, mid)] = exp
         if (slowSecs > 0) up["slow/${ref.id}/$uid"] = ServerValue.TIMESTAMP
-        db.reference.updateChildren(up).await()
+        try { db.reference.updateChildren(up).await() }
+        catch (e: Exception) { if (!Disappear.retryAfterRefusal(ref, e, timer)) throw e; return send(ref, type, payload, rid, preview, fwd, mid) }   // the timer was changed a moment ago by the other side: send again with the new one
+        if (exp > 0) Disappear.noteSent(exp, type, payload)
         if (slowSecs > 0) slowPrefs.edit().putLong(ref.id, System.currentTimeMillis()).apply()
         return mid
     }
@@ -1063,13 +1070,13 @@ object Repo {
     }
 
     /** After a deletion, point the chat list at whatever message is now the newest one. */
-    private suspend fun refreshLast(ref: ChatRef) {
+    suspend fun refreshLast(ref: ChatRef) {
         val last = db.getReference("messages/${ref.id}").orderByKey().limitToLast(1).get().await().children.firstOrNull()
         if (ref.kind == Kind.CHANNEL) {
             // channel posts are plain: the line under the channel name must follow the newest post that is left
             val body = last?.str("body") ?: ""
             val pv = when (last?.str("type")) {
-                null -> ""; "text" -> body.take(90); "image" -> "Photo"; "voice" -> "Voice message"; "gif" -> "GIF"; "sticker" -> "Sticker"; "video" -> "Video"; "audio" -> "Audio"; "file" -> "File"
+                null -> ""; "text", "sys" -> body.take(90); "image" -> "Photo"; "voice" -> "Voice message"; "gif" -> "GIF"; "sticker" -> "Sticker"; "video" -> "Video"; "audio" -> "Audio"; "file" -> "File"
                 "link" -> try { org.json.JSONObject(body).optString("t").take(90) } catch (_: Exception) { "Link" }
                 else -> ""
             }
@@ -1095,7 +1102,8 @@ object Repo {
                     body = if (key == null) slim else Crypto.sealText(key, slim)
                 } catch (_: Exception) {}
                 up["$b/lastTs"] = last.lng("ts"); up["$b/lastBody"] = body; up["$b/lastType"] = last.str("type"); up["$b/lastFrom"] = last.str("from")
-            } else { up["$b/lastBody"] = ""; up["$b/lastType"] = ""; up["$b/lastFrom"] = "" }
+                if (Disappear.hasSetting(ref.id)) up["$b/lastExp"] = last.lng("exp")
+            } else { up["$b/lastBody"] = ""; up["$b/lastType"] = ""; up["$b/lastFrom"] = ""; if (Disappear.hasSetting(ref.id)) up["$b/lastExp"] = 0L }
         }
         try { db.reference.updateChildren(up).await() } catch (_: Exception) {}
     }
@@ -1207,12 +1215,13 @@ object Repo {
     }
 
     /** Deletes a file (own uploads only): files from before the move are still in the database, new ones are on the media server. */
-    private suspend fun removeMedia(id: String) {
+    suspend fun removeMedia(id: String) {
         if (id.isEmpty()) return
         if (MediaApi.isRemote(id)) MediaApi.delete(id) else try { db.getReference("media/$id").removeValue().await() } catch (_: Exception) {}
     }
 
     private val mediaCache = object : android.util.LruCache<String, ByteArray>(24 * 1024 * 1024) { override fun sizeOf(k: String, v: ByteArray) = v.size }
+    fun dropCachedMedia(id: String) { mediaCache.remove(id) }
 
     suspend fun loadMedia(ref: ChatRef, id: String, kv: Int = 0): ByteArray? {
         mediaCache.get(id)?.let { return it }

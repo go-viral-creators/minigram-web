@@ -819,3 +819,216 @@ test('scenario: declined and cancelled-before-answer give each side exactly one 
   const b = Object.keys((await get(ref(db(B), 'call_log/bob'))).val()), a = Object.keys((await get(ref(db(A), 'call_log/alice'))).val());
   if (b.length !== 2 || a.length !== 2) throw new Error('two lines each expected');
 });
+
+// ============================================================================ disappearing messages (chat_settings, exp, expiry index)
+const DAY = 86400000;
+const setting = (by, secs) => ({ disappear: secs, by, ts: serverTimestamp() });
+const seed = (fn) => env.withSecurityRulesDisabled(async (ctx) => fn(ctx.database()));
+const timed = (from, secs, extra) => ({ from, ts: Date.now(), type: 'text', body: 'ct', exp: Date.now() + secs * 1000, ...extra });
+
+test('disappearing: who may change the timer (DM either person, group admins only, channel owner/admins)', async () => {
+  await assertSucceeds(set(ref(db(A), `chat_settings/${AB}`), setting(A, 86400)));
+  await assertSucceeds(set(ref(db(B), `chat_settings/${AB}`), setting(B, 0)));          // the other person may turn it off
+  await assertFails(set(ref(db(C), `chat_settings/${AB}`), setting(C, 86400)));          // a stranger
+  await assertFails(set(ref(db(A), `chat_settings/${AB}`), setting(B, 86400)));          // forged "by"
+  await assertSucceeds(set(ref(db(A), 'chat_settings/g1'), setting(A, 604800)));         // group admin
+  await assertFails(set(ref(db(B), 'chat_settings/g1'), setting(B, 86400)));             // plain member
+  await assertFails(set(ref(db(C), 'chat_settings/g1'), setting(C, 86400)));
+  await assertSucceeds(set(ref(db(A), 'chat_settings/c1'), setting(A, 7776000)));        // channel owner
+  await assertFails(set(ref(db(B), 'chat_settings/c1'), setting(B, 86400)));             // follower
+  await seed(async (d) => set(ref(d, 'channels/c1/admins/bob'), true));
+  await assertSucceeds(set(ref(db(B), 'chat_settings/c1'), setting(B, 86400)));          // channel admin
+});
+
+test('disappearing: only the four timer values, honest timestamp, no extra fields, nothing for a chat you are not in', async () => {
+  for (const bad of [1, 3600, 90, -1, 86401, '86400', true]) await assertFails(set(ref(db(A), `chat_settings/${AB}`), setting(A, bad)));
+  await assertFails(set(ref(db(A), `chat_settings/${AB}`), { disappear: 86400, by: A, ts: 12345 }));        // not the server time
+  await assertFails(set(ref(db(A), `chat_settings/${AB}`), { disappear: 86400, by: A, ts: serverTimestamp(), x: 1 }));
+  await assertFails(set(ref(db(A), `chat_settings/${AB}`), { disappear: 86400, ts: serverTimestamp() }));  // missing by
+  await assertFails(set(ref(db(A), 'chat_settings/bob_carol'), setting(A, 86400)));                         // somebody else's DM
+  await assertFails(set(ref(db(A), 'chat_settings/alice'), setting(A, 86400)));                             // not a chat
+  await assertFails(set(ref(db(A), 'chat_settings/nothing_here'), setting(A, 86400)));
+  await assertSucceeds(set(ref(db(A), `chat_settings/${AB}`), setting(A, 7776000)));
+  await assertFails(set(ref(db(B), `chat_settings/${AB}/disappear`), 86400));                               // a partial write keeps the old "by": refused
+  await assertSucceeds(remove(ref(db(A), `chat_settings/${AB}`)));
+});
+
+test('disappearing: the setting is readable by the people of the chat only', async () => {
+  await seed(async (d) => { await set(ref(d, `chat_settings/${AB}`), { disappear: 86400, by: A, ts: 1 }); await set(ref(d, 'chat_settings/g1'), { disappear: 86400, by: A, ts: 1 }); await set(ref(d, 'chat_settings/c1'), { disappear: 86400, by: A, ts: 1 }); });
+  await assertSucceeds(get(ref(db(B), `chat_settings/${AB}`)));
+  await assertFails(get(ref(db(C), `chat_settings/${AB}`)));
+  await assertSucceeds(get(ref(db(B), 'chat_settings/g1')));
+  await assertFails(get(ref(db(C), 'chat_settings/g1')));
+  await assertSucceeds(get(ref(db(C), 'chat_settings/c1')));       // a public channel is readable by anyone, like its posts
+  await seed(async (d) => set(ref(d, 'channels/c1/priv'), true));
+  await assertFails(get(ref(db(C), 'chat_settings/c1')));         // a private channel only by subscribers
+  await assertFails(get(ref(anon(), `chat_settings/${AB}`)));
+});
+
+test('disappearing: with a timer on every new message needs an exp that is not longer than the timer', async () => {
+  await seed(async (d) => { await set(ref(d, `chat_settings/${AB}`), { disappear: 86400, by: A, ts: 1 }); await set(ref(d, 'chat_settings/g1'), { disappear: 604800, by: A, ts: 1 }); await set(ref(d, 'chat_settings/c1'), { disappear: 86400, by: A, ts: 1 }); });
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/t1`), timed(A, 86400)));
+  await assertFails(set(ref(db(A), `messages/${AB}/t2`), msg(A)));                                       // exp omitted
+  await assertFails(set(ref(db(A), `messages/${AB}/t3`), timed(A, 86400 * 7)));                            // longer than the timer
+  await assertFails(set(ref(db(A), `messages/${AB}/t3b`), timed(A, 86400 + 3600)));                        // an hour longer
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/t4`), timed(A, 86400 + 60)));                        // clock drift inside the tolerance
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/t5`), timed(A, 3600)));                              // shorter is the sender's own business
+  await assertFails(set(ref(db(A), `messages/${AB}/t6`), { ...timed(A, 86400), exp: 'tomorrow' }));
+  await assertFails(set(ref(db(A), `messages/${AB}/t7`), { ...timed(A, 86400), exp: 0 }));
+  await assertFails(set(ref(db(A), `messages/${AB}/t8`), { ...timed(A, 86400), exp: -5 }));
+  await assertSucceeds(set(ref(db(B), `messages/${AB}/t9`), timed(B, 86400)));
+  await assertSucceeds(set(ref(db(B), 'messages/g1/t1'), timed(B, 604800)));                              // group, plain member
+  await assertFails(set(ref(db(B), 'messages/g1/t2'), msg(B)));
+  await assertFails(set(ref(db(B), 'messages/g1/t3'), timed(B, 7776000)));
+  await assertSucceeds(set(ref(db(A), 'messages/c1/t1'), timed(A, 86400)));                                // channel owner
+  await assertFails(set(ref(db(A), 'messages/c1/t2'), msg(A)));
+  await assertFails(set(ref(db(A), 'messages/c1/t3'), timed(A, 7776000)));
+  await assertSucceeds(update(ref(db(A)), { [`messages/${AB}/t10`]: timed(A, 86400), [`user_chats/alice/${AB}/lastExp`]: Date.now() + DAY }));
+});
+
+test('disappearing: with the timer off (or never set) exp is not allowed, and old message shapes still work', async () => {
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/o1`), msg(A)));                                       // never configured
+  await assertFails(set(ref(db(A), `messages/${AB}/o2`), timed(A, 86400)));                                 // exp where there is no timer
+  await seed(async (d) => set(ref(d, `chat_settings/${AB}`), { disappear: 0, by: A, ts: 1 }));
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/o3`), msg(A)));
+  await assertFails(set(ref(db(A), `messages/${AB}/o4`), timed(A, 86400)));
+  await assertFails(set(ref(db(A), `messages/${AB}/o5`), { ...msg(A), exp: Date.now() + 1000 }));
+  await assertSucceeds(set(ref(db(B), 'messages/g1/o6'), msg(B)));                                          // group without a setting
+  await assertSucceeds(set(ref(db(A), 'messages/c1/o7'), msg(A)));
+});
+
+test('disappearing: exp cannot be changed or removed afterwards, edits of timed messages still work', async () => {
+  await seed(async (d) => set(ref(d, `chat_settings/${AB}`), { disappear: 86400, by: A, ts: 1 }));
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/e1`), timed(A, 86400)));
+  await assertSucceeds(update(ref(db(A), `messages/${AB}/e1`), { body: 'ct2', edited: true }));
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { exp: Date.now() + 30 * DAY }));              // make it last longer
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { exp: null }));                              // make it permanent
+  await assertFails(update(ref(db(A), `messages/${AB}/e1`), { exp: Date.now() - 1000 }));                 // (changing it in any direction is refused)
+  await assertSucceeds(set(ref(db(B), `messages/${AB}/e1/react/bob`), '👍'));                              // a reaction does not touch exp
+  await seed(async (d) => set(ref(d, `chat_settings/${AB}`), { disappear: 0, by: A, ts: 1 }));             // timer turned off later: an old message can still be edited
+  await assertSucceeds(update(ref(db(A), `messages/${AB}/e1`), { body: 'ct4', edited: true }));
+});
+
+test('disappearing: the system line can only be posted by the person who has just changed the timer', async () => {
+  const sys = (from) => ({ from, ts: Date.now(), type: 'sys', body: 'Alice turned off disappearing messages' });
+  await assertFails(set(ref(db(A), `messages/${AB}/s1`), sys(A)));                                          // no setting change at all
+  await assertSucceeds(set(ref(db(A), `chat_settings/${AB}`), setting(A, 0)));
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/s2`), sys(A)));
+  await assertFails(set(ref(db(B), `messages/${AB}/s3`), sys(B)));                                          // bob did not change it
+  await assertFails(set(ref(db(A), `messages/${AB}/s4`), sys(B)));                                          // forged sender
+  await assertSucceeds(set(ref(db(B), `messages/${AB}/s5`), msg(B)));                                       // normal chat goes on
+  await assertSucceeds(set(ref(db(A), 'chat_settings/g1'), setting(A, 0)));
+  await assertSucceeds(set(ref(db(A), 'messages/g1/s6'), sys(A)));
+  await assertFails(set(ref(db(B), 'messages/g1/s7'), sys(B)));                                             // a member cannot fake "an admin turned it off"
+  await seed(async (d) => set(ref(d, `chat_settings/${AB}/ts`), Date.now() - 3600000));
+  await assertFails(set(ref(db(A), `messages/${AB}/s8`), sys(A)));                                          // an hour later the window is closed
+  await assertSucceeds(set(ref(db(A), `chat_settings/${AB}`), setting(A, 86400)));
+  await assertSucceeds(set(ref(db(A), `messages/${AB}/s9`), { ...sys(A), exp: Date.now() + DAY }));        // with the timer on the line expires like the others
+});
+
+test('disappearing: any person of the chat may delete a message whose exp has passed, nobody else, nothing else', async () => {
+  const past = Date.now() - 5000, future = Date.now() + DAY;
+  await seed(async (d) => {
+    for (const cid of [AB, 'g1', 'c1']) {
+      await set(ref(d, `messages/${cid}/old`), { from: A, ts: 1, type: 'text', body: 'x', exp: past });
+      await set(ref(d, `messages/${cid}/new`), { from: A, ts: 2, type: 'text', body: 'x', exp: future });
+      await set(ref(d, `messages/${cid}/plain`), { from: A, ts: 3, type: 'text', body: 'x' });
+    }
+  });
+  // group: bob is a plain member and cannot delete an admin's message today ...
+  await assertFails(remove(ref(db(B), 'messages/g1/new')));
+  await assertFails(remove(ref(db(B), 'messages/g1/plain')));
+  await assertSucceeds(remove(ref(db(B), 'messages/g1/old')));       // ... but may remove it once it has expired
+  await assertFails(remove(ref(db(C), 'messages/g1/new')));
+  await assertSucceeds(remove(ref(db(A), 'messages/g1/new')));        // the sender/admin keeps the old right
+  // a stranger never
+  await seed(async (d) => set(ref(d, 'messages/g1/old2'), { from: A, ts: 4, type: 'text', body: 'x', exp: past }));
+  await assertFails(remove(ref(db(C), 'messages/g1/old2')));
+  await assertFails(set(ref(db(C), 'messages/g1/old2'), { from: A, ts: 4, type: 'text', body: 'changed', exp: past }));
+  await assertFails(update(ref(db(B), 'messages/g1/old2'), { body: 'changed' }));                           // expiry only unlocks deleting, not editing
+  // DM: strangers no, the pair yes
+  await assertFails(remove(ref(db(C), `messages/${AB}/old`)));
+  await assertSucceeds(remove(ref(db(B), `messages/${AB}/old`)));
+  // channel: a follower may remove an expired post, a non-expired one stays protected
+  await assertFails(remove(ref(db(B), 'messages/c1/new')));
+  await assertFails(remove(ref(db(B), 'messages/c1/plain')));
+  await assertSucceeds(remove(ref(db(B), 'messages/c1/old')));
+  // a private channel: only people who can read it
+  await seed(async (d) => { await set(ref(d, 'channels/c1/priv'), true); await set(ref(d, 'messages/c1/old3'), { from: A, ts: 5, type: 'text', body: 'x', exp: past }); });
+  await assertFails(remove(ref(db(C), 'messages/c1/old3')));
+  await assertFails(remove(ref(db(B), 'messages/c1/old3')));       // bob is not subscribed to the (now private) channel
+  await seed(async (d) => set(ref(d, 'channel_subs/c1/bob'), true));
+  await assertSucceeds(remove(ref(db(B), 'messages/c1/old3')));
+});
+
+test('disappearing: an expired-message sweep can be one atomic multi-path delete, and a query on exp only returns the expired ones', async () => {
+  const past = Date.now() - 5000, future = Date.now() + DAY;
+  await seed(async (d) => {
+    await set(ref(d, 'messages/g1/a1'), { from: A, ts: 1, type: 'text', body: 'x', exp: past });
+    await set(ref(d, 'messages/g1/a2'), { from: A, ts: 2, type: 'text', body: 'x', exp: past - 1000 });
+    await set(ref(d, 'messages/g1/a3'), { from: A, ts: 3, type: 'text', body: 'x', exp: future });
+    await set(ref(d, 'messages/g1/a4'), { from: A, ts: 4, type: 'text', body: 'x' });
+  });
+  const { query, orderByChild, startAt, endAt } = require('firebase/database');
+  const snap = await get(query(ref(db(B), 'messages/g1'), orderByChild('exp'), startAt(1), endAt(Date.now())));
+  const ids = Object.keys(snap.val() || {}).sort();
+  if (ids.join() !== 'a1,a2') throw new Error('expected a1,a2 got ' + ids.join());
+  await assertSucceeds(update(ref(db(B)), { 'messages/g1/a1': null, 'messages/g1/a2': null }));
+  await assertFails(update(ref(db(B)), { 'messages/g1/a1': null, 'messages/g1/a3': null }));              // one live message in the batch: the whole batch is refused
+  const left = Object.keys((await get(ref(db(B), 'messages/g1'))).val()).sort();
+  if (left.join() !== 'a3,a4') throw new Error('expected a3,a4 got ' + left.join());
+});
+
+test('disappearing: chat-list preview field lastExp follows the normal peer rules', async () => {
+  await assertSucceeds(update(ref(db(A), `user_chats/bob/${AB}`), { lastTs: Date.now(), lastExp: Date.now() + DAY }));
+  await assertSucceeds(update(ref(db(B), `user_chats/bob/${AB}`), { lastExp: 0 }));
+  await assertFails(update(ref(db(C), `user_chats/bob/${AB}`), { lastExp: Date.now() + DAY }));
+  await assertFails(update(ref(db(A), `user_chats/bob/${AB}`), { lastExp: 'soon' }));
+  await assertFails(update(ref(db(A), `user_chats/bob/${AB}`), { lastExp: -1 }));
+  await assertSucceeds(update(ref(db(A), 'user_chats/bob/g1'), { lastExp: Date.now() + DAY }));
+  await assertFails(update(ref(db(A), 'user_chats/bob/c1'), { lastExp: Date.now() + DAY }));               // not a chat they share
+});
+
+test('expiry index: only the sender creates it, in the same update as the message, create-only, nobody can read it', async () => {
+  const exp = Date.now() + DAY, bucket = Math.floor(exp / 3600000);
+  await seed(async (d) => set(ref(d, `chat_settings/${AB}`), { disappear: 86400, by: A, ts: 1 }));
+  const m = { from: A, ts: Date.now(), type: 'text', body: 'ct', exp };
+  await assertSucceeds(update(ref(db(A)), { [`messages/${AB}/x1`]: m, [`expiry/${bucket}/${AB}/x1`]: exp }));
+  await assertFails(get(ref(db(A), `expiry/${bucket}`)));                                                  // the index is for the server only
+  await assertFails(get(ref(db(B), `expiry/${bucket}/${AB}`)));
+  await assertFails(set(ref(db(A), `expiry/${bucket}/${AB}/x1`), exp));                                    // create-only: no rewrite
+  await assertFails(update(ref(db(B)), { [`messages/${AB}/x2`]: { ...m, from: B }, [`expiry/${bucket}/${AB}/x2`]: exp, [`expiry/${bucket}/${AB}/x1`]: exp + 1 }));
+  await assertFails(set(ref(db(B), `expiry/${bucket}/${AB}/x1`), exp));                                    // bob cannot (re)plant an entry for alice's message
+  await assertFails(set(ref(db(A), `expiry/${bucket}/${AB}/ghost`), exp));                                 // no such message
+  await assertFails(update(ref(db(B)), { [`expiry/${bucket}/${AB}/x3`]: exp }));                           // index entry without a message
+  await seed(async (d) => set(ref(d, `messages/${AB}/x4`), { ...m, from: A }));
+  await assertFails(set(ref(db(B), `expiry/${bucket}/${AB}/x4`), exp));                                    // existing message of somebody else
+  await assertSucceeds(set(ref(db(A), `expiry/${bucket}/${AB}/x4`), exp));                                 // the sender adds it later
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/x5`]: { ...m, exp: exp + 1000 }, [`expiry/${bucket}/${AB}/x5`]: exp }));   // value must be the message's exp
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/x6`]: m, [`expiry/${bucket}/${AB}/x6`]: 'later' }));
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/x7`]: m, [`expiry/abc/${AB}/x7`]: exp }));      // bad bucket key
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/x8`]: m, [`expiry/${bucket}/alice_alice/x8`]: exp }));   // cid of another chat
+});
+
+test('expiry index: the index entry must sit in the hour bucket of the exp', async () => {
+  const exp = Date.now() + DAY, bucket = Math.floor(exp / 3600000);
+  await seed(async (d) => set(ref(d, `chat_settings/${AB}`), { disappear: 86400, by: A, ts: 1 }));
+  const m = { from: A, ts: Date.now(), type: 'text', body: 'ct', exp };
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/b1`]: m, [`expiry/${bucket + 5000}/${AB}/b1`]: exp }));   // far-future bucket the sweep would not look at
+  await assertFails(update(ref(db(A)), { [`messages/${AB}/b2`]: m, [`expiry/${bucket - 1}/${AB}/b2`]: exp }));
+  await assertSucceeds(update(ref(db(A)), { [`messages/${AB}/b3`]: m, [`expiry/${bucket}/${AB}/b3`]: exp }));
+});
+
+test('expiry index: people of the chat may clear an entry once it is due or the message is gone, nobody else', async () => {
+  const past = Date.now() - 7200000, pb = Math.floor(past / 3600000), fut = Date.now() + DAY, fb = Math.floor(fut / 3600000);
+  await seed(async (d) => {
+    await set(ref(d, `expiry/${pb}/${AB}/due`), past); await set(ref(d, `expiry/${fb}/${AB}/live`), fut);
+    await set(ref(d, `messages/${AB}/live`), { from: A, ts: 1, type: 'text', body: 'x', exp: fut });
+    await set(ref(d, `expiry/${fb}/${AB}/orphan`), fut);   // its message was deleted by hand
+  });
+  await assertFails(remove(ref(db(C), `expiry/${pb}/${AB}/due`)));
+  await assertSucceeds(remove(ref(db(B), `expiry/${pb}/${AB}/due`)));
+  await assertFails(remove(ref(db(B), `expiry/${fb}/${AB}/live`)));                                         // not due and the message is still there
+  await assertSucceeds(remove(ref(db(A), `expiry/${fb}/${AB}/orphan`)));
+  await assertSucceeds(remove(ref(db(A), `expiry/${pb}/${AB}/never_existed`)));                            // deleting nothing is fine (a sweep may include it)
+});
