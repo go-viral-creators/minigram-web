@@ -190,17 +190,24 @@ private fun LangRow(native: String, english: String, on: Boolean, click: () -> U
 @Composable
 fun RestoreKeyScreen() {
     val scope = rememberCoroutineScope()
+    var linking by remember { mutableStateOf(false) }
+    val hasBackup by produceState<Boolean?>(null) { value = Repo.hasKeyBackup() }
+    if (linking) { LinkNewPhoneScreen { linking = false }; return }
     var pass by remember { mutableStateOf("") }; var busy by remember { mutableStateOf(false) }; var err by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().background(We.bg).statusBarsPadding().navigationBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(30.dp))
         Box(Modifier.size(84.dp).clip(androidx.compose.foundation.shape.CircleShape).background(We.primary.copy(alpha = .12f)), contentAlignment = Alignment.Center) { Icon(Ic.Key, We.primary, 40.dp) }
         Spacer(Modifier.height(20.dp))
         Text("Restore your encryption key", color = We.text, style = T.title, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        Text("This phone has a new key, so your earlier chats can't be opened yet. Enter the passphrase you used for the backup to unlock them.", color = We.text2, style = T.body, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 8.dp, bottom = 22.dp))
-        Field(pass, { pass = it; err = null }, "Backup passphrase", password = true, error = err)
+        Text(if (hasBackup == false) "This phone has a new key, so your earlier chats can't be opened yet. If your other phone is with you, link this phone from it. Otherwise you can start fresh." else "This phone has a new key, so your earlier chats can't be opened yet. Link this phone from your other phone, or enter the passphrase you used for the backup.", color = We.text2, style = T.body, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 8.dp, bottom = 22.dp))
+        PrimaryButton("Link from my other phone", { linking = true })
         Spacer(Modifier.height(18.dp))
-        PrimaryButton("Restore", loading = busy, enabled = pass.length >= 4, onClick = { scope.launch { busy = true; val ok = try { Repo.restoreKey(pass) } catch (e: Exception) { false }; busy = false; if (!ok) err = "Wrong passphrase" } })
-        Spacer(Modifier.height(10.dp))
+        if (hasBackup == true) {
+            Field(pass, { pass = it; err = null }, "Backup passphrase", password = true, error = err)
+            Spacer(Modifier.height(18.dp))
+            OutlineButton("Restore with passphrase", { if (pass.length >= 4) scope.launch { busy = true; val ok = try { Repo.restoreKey(pass) } catch (e: Exception) { false }; busy = false; if (!ok) err = "Wrong passphrase" } })
+            Spacer(Modifier.height(10.dp))
+        }
         Text("Skip and start fresh", color = We.danger, style = T.body.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable { scope.launch { try { Repo.keepNewKey() } catch (_: Exception) {} } }.padding(14.dp))
         Text("Old chats will stay unreadable on this phone if you skip.", color = We.text2, style = T.small)
     }

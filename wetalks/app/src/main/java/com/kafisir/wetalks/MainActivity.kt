@@ -103,7 +103,7 @@ fun App() {
                 // incoming calls first: nothing else may stop the phone from ringing
                 try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
                 com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush(); Repo.watchServiceInbox(); try { Repo.publishWebProfile() } catch (_: Exception) {}
-                try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
+                try { Repo.watchBlocks(); Repo.watchPrivacy(); Repo.publishKey(); Repo.registerDevice(); Repo.watchDevice(); com.kafisir.wetalks.data.Calls.listen() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Nav.say(e.message ?: "Could not set up encryption") } } }
             val link by Nav.pendingLink
             val pendChat by Nav.pendingChat
             val pendSvc by Nav.pendingServices
@@ -195,6 +195,7 @@ fun Main() {
                 RAppLock -> AppLockScreen()
                 is RFolder -> com.kafisir.wetalks.screens.FolderScreen(r.locked, r.tab)
                 RLabels -> com.kafisir.wetalks.screens.LabelsScreen()
+                RDevices -> com.kafisir.wetalks.screens.LinkedDevicesScreen()
                 is RQr -> QrScreen(r)
                 RLanguage -> LanguageScreen()
                 is RGroupSettings -> GroupSettingsScreen(r.id)

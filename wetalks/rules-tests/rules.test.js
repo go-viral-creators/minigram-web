@@ -591,3 +591,34 @@ test('chat_labels: private to the owner, validated', async () => {
   await assertSucceeds(update(ref(db(A), 'chat_labels/alice/work01'), { name: 'Office' }));
   await assertSucceeds(remove(ref(db(A), 'chat_labels/alice/work01')));
 });
+
+// ---- linked devices ----
+test('devices: private to the account, validated', async () => {
+  const d = { name: 'Pixel 8', model: 'Pixel 8', added: Date.now(), last: Date.now(), ver: '1.20.0' };
+  await assertSucceeds(set(ref(db(A), 'devices/alice/AbCd1234efGh5678'), d));
+  await assertSucceeds(get(ref(db(A), 'devices/alice')));
+  await assertFails(get(ref(db(B), 'devices/alice')));
+  await assertFails(set(ref(db(B), 'devices/alice/ZZZZ1234zzzz5678'), d));
+  await assertFails(set(ref(db(A), 'devices/alice/short'), d));
+  await assertFails(set(ref(db(A), 'devices/alice/AbCd1234efGh5678'), { ...d, extra: 1 }));
+  await assertFails(set(ref(db(A), 'devices/alice/AbCd1234efGh5678'), { model: 'x' }));
+  await assertSucceeds(update(ref(db(A), 'devices/alice/AbCd1234efGh5678'), { revoked: true }));       // another phone logs this one out
+  await assertFails(update(ref(db(A), 'devices/alice/AbCd1234efGh5678'), { revoked: 'yes' }));
+  await assertSucceeds(remove(ref(db(A), 'devices/alice/AbCd1234efGh5678')));
+});
+
+test('link requests: only the account, the key hand-over is sealed and expires after 10 minutes', async () => {
+  const epk = 'e'.repeat(44), sid = 'Sess1234abcd5678';
+  await assertSucceeds(set(ref(db(A), `link_requests/alice/${sid}`), { epk, name: 'New phone', did: 'AbCd1234efGh5678', ts: serverTimestamp() }));
+  await assertFails(get(ref(db(B), `link_requests/alice/${sid}`)));
+  await assertFails(set(ref(db(B), `link_requests/alice/${sid}/grant`), { ct: 'x', pub: epk }));          // nobody else can hand out or read keys
+  await assertFails(set(ref(db(A), 'link_requests/alice/Sess9999abcd5678'), { epk, ts: 5 }));              // fake old timestamp
+  await assertFails(set(ref(db(A), 'link_requests/alice/Sess8888abcd5678'), { epk: 'short', ts: serverTimestamp() }));
+  await assertSucceeds(set(ref(db(A), `link_requests/alice/${sid}/grant`), { ct: 'c'.repeat(100), pub: epk }));
+  await assertFails(set(ref(db(A), `link_requests/alice/${sid}/grant`), { ct: 'c'.repeat(301), pub: epk }));
+  await assertSucceeds(get(ref(db(A), `link_requests/alice/${sid}`)));
+  await assertSucceeds(remove(ref(db(A), `link_requests/alice/${sid}`)));
+  // an old request can no longer receive a key
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'link_requests/alice/Old01234abcd5678'), { epk, ts: Date.now() - 3600000 }); });
+  await assertFails(set(ref(db(A), 'link_requests/alice/Old01234abcd5678/grant'), { ct: 'c', pub: epk }));
+});

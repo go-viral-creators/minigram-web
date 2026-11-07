@@ -128,7 +128,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { inboxWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
+    private fun detachAll() { inboxWatching = ""; labelsWatching = ""; devWatching = ""; devListWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -315,7 +315,7 @@ object Repo {
         val onServer = db.getReference("users/$uid/pk").get().await().getValue(String::class.java).orEmpty()
         // This phone has a different key than the one the server knows (reinstall / new phone). If a backup exists, ask the user to
         // restore it instead of silently replacing the key, which would make every old chat unreadable.
-        if (exists && onServer.isNotEmpty() && onServer != mine && hasKeyBackup()) { keyConflict.value = true; return }
+        if (exists && onServer.isNotEmpty() && onServer != mine) { keyConflict.value = true; return }
         if (exists) { db.getReference("users/$uid/pk").setValue(mine).await(); db.getReference("users/$uid/pkh/" + mine.filter { it.isLetterOrDigit() }.take(24)).setValue(mine) }
         if (exists) auth.currentUser?.phoneNumber?.takeIf { it.isNotEmpty() }?.let { registerPhone(it) }
     }
@@ -331,6 +331,97 @@ object Repo {
         db.getReference("key_backups/$uid").setValue(hashMapOf("s" to Crypto.b64(salt), "i" to iter, "c" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub), "ts" to ServerValue.TIMESTAMP)).await()
     }
 
+    // ------------------------------------------------------------------------------------------ linked devices
+    class DeviceInfo(val id: String, val name: String, val added: Long, val last: Long, val ver: String, val revoked: Boolean)
+    private val devPrefs get() = app.getSharedPreferences("wt_device", Context.MODE_PRIVATE)
+    private fun randomAlnum(n: Int): String { val abc = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"; val r = java.security.SecureRandom(); return (1..n).map { abc[r.nextInt(abc.length)] }.joinToString("") }
+    /** Random id of this install (kept in the app data). */
+    val deviceId: String get() = devPrefs.getString("id", null) ?: randomAlnum(16).also { devPrefs.edit().putString("id", it).apply() }
+    fun deviceName() = (android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() } + " " + android.os.Build.MODEL).trim().take(60)
+
+    /** Lists this phone under "Linked devices" and refreshes its last-active time. */
+    suspend fun registerDevice() {
+        if (uid.isEmpty()) return
+        val r = db.getReference("devices/$uid/$deviceId")
+        val ver = try { app.packageManager.getPackageInfo(app.packageName, 0).versionName.orEmpty().take(16) } catch (_: Exception) { "" }
+        try {
+            if (!r.get().await().exists()) r.setValue(hashMapOf("name" to deviceName(), "model" to android.os.Build.MODEL.take(60), "added" to ServerValue.TIMESTAMP, "last" to ServerValue.TIMESTAMP, "ver" to ver)).await()
+            else r.updateChildren(mapOf("last" to ServerValue.TIMESTAMP, "ver" to ver, "name" to deviceName())).await()
+        } catch (_: Exception) { /* the new database rules are not live yet */ }
+    }
+
+    private var devWatching = ""
+    /** Another phone can log this one out: it sets a flag, and this phone signs itself out when it sees it. */
+    fun watchDevice() {
+        if (uid.isEmpty() || devWatching == uid) return
+        devWatching = uid
+        watch("devices/$uid/$deviceId/revoked") { s ->
+            if (s.getValue(Boolean::class.java) == true) scope.launch { try { db.getReference("devices/$uid/$deviceId").removeValue().await() } catch (_: Exception) {}; signOut() }
+        }
+    }
+
+    val devices = MutableStateFlow<List<DeviceInfo>>(emptyList())
+    private var devListWatching = ""
+    fun watchDevices() {
+        if (uid.isEmpty() || devListWatching == uid) return
+        devListWatching = uid
+        watch("devices/$uid") { s -> devices.value = s.children.mapNotNull { c -> val id = c.key ?: return@mapNotNull null; DeviceInfo(id, c.str("name").ifEmpty { "Phone" }, c.lng("added"), c.lng("last"), c.str("ver"), c.bool("revoked")) }.sortedByDescending { it.last } }
+    }
+    suspend fun logOutDevice(did: String) { db.getReference("devices/$uid/$did/revoked").setValue(true).await() }
+
+    /** The new phone: makes a one-time key and a request; the QR code holds [code]. */
+    class LinkOffer(val sid: String, val code: String, val priv: ByteArray, val pub: ByteArray)
+    suspend fun startLink(): LinkOffer {
+        val e = Crypto.ephemeral(); val sid = randomAlnum(16)
+        db.getReference("link_requests/$uid/$sid").setValue(hashMapOf("epk" to Crypto.b64(e.pub), "name" to deviceName(), "did" to deviceId, "ts" to ServerValue.TIMESTAMP)).await()
+        return LinkOffer(sid, "wetalks-link:$uid:$sid", e.priv, e.pub)
+    }
+    suspend fun cancelLink(o: LinkOffer) { try { db.getReference("link_requests/$uid/${o.sid}").removeValue().await() } catch (_: Exception) {} }
+
+    /** The new phone waits (up to 10 minutes) for the other phone to hand over the key, checks it is really this account's key, and installs it. */
+    suspend fun awaitLink(o: LinkOffer): Boolean {
+        val r = db.getReference("link_requests/$uid/${o.sid}/grant")
+        val priv: ByteArray? = kotlinx.coroutines.withTimeoutOrNull(600_000L) {
+            kotlinx.coroutines.suspendCancellableCoroutine<ByteArray?> { cont ->
+                val l = object : ValueEventListener {
+                    override fun onDataChange(s: DataSnapshot) {
+                        if (!s.exists() || !cont.isActive) return
+                        val got = try { Crypto.open(Crypto.shared(o.priv, o.pub, Crypto.unb64(s.str("pub"))), s.str("ct")) } catch (_: Exception) { null }
+                        r.removeEventListener(this); cont.resume(got) {}
+                    }
+                    override fun onCancelled(e: DatabaseError) { if (cont.isActive) cont.resume(null) {} }
+                }
+                r.addValueEventListener(l)
+                cont.invokeOnCancellation { r.removeEventListener(l) }
+            }
+        }
+        cancelLink(o)
+        if (priv == null) return false
+        val expected = db.getReference("users/$uid/pk").get().await().getValue(String::class.java).orEmpty()
+        if (expected.isNotEmpty() && Crypto.b64(Crypto.pubOf(priv)) != expected) return false          // not this account's key
+        Crypto.install(app, priv)
+        dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); dmAll.clear(); dmWinner.clear()
+        keyConflict.value = false
+        registerDevice(); watchDevice()
+        return true
+    }
+
+    /** The phone that already has the key: reads the new phone's request from the scanned code. Null when the code is not for this account or has expired. */
+    class LinkRequest(val sid: String, val name: String, val epk: String)
+    suspend fun readLinkRequest(code: String): LinkRequest? {
+        val m = Regex("^wetalks-link:([A-Za-z0-9]{20,40}):([A-Za-z0-9]{12,32})$").find(code.trim()) ?: return null
+        if (m.groupValues[1] != uid) return null
+        val s = db.getReference("link_requests/$uid/${m.groupValues[2]}").get().await()
+        if (!s.exists() || s.child("grant").exists() || s.str("epk").isEmpty()) return null
+        val ts = s.lng("ts"); if (ts > 0 && System.currentTimeMillis() - ts > 600_000L + 120_000L) return null
+        return LinkRequest(m.groupValues[2], s.str("name").ifEmpty { "New phone" }, s.str("epk"))
+    }
+    /** Hands this account's private key to the new phone, sealed so only it can open it. */
+    suspend fun grantLink(r: LinkRequest) {
+        val me = Crypto.keys(app); val k = Crypto.shared(me.priv, me.pub, Crypto.unb64(r.epk))
+        db.getReference("link_requests/$uid/${r.sid}/grant").setValue(hashMapOf("ct" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub))).await()
+    }
+
     /** Restores the backed-up key on this phone. Returns false when the passphrase is wrong. */
     suspend fun restoreKey(pass: String): Boolean {
         val s = db.getReference("key_backups/$uid").get().await()
@@ -339,7 +430,7 @@ object Repo {
             val k = kotlinx.coroutines.withContext(Dispatchers.Default) { Crypto.passKey(pass, Crypto.unb64(s.str("s")), s.lng("i").toInt()) }
             val priv = Crypto.open(k, s.str("c"))
             Crypto.install(app, priv)
-            dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear()
+            dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); dmAll.clear(); dmWinner.clear()
             db.getReference("users/$uid/pk").setValue(Crypto.b64(Crypto.keys(app).pub)).await()
             keyConflict.value = false
             true

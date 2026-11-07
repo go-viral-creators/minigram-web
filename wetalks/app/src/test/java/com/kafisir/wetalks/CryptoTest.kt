@@ -42,4 +42,16 @@ class CryptoTest {
         assertEquals(Crypto.safetyNumber(a, b), Crypto.safetyNumber(b, a))
         assertEquals(12 * 5 + 11, Crypto.safetyNumber(a, b).length)
     }
+
+    // linking another phone: the old phone seals its private key for a one-time key of the new phone
+    @Test fun linkedPhoneReceivesTheSameKeyAndNobodyElseCan() {
+        val (oldPriv, oldPub) = pair()
+        val e = Crypto.ephemeral()
+        val sealed = Crypto.sealBytes(Crypto.shared(oldPriv, oldPub, e.pub), oldPriv)                    // old phone
+        val got = Crypto.openBytes(Crypto.shared(e.priv, e.pub, oldPub), sealed)                          // new phone
+        assertArrayEquals(oldPriv, got)
+        assertArrayEquals(oldPub, Crypto.pubOf(got))                                                     // same identity => same public key
+        val (evilPriv, evilPub) = pair()
+        try { Crypto.openBytes(Crypto.shared(evilPriv, evilPub, oldPub), sealed); fail("a third party opened the key") } catch (_: Exception) {}
+    }
 }

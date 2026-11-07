@@ -109,6 +109,44 @@
       }
     },
 
+    "devices": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$did": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "$did.matches(/^[A-Za-z0-9]{8,32}$/) && (!newData.exists() || newData.hasChildren(['name','added']))",
+          "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60" },
+          "model": { ".validate": "newData.isString() && newData.val().length <= 60" },
+          "ver": { ".validate": "newData.isString() && newData.val().length <= 16" },
+          "added": { ".validate": "newData.isNumber()" },
+          "last": { ".validate": "newData.isNumber()" },
+          "revoked": { ".validate": "newData.isBoolean()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "link_requests": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$sid": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "$sid.matches(/^[A-Za-z0-9]{12,32}$/) && (!newData.exists() || newData.hasChildren(['epk','ts']))",
+          "epk": { ".validate": "newData.isString() && newData.val().length >= 40 && newData.val().length <= 64" },
+          "name": { ".validate": "newData.isString() && newData.val().length <= 60" },
+          "did": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "ts": { ".validate": "newData.val() === now || data.val() === newData.val()" },
+          "grant": {
+            ".validate": "newData.hasChildren(['ct','pub']) && now - root.child('link_requests').child($uid).child($sid).child('ts').val() < 600000",
+            "ct": { ".validate": "newData.isString() && newData.val().length <= 300" },
+            "pub": { ".validate": "newData.isString() && newData.val().length >= 40 && newData.val().length <= 64" },
+            "$other": { ".validate": false }
+          },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
     "chat_labels": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

@@ -92,6 +92,10 @@ object Crypto {
         return Hkdf.computeHkdf("HMACSHA256", secret, a, "wetalks-e2ee-v1".toByteArray(), 32)
     }
 
+    /** A one-time key pair (used when linking another phone). */
+    fun ephemeral(): Pair { val priv = X25519.generatePrivateKey(); return Pair(priv, X25519.publicFromPrivate(priv)) }
+    fun pubOf(priv: ByteArray): ByteArray = X25519.publicFromPrivate(priv)
+
     fun randomKey(): ByteArray = ByteArray(32).also { rnd.nextBytes(it) }
     fun sealBytes(key: ByteArray, data: ByteArray): ByteArray = AesGcmJce(key).encrypt(data, null)
     fun openBytes(key: ByteArray, data: ByteArray): ByteArray = AesGcmJce(key).decrypt(data, null)

@@ -246,6 +246,7 @@ fun MeScreen() {
                 try { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + ctx.packageName))) } catch (_: Exception) {}
             })
             Row2(Ic.Fingerprint, "App lock", if (AppLock.enabled) "On · fingerprint or screen lock" else "Off", onClick = { Nav.push(RAppLock) })
+            Row2(Ic.Phone, "Linked devices", "Use WeTalks on more than one phone", onClick = { Nav.push(RDevices) })
             Row2(Ic.Tag, "Labels", "Name and colour your chats, then filter by them", onClick = { Nav.push(RLabels) })
             Row2(Ic.Type, "Chat settings", "Text size, bubble shape, wallpaper", onClick = { Nav.push(RChatSettings) })
             Row2(Ic.Globe, "Language", I18n.byCode(I18n.lang).native + " · translate to " + I18n.byCode(I18n.translateTo).english, onClick = { Nav.push(RLanguage) })
