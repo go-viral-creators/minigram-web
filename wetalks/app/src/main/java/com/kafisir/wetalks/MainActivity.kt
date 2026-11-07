@@ -99,7 +99,11 @@ fun App() {
         } else {
             val ver by Nav.profileVersion
             val me by produceState<Boolean?>(null, uid, ver) { value = try { Repo.userOnce(uid!!)?.name?.isNotEmpty() == true } catch (e: Exception) { false } }
-            LaunchedEffect(uid, me) { if (me == true) {
+            val needPin by Repo.twoStepRequired.collectAsState()
+            val pinChecked by Repo.twoStepChecked.collectAsState()
+            LaunchedEffect(uid, me) { if (me == true) { try { Repo.checkTwoStep() } catch (_: Exception) {} } }
+            // nothing starts (chat list, notifications, keys) until 2-step verification, if it is on, has been passed on this phone
+            LaunchedEffect(uid, me, needPin, pinChecked) { if (me == true && pinChecked && !needPin) {
                 // incoming calls first: nothing else may stop the phone from ringing
                 try { com.kafisir.wetalks.data.Calls.listen() } catch (_: Exception) {}
                 com.kafisir.wetalks.data.ConnectService.sync(ctxApp); com.kafisir.wetalks.data.Notifier.start(ctxApp); Repo.registerPush(); Repo.watchServiceInbox(); try { Repo.publishWebProfile() } catch (_: Exception) {}
@@ -118,7 +122,7 @@ fun App() {
             when (me) {
                 null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) }
                 false -> ProfileSetupScreen(null, onDone = {})
-                true -> if (Repo.keyConflict.collectAsState().value) RestoreKeyScreen() else if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(com.kafisir.wetalks.data.Calls.minimized && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING) && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
+                true -> if (!pinChecked) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Logo(88.dp) } else if (needPin) com.kafisir.wetalks.screens.TwoStepGateScreen() else if (Repo.keyConflict.collectAsState().value) RestoreKeyScreen() else if (com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.IDLE && !(com.kafisir.wetalks.data.Calls.minimized && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING) && !(AppLock.enabled && AppLock.locked && com.kafisir.wetalks.data.Calls.phase != com.kafisir.wetalks.data.CallPhase.INCOMING)) { CallScreen() }
                     else if (AppLock.enabled && AppLock.locked) LockOverlay() else Main()
             }
         }
@@ -196,6 +200,7 @@ fun Main() {
                 is RFolder -> com.kafisir.wetalks.screens.FolderScreen(r.locked, r.tab)
                 RLabels -> com.kafisir.wetalks.screens.LabelsScreen()
                 RDevices -> com.kafisir.wetalks.screens.LinkedDevicesScreen()
+                RTwoStep -> com.kafisir.wetalks.screens.TwoStepScreen()
                 is RQr -> QrScreen(r)
                 RLanguage -> LanguageScreen()
                 is RGroupSettings -> GroupSettingsScreen(r.id)

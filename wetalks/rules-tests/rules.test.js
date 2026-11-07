@@ -622,3 +622,95 @@ test('link requests: only the account, the key hand-over is sealed and expires a
   await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'link_requests/alice/Old01234abcd5678'), { epk, ts: Date.now() - 3600000 }); });
   await assertFails(set(ref(db(A), 'link_requests/alice/Old01234abcd5678/grant'), { ct: 'c', pub: epk }));
 });
+
+// ---- 2-step verification: the rules check the PIN hash, nobody can read it, attempts are rate-limited ----
+const H1 = 'a1'.repeat(32), H2 = 'b2'.repeat(32), SALT = 's'.repeat(24);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const enable = (u, did, h = H1) => update(ref(db(u)), {
+  [`two_step_pub/${u}`]: { salt: SALT, iter: 300000, ts: Date.now() }, [`two_step_secret/${u}/h`]: h, [`trusted_devices/${u}`]: { [did]: { ts: Date.now() } } });
+async function seedEnabled(u = 'alice', h = H1, trusted = 'Trusted1234abcd') {
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database();
+    await set(ref(d, `two_step_pub/${u}`), { salt: SALT, iter: 300000, ts: 1 }); await set(ref(d, `two_step_secret/${u}`), { h }); await set(ref(d, `trusted_devices/${u}/${trusted}`), { ts: 1 }); });
+}
+const attempt = (u, h) => set(ref(db(u), `two_step_try/${u}`), { h, n: 1, ts: serverTimestamp() });
+
+test('2SV: turning it on trusts this phone only, and the hash can never be read', async () => {
+  await assertSucceeds(enable(A, 'Thisphone1234ab'));
+  await assertSucceeds(get(ref(db(A), 'two_step_pub/alice')));
+  await assertFails(get(ref(db(A), 'two_step_secret/alice')));                       // not even the owner
+  await assertFails(get(ref(db(A), 'two_step_secret/alice/h')));
+  await assertFails(get(ref(db(B), 'two_step_pub/alice')));
+  await assertSucceeds(get(ref(db(A), 'trusted_devices/alice')));
+  await assertFails(get(ref(db(B), 'trusted_devices/alice')));
+  await assertFails(enable(B, 'Bobphone1234abcd', H2).then(() => update(ref(db(B)), { 'two_step_secret/alice/h': H2 })));  // bob cannot touch alice's
+  await assertFails(set(ref(db(A), 'two_step_secret/alice/h'), 'nothex'));
+});
+
+test('2SV: a new phone cannot trust itself or replace the PIN without the right PIN', async () => {
+  await seedEnabled();
+  await assertFails(set(ref(db(A), 'trusted_devices/alice/Newphone1234abcd'), { ts: 5 }));          // no proof
+  await assertFails(set(ref(db(A), 'two_step_secret/alice/h'), H2));                                  // cannot swap the PIN
+  await assertFails(remove(ref(db(A), 'two_step_secret/alice')));                                     // cannot switch it off
+  await assertFails(remove(ref(db(A), 'trusted_devices/alice/Trusted1234abcd')));                     // cannot un-trust the real phone
+  await attempt(A, H2);                                                                               // wrong PIN: the attempt is recorded...
+  await assertFails(set(ref(db(A), 'trusted_devices/alice/Newphone1234abcd'), { ts: 5 }));           // ...but does not unlock anything
+});
+
+test('2SV: the right PIN trusts the phone for one minute of proof, then the counter resets', async () => {
+  await seedEnabled();
+  await assertSucceeds(attempt(A, H1));
+  await assertSucceeds(set(ref(db(A), 'trusted_devices/alice/Newphone1234abcd'), { ts: Date.now() }));
+  await assertSucceeds(remove(ref(db(A), 'two_step_try/alice')));                                      // success clears the attempt record
+  // an old proof is worthless
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'two_step_try/alice'), { h: H1, n: 1, ts: Date.now() - 120000 }); });
+  await assertFails(set(ref(db(A), 'trusted_devices/alice/Other1234abcdef'), { ts: Date.now() }));
+});
+
+test('2SV: change PIN and turn off both need a fresh correct PIN', async () => {
+  await seedEnabled();
+  await assertSucceeds(attempt(A, H1));
+  // the old attempt record is cleared in the same step (it matches the OLD secret, which is what the rules compare against)
+  await assertSucceeds(update(ref(db(A)), { 'two_step_secret/alice/h': H2, 'two_step_pub/alice': { salt: 't'.repeat(24), iter: 300000, ts: Date.now() }, 'trusted_devices/alice': { Thisphone1234ab: { ts: Date.now() } }, 'two_step_try/alice': null }));
+  await assertFails(update(ref(db(A)), { 'two_step_secret/alice': null, 'two_step_pub/alice': null }));  // off without proof
+  await assertSucceeds(attempt(A, H2));                                                                 // the new PIN is now the right one
+  await assertSucceeds(update(ref(db(A)), { 'two_step_secret/alice': null, 'two_step_pub/alice': null, 'trusted_devices/alice': null, 'two_step_reset/alice': null, 'two_step_try/alice': null }));
+});
+
+test('2SV: attempts are limited to one per 1.5 s and five per hour', async () => {
+  await seedEnabled();
+  await assertSucceeds(attempt(A, H2));
+  await assertFails(set(ref(db(A), 'two_step_try/alice'), { h: H2, n: 2, ts: serverTimestamp() }));      // too fast
+  await sleep(1700);
+  await assertSucceeds(set(ref(db(A), 'two_step_try/alice'), { h: H2, n: 2, ts: serverTimestamp() }));
+  await assertFails(set(ref(db(A), 'two_step_try/alice'), { h: H2, n: 5, ts: serverTimestamp() }));      // cannot skip the counter
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'two_step_try/alice'), { h: H2, n: 5, ts: Date.now() - 2000 }); });
+  await assertFails(set(ref(db(A), 'two_step_try/alice'), { h: H2, n: 6, ts: serverTimestamp() }));      // sixth try in the hour
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'two_step_try/alice'), { h: H2, n: 5, ts: Date.now() - 3700000 }); });
+  await assertSucceeds(set(ref(db(A), 'two_step_try/alice'), { h: H2, n: 1, ts: serverTimestamp() })); // an hour later it starts over
+  await assertFails(get(ref(db(A), 'two_step_try/alice')));                                              // attempts are not readable either
+  await assertFails(set(ref(db(B), 'two_step_try/alice'), { h: H2, n: 1, ts: serverTimestamp() }));
+});
+
+test('2SV: forgot PIN waits seven days, and the PIN can cancel it', async () => {
+  await seedEnabled();
+  await assertSucceeds(set(ref(db(A), 'two_step_reset/alice'), { ts: serverTimestamp() }));
+  await assertFails(set(ref(db(A), 'two_step_reset/alice'), { ts: serverTimestamp() }));                 // cannot restart the clock
+  await assertFails(update(ref(db(A)), { 'two_step_secret/alice': null, 'two_step_pub/alice': null, 'trusted_devices/alice': null }));   // too early
+  await assertFails(remove(ref(db(A), 'two_step_reset/alice')));                                          // cancelling needs the PIN
+  await assertSucceeds(attempt(A, H1));
+  await assertSucceeds(remove(ref(db(A), 'two_step_reset/alice')));                                       // owner with the PIN cancels
+  await env.withSecurityRulesDisabled(async (ctx) => { const d = ctx.database(); await remove(ref(d, 'two_step_try/alice')); await set(ref(d, 'two_step_reset/alice'), { ts: Date.now() - 8 * 86400000 }); });
+  await assertSucceeds(update(ref(db(A)), { 'two_step_secret/alice': null, 'two_step_pub/alice': null, 'trusted_devices/alice': null, 'two_step_reset/alice': null }));  // after 7 days
+});
+
+test('2SV: the app can read how many tries are used (never the hash); a stale record can be cleared once 2-step is off', async () => {
+  await seedEnabled();
+  await assertSucceeds(attempt(A, H2));
+  await assertSucceeds(get(ref(db(A), 'two_step_try/alice/n')));
+  await assertSucceeds(get(ref(db(A), 'two_step_try/alice/ts')));
+  await assertFails(get(ref(db(A), 'two_step_try/alice/h')));
+  await assertFails(get(ref(db(B), 'two_step_try/alice/n')));
+  await assertFails(remove(ref(db(A), 'two_step_try/alice')));                       // wrong-PIN record cannot be wiped to reset the counter
+  await env.withSecurityRulesDisabled(async (ctx) => { await remove(ref(ctx.database(), 'two_step_secret/alice')); });
+  await assertSucceeds(remove(ref(db(A), 'two_step_try/alice')));                    // 2-step is off: nothing to protect
+});

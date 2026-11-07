@@ -33,6 +33,7 @@ data object RAppLock : Route
 data class RFolder(val locked: Boolean, val tab: Int) : Route
 data object RLabels : Route
 data object RDevices : Route
+data object RTwoStep : Route
 data object RLanguage : Route
 data class RGroupSettings(val id: String) : Route
 data class RChannelSettings(val id: String) : Route

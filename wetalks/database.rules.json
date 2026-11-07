@@ -109,6 +109,60 @@
       }
     },
 
+    "two_step_pub": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!root.child('two_step_secret').child($uid).exists() || (root.child('two_step_try').child($uid).child('h').exists() && root.child('two_step_try').child($uid).child('h').val() === root.child('two_step_secret').child($uid).child('h').val() && now - root.child('two_step_try').child($uid).child('ts').val() < 60000) || (root.child('two_step_reset').child($uid).child('ts').exists() && root.child('two_step_reset').child($uid).child('ts').val() + 604800000 <= now))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['salt','iter','ts']) && newData.child('salt').isString() && newData.child('salt').val().length >= 16 && newData.child('salt').val().length <= 64 && newData.child('iter').isNumber() && newData.child('iter').val() >= 100000 && newData.child('iter').val() <= 2000000 && newData.child('ts').isNumber())",
+        "salt": { ".validate": "newData.isString()" },
+        "iter": { ".validate": "newData.isNumber()" },
+        "ts": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "two_step_secret": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!root.child('two_step_secret').child($uid).exists() || (root.child('two_step_try').child($uid).child('h').exists() && root.child('two_step_try').child($uid).child('h').val() === root.child('two_step_secret').child($uid).child('h').val() && now - root.child('two_step_try').child($uid).child('ts').val() < 60000) || (root.child('two_step_reset').child($uid).child('ts').exists() && root.child('two_step_reset').child($uid).child('ts').val() + 604800000 <= now))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['h']) && newData.child('h').isString() && newData.child('h').val().matches(/^[a-f0-9]{64}$/))",
+        "h": { ".validate": "newData.isString()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "two_step_try": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && ((newData.exists() && newData.child('ts').val() === now && (!data.exists() || now - data.child('ts').val() >= 1500)) || (!newData.exists() && data.exists() && (!root.child('two_step_secret').child($uid).exists() || data.child('h').val() === root.child('two_step_secret').child($uid).child('h').val())))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['h','n','ts']) && newData.child('h').isString() && newData.child('h').val().matches(/^[a-f0-9]{64}$/) && newData.child('n').isNumber() && newData.child('n').val() >= 1 && newData.child('n').val() <= 5 && ((data.exists() && now - data.child('ts').val() < 3600000) ? newData.child('n').val() === data.child('n').val() + 1 : newData.child('n').val() === 1))",
+        "h": { ".validate": "newData.isString()" },
+        "n": { ".read": "auth != null && auth.uid === $uid", ".validate": "newData.isNumber()" },
+        "ts": { ".read": "auth != null && auth.uid === $uid", ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "trusted_devices": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && (!root.child('two_step_secret').child($uid).exists() || (root.child('two_step_try').child($uid).child('h').exists() && root.child('two_step_try').child($uid).child('h').val() === root.child('two_step_secret').child($uid).child('h').val() && now - root.child('two_step_try').child($uid).child('ts').val() < 60000) || (root.child('two_step_reset').child($uid).child('ts').exists() && root.child('two_step_reset').child($uid).child('ts').val() + 604800000 <= now))",
+        "$did": {
+          ".validate": "$did.matches(/^[A-Za-z0-9]{8,32}$/) && newData.hasChildren(['ts']) && newData.child('ts').isNumber()",
+          "ts": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+
+    "two_step_reset": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && ((!data.exists() && newData.exists()) || (!newData.exists() && ((root.child('two_step_try').child($uid).child('h').exists() && root.child('two_step_try').child($uid).child('h').val() === root.child('two_step_secret').child($uid).child('h').val() && now - root.child('two_step_try').child($uid).child('ts').val() < 60000) || (root.child('two_step_reset').child($uid).child('ts').exists() && root.child('two_step_reset').child($uid).child('ts').val() + 604800000 <= now))))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['ts']) && newData.child('ts').val() === now)",
+        "ts": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
     "devices": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

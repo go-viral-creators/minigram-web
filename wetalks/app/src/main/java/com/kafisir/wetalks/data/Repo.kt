@@ -128,7 +128,7 @@ object Repo {
 
     // ------------------------------------------------------------------------------------------ live caches
     private val listeners = ArrayList<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
-    private fun detachAll() { inboxWatching = ""; labelsWatching = ""; devWatching = ""; devListWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
+    private fun detachAll() { twoStepRequired.value = false; twoStepChecked.value = false; inboxWatching = ""; labelsWatching = ""; devWatching = ""; devListWatching = ""; serviceMsgs.value = emptyList(); listeners.forEach { it.first.removeEventListener(it.second) }; listeners.clear(); userFlows.clear(); groupFlows.clear(); channelFlows.clear(); dmKeys.clear(); groupKeys.clear(); groupKeyMiss.clear(); synchronized(plainCache) { plainCache.clear() }; try { gkeyPrefs.edit().clear().apply() } catch (_: Exception) {}; keyConflict.value = false; dmAll.clear(); dmWinner.clear(); Calls.reset() }
 
     private val userFlows = HashMap<String, MutableStateFlow<User?>>()
     private val groupFlows = HashMap<String, MutableStateFlow<Group?>>()
@@ -329,6 +329,104 @@ object Repo {
         val k = kotlinx.coroutines.withContext(Dispatchers.Default) { Crypto.passKey(pass, salt, iter) }
         val me = Crypto.keys(app)
         db.getReference("key_backups/$uid").setValue(hashMapOf("s" to Crypto.b64(salt), "i" to iter, "c" to Crypto.seal(k, me.priv), "pub" to Crypto.b64(me.pub), "ts" to ServerValue.TIMESTAMP)).await()
+    }
+
+    // ------------------------------------------------------------------------------------------ 2-step verification
+    /** True while this phone has to enter the 2-step PIN before anything else. */
+    val twoStepRequired = MutableStateFlow(false)
+    /** The check after sign-in has finished (until then the app shows nothing, so no chat flashes before the PIN screen). */
+    val twoStepChecked = MutableStateFlow(false)
+
+    suspend fun checkTwoStep() {
+        if (uid.isEmpty()) return
+        try {
+            if (!db.getReference("two_step_pub/$uid").get().await().exists()) twoStepRequired.value = false
+            else twoStepRequired.value = !db.getReference("trusted_devices/$uid/$deviceId").get().await().exists()
+        } catch (_: Exception) { /* the new database rules are not live yet, or no network */ }
+        twoStepChecked.value = true
+    }
+
+    private fun pinHash(pin: String, salt: String, iter: Int): String = Crypto.passKey(pin, salt.toByteArray(Charsets.UTF_8), iter).joinToString("") { "%02x".format(it) }
+    private suspend fun serverNow(): Long = System.currentTimeMillis() + (try { db.getReference(".info/serverTimeOffset").get().await().getValue(Long::class.java) ?: 0L } catch (_: Exception) { 0L })
+
+    /** [left] = tries left this hour; [waitMin] > 0 = locked for that many minutes. */
+    class PinResult(val ok: Boolean, val left: Int = 0, val waitMin: Int = 0)
+
+    /**
+     * Checks the PIN. The database rules do the checking (the stored hash cannot be read by anyone): the attempt is written, and this phone becomes
+     * trusted only if it matches. Five tries an hour, one every 1.5 seconds. [keepProof] leaves the proof in place for the next step (change PIN, turn off, cancel reset).
+     */
+    suspend fun verifyPin(pin: String, keepProof: Boolean = false): PinResult {
+        val pub = db.getReference("two_step_pub/$uid").get().await()
+        if (!pub.exists()) return PinResult(true)
+        val h = withContext(Dispatchers.Default) { pinHash(pin, pub.str("salt"), pub.lng("iter").toInt()) }
+        val tryRef = db.getReference("two_step_try/$uid")
+        val prevN = try { tryRef.child("n").get().await().getValue(Long::class.java) ?: 0L } catch (_: Exception) { 0L }
+        val prevTs = try { tryRef.child("ts").get().await().getValue(Long::class.java) ?: 0L } catch (_: Exception) { 0L }
+        val now = serverNow()
+        val n = if (prevN > 0 && now - prevTs < 3_600_000L) prevN + 1 else 1L
+        if (n > 5) return PinResult(false, 0, (((3_600_000L - (now - prevTs)) / 60_000L) + 1).toInt())
+        val written = try { tryRef.setValue(hashMapOf("h" to h, "n" to n, "ts" to ServerValue.TIMESTAMP)).await(); true } catch (_: Exception) { false }
+        if (!written) { kotlinx.coroutines.delay(1600); return PinResult(false, (5 - n).toInt().coerceAtLeast(0)) }          // too fast, or no connection
+        val trusted = try { db.getReference("trusted_devices/$uid/$deviceId").setValue(hashMapOf("ts" to ServerValue.TIMESTAMP)).await(); true } catch (_: Exception) { false }
+        if (!trusted) return PinResult(false, (5 - n).toInt().coerceAtLeast(0))
+        if (!keepProof) { try { tryRef.removeValue().await() } catch (_: Exception) {}; twoStepRequired.value = false }
+        return PinResult(true)
+    }
+
+    suspend fun twoStepEnabled(): Boolean = try { db.getReference("two_step_pub/$uid").get().await().exists() } catch (_: Exception) { false }
+
+    /** Turns 2-step on with a 6-digit PIN; this phone is the only trusted one afterwards. */
+    suspend fun enableTwoStep(pin: String) {
+        val salt = randomAlnum(24); val iter = 300_000
+        val h = withContext(Dispatchers.Default) { pinHash(pin, salt, iter) }
+        val up = HashMap<String, Any?>()
+        up["two_step_pub/$uid"] = hashMapOf("salt" to salt, "iter" to iter, "ts" to ServerValue.TIMESTAMP)
+        up["two_step_secret/$uid/h"] = h
+        up["trusted_devices/$uid"] = hashMapOf(deviceId to hashMapOf("ts" to ServerValue.TIMESTAMP))
+        db.reference.updateChildren(up).await()
+    }
+
+    /** New PIN; every other phone has to enter it again. */
+    suspend fun changeTwoStep(oldPin: String, newPin: String): PinResult {
+        val r = verifyPin(oldPin, keepProof = true); if (!r.ok) return r
+        val salt = randomAlnum(24); val iter = 300_000
+        val h = withContext(Dispatchers.Default) { pinHash(newPin, salt, iter) }
+        val up = HashMap<String, Any?>()
+        up["two_step_pub/$uid"] = hashMapOf("salt" to salt, "iter" to iter, "ts" to ServerValue.TIMESTAMP)
+        up["two_step_secret/$uid/h"] = h
+        up["trusted_devices/$uid"] = hashMapOf(deviceId to hashMapOf("ts" to ServerValue.TIMESTAMP))
+        up["two_step_try/$uid"] = null
+        db.reference.updateChildren(up).await()
+        return PinResult(true)
+    }
+
+    suspend fun disableTwoStep(pin: String): PinResult {
+        val r = verifyPin(pin, keepProof = true); if (!r.ok) return r
+        val up = HashMap<String, Any?>()
+        up["two_step_pub/$uid"] = null; up["two_step_secret/$uid"] = null; up["trusted_devices/$uid"] = null; up["two_step_reset/$uid"] = null; up["two_step_try/$uid"] = null
+        db.reference.updateChildren(up).await()
+        return PinResult(true)
+    }
+
+    /** When a PIN reset was asked for (server time), or 0. */
+    suspend fun pinResetAt(): Long = try { db.getReference("two_step_reset/$uid/ts").get().await().getValue(Long::class.java) ?: 0L } catch (_: Exception) { 0L }
+    suspend fun requestPinReset() { db.getReference("two_step_reset/$uid").setValue(hashMapOf("ts" to ServerValue.TIMESTAMP)).await() }
+    /** Someone who knows the PIN can cancel a reset (so an intruder cannot just wait it out). */
+    suspend fun cancelPinReset(pin: String): PinResult {
+        val r = verifyPin(pin, keepProof = true); if (!r.ok) return r
+        val up = HashMap<String, Any?>(); up["two_step_reset/$uid"] = null; up["two_step_try/$uid"] = null
+        db.reference.updateChildren(up).await()
+        return PinResult(true)
+    }
+    /** After seven days the PIN can be removed without knowing it. */
+    suspend fun completePinReset(): Boolean {
+        val ts = pinResetAt(); if (ts == 0L || serverNow() - ts < 7 * 86_400_000L) return false
+        val up = HashMap<String, Any?>(); up["two_step_pub/$uid"] = null; up["two_step_secret/$uid"] = null; up["trusted_devices/$uid"] = null; up["two_step_reset/$uid"] = null
+        db.reference.updateChildren(up).await()
+        try { db.getReference("two_step_try/$uid").removeValue().await() } catch (_: Exception) {}
+        twoStepRequired.value = false
+        return true
     }
 
     // ------------------------------------------------------------------------------------------ linked devices
