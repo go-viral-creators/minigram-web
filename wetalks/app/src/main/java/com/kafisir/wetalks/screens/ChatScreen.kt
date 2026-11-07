@@ -234,6 +234,7 @@ fun ChatScreen(ref: ChatRef) {
     var menu by remember { mutableStateOf(false) }
     var delChat by remember { mutableStateOf(false) }
     var reportTarget by remember { mutableStateOf<Pair<ReportTarget, String>?>(null) }
+    var exportSheet by remember { mutableStateOf(false) }
     var clearAsk by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
     var typedPreview by remember { mutableStateOf<LinkPreview?>(null) }
@@ -807,7 +808,9 @@ fun ChatScreen(ref: ChatRef) {
         SheetItem(Ic.Trash, if (both) "Clear for everyone" else "Clear for me", danger = true) { clearAsk = false; Repo.scope.launch { try { Repo.clearHistory(ref); cut = System.currentTimeMillis(); toast("Chat history cleared") } catch (e: Exception) { toast("Could not clear: " + (e.message ?: "")) } } }
     }
     if (delChat) DeleteChatDialog(ref, title, { delChat = false }) { Nav.pop() }
+    if (exportSheet) ExportSheet(ref, title, { exportSheet = false })
     if (menu) Sheet({ menu = false }) {
+        SheetItem(Ic.Download, "Export chat") { menu = false; exportSheet = true }
         when (ref.kind) {
             Kind.DM -> if (!saved) {
                 SheetItem(Ic.User, "View profile") { menu = false; Nav.push(RProfile(ref.peer!!)) }

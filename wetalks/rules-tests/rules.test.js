@@ -1058,3 +1058,77 @@ test('call renegotiation node (video on / ICE restart): only the two people on t
   await assertFails(set(ref(anon(), `calls/${id}/neg`), { by: A, kind: 'offer', n: 5, sdp: 'evil' }));
   await assertFails(set(ref(db(C), `calls/${id}/ice_caller/k1`), 'sealed'));
 });
+
+// ---------------------------------------------------------------------------------------------------- chat export switch: chat_settings/<cid>/noExport
+test('export switch (group): only the owner writes it; members read it; strangers and bad shapes fail', async () => {
+  const p = 'chat_settings/g1/noExport';
+  await assertSucceeds(set(ref(db(A), p), true));                                       // alice is the owner
+  await assertSucceeds(get(ref(db(A), p)));
+  await assertSucceeds(get(ref(db(B), p)));                                             // a member can read it (the app needs it to hide the button)
+  await assertFails(get(ref(db(C), p)));                                                // a stranger cannot
+  await assertFails(get(ref(db(C), 'chat_settings/g1')));
+  await assertFails(get(ref(anon(), p)));
+  await assertFails(set(ref(db(B), p), false));                                         // a plain member cannot turn it off
+  await assertFails(remove(ref(db(B), p)));
+  await assertFails(set(ref(db(C), p), false));                                         // a stranger cannot
+  await assertFails(set(ref(anon(), p), false));
+  await assertFails(update(ref(db(B), 'chat_settings/g1'), { noExport: false }));       // not through the parent either
+  await assertFails(set(ref(db(B), 'chat_settings/g1'), { noExport: false }));
+  const v = (await get(ref(db(A), p))).val(); if (v !== true) throw new Error('value changed by a non-owner');
+  await assertFails(set(ref(db(A), p), 'yes'));                                         // must be a boolean
+  await assertFails(set(ref(db(A), p), 1));
+  await assertFails(set(ref(db(A), 'chat_settings/g1/other'), true));                   // no extra keys
+  await assertFails(set(ref(db(A), 'chat_settings/g1/noExport2'), true));
+  await assertSucceeds(set(ref(db(A), p), false));                                      // the owner can turn it off again
+  await assertSucceeds(remove(ref(db(A), p)));
+});
+
+test('export switch (group): an admin who is not the owner cannot change it; a removed member loses read access', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'groups/g1/members/bob'), 'admin'); });
+  await assertFails(set(ref(db(B), 'chat_settings/g1/noExport'), true));                // admins can change perms, but this is the owner's switch
+  await assertSucceeds(set(ref(db(A), 'chat_settings/g1/noExport'), true));
+  await assertSucceeds(get(ref(db(B), 'chat_settings/g1/noExport')));
+  await env.withSecurityRulesDisabled(async (ctx) => { await remove(ref(ctx.database(), 'groups/g1/members/bob')); });
+  await assertFails(get(ref(db(B), 'chat_settings/g1/noExport')));                      // no longer a member
+  await assertFails(set(ref(db(B), 'chat_settings/g1/noExport'), false));
+});
+
+test('export switch (group): a stranger cannot take over an existing group id, and chatting is not affected by the switch', async () => {
+  await assertFails(set(ref(db(C), 'groups/g1'), { name: 'mine', owner: C, kv: 1, members: { carol: 'admin' } }));   // g1 exists: cannot be re-created
+  await assertFails(set(ref(db(C), 'chat_settings/g1/noExport'), true));
+  await assertSucceeds(set(ref(db(A), 'chat_settings/g1/noExport'), true));
+  await assertSucceeds(set(ref(db(B), 'messages/g1/m1'), { from: B, ts: Date.now(), type: 'text', body: 'ct', kv: 1 }));
+});
+
+test('export switch (channel): only the owner writes it; admins and subscribers cannot; private channels hide it from strangers', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const d = ctx.database();
+    await set(ref(d, 'channels/c1/admins/bob'), true);
+    await set(ref(d, 'channel_subs/c1/carol'), { from: 'carol' });
+    await set(ref(d, 'channels/c2'), { name: 'Secret', handle: 'secret', handleLower: 'secret', owner: A, priv: true, admins: { alice: true }, subCount: 1 });
+  });
+  const p = 'chat_settings/c1/noExport';
+  await assertSucceeds(set(ref(db(A), p), true));
+  await assertFails(set(ref(db(B), p), false));                                         // an admin who is not the owner
+  await assertFails(set(ref(db(C), p), false));                                         // a subscriber
+  await assertFails(set(ref(db('dave'), p), false));                                    // a stranger
+  await assertSucceeds(get(ref(db(C), p)));                                             // subscriber reads
+  await assertSucceeds(get(ref(db('dave'), p)));                                        // a public channel is readable by any signed-in person, like the channel itself
+  await assertFails(get(ref(anon(), p)));
+  await assertSucceeds(set(ref(db(A), 'chat_settings/c2/noExport'), true));
+  await assertFails(get(ref(db('dave'), 'chat_settings/c2/noExport')));                 // private channel: strangers cannot read
+  await assertSucceeds(get(ref(db(A), 'chat_settings/c2/noExport')));
+  await assertFails(set(ref(db('dave'), 'chat_settings/c2/noExport'), false));
+  await assertFails(set(ref(db(A), 'chat_settings/c1/noExport'), 'true'));
+});
+
+test('export switch (DM): the two people can read the node, nobody can switch export off for a DM, strangers see nothing', async () => {
+  await assertFails(set(ref(db(A), `chat_settings/${AB}/noExport`), true));             // there is no owner of a DM
+  await assertFails(set(ref(db(B), `chat_settings/${AB}/noExport`), true));
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), `chat_settings/${AB}/noExport`), true); });
+  await assertSucceeds(get(ref(db(A), `chat_settings/${AB}/noExport`)));
+  await assertSucceeds(get(ref(db(B), `chat_settings/${AB}/noExport`)));
+  await assertFails(get(ref(db(C), `chat_settings/${AB}/noExport`)));
+  await assertFails(get(ref(db('alic'), `chat_settings/${AB}/noExport`)));              // a prefix of a uid is not a uid
+  await assertFails(remove(ref(db(A), `chat_settings/${AB}/noExport`)));
+});

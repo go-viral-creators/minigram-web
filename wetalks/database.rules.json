@@ -270,6 +270,17 @@
       }
     },
 
+    "chat_settings": {
+      "$cid": {
+        ".read": "auth != null && (root.child('groups').child($cid).child('members').child(auth.uid).exists() || ($cid.contains('_') && ($cid.beginsWith(auth.uid + '_') || $cid.endsWith('_' + auth.uid))) || (root.child('channels').child($cid).exists() && (root.child('channels').child($cid).child('priv').val() !== true || root.child('channel_subs').child($cid).child(auth.uid).exists() || root.child('channels').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('admins').child(auth.uid).exists())))",
+        "noExport": {
+          ".write": "auth != null && (root.child('groups').child($cid).child('owner').val() === auth.uid || root.child('channels').child($cid).child('owner').val() === auth.uid)",
+          ".validate": "newData.isBoolean()"
+        },
+        "$other": { ".validate": false }
+      }
+    },
+
     "devices": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
