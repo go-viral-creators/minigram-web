@@ -100,13 +100,15 @@ object Calls {
     private fun serverNow() = System.currentTimeMillis() + serverOffset
     private val pendingIce = ArrayList<String>()
 
-    private val servers = listOf(
+    // NOTE: the public "openrelayproject" TURN below is free and often overloaded or down; extra/own TURN servers are read from config/turn in the database (see CallConfig).
+    private val baseServers = listOf(
         PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
         PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
         // public relay for networks where a direct path is impossible (media stays DTLS-SRTP encrypted end to end)
         PeerConnection.IceServer.builder(listOf("turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"))
             .setUsername("openrelayproject").setPassword("openrelayproject").createIceServer(),
     )
+    private val servers get() = CallConfig.extraServers(app) + baseServers      // own TURN first: it is tried first and is more reliable than the public one
 
     private const val MISSED_CH = "missed_calls"
     fun init(c: Context) { app = c.applicationContext }
@@ -136,6 +138,7 @@ object Calls {
             override fun onCancelled(e: DatabaseError) {}
         }
         offRef.addValueEventListener(offL); offsetL = offRef to offL
+        scope.launch { CallConfig.refresh(app) }                  // keep the latest TURN list (config/turn) ready for the next call
         incomingRef = Repo.db.getReference("incoming_calls/${Repo.uid}")
         incomingL = object : ChildEventListener {
             override fun onChildAdded(s: DataSnapshot, prev: String?) { val id = s.key ?: return; val f = s.child("from").getValue(String::class.java); val v = s.child("video").getValue(Boolean::class.java) ?: false; val t = s.child("ts").getValue(Long::class.java) ?: 0L; scope.launch { onIncoming(id, f, v, t) } }
@@ -270,17 +273,19 @@ object Calls {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
         }
+        rtcCfg = cfg; synchronized(recentIce) { recentIce.clear() }
         pc = f.createPeerConnection(cfg, object : PeerConnection.Observer {
             override fun onSignalingChange(s: PeerConnection.SignalingState?) {}
             override fun onIceConnectionChange(s: PeerConnection.IceConnectionState?) {
                 scope.launch(Dispatchers.Main) {
                     when (s) {
-                        PeerConnection.IceConnectionState.CONNECTED, PeerConnection.IceConnectionState.COMPLETED -> if (phase != CallPhase.IDLE && connectedAt == 0L) {
+                        PeerConnection.IceConnectionState.CONNECTED, PeerConnection.IceConnectionState.COMPLETED -> { if (phase != CallPhase.IDLE && connectedAt == 0L) {
                             connectedAt = System.currentTimeMillis(); phase = CallPhase.ACTIVE; note = ""; timeout?.cancel(); stopRingback()
                             if (video) applySpeaker(true)
-                        }
-                        PeerConnection.IceConnectionState.FAILED -> finish(if (connectedAt > 0) "ended" else "missed", notifyPeer = true, remote = false, why = "Connection failed")
-                        PeerConnection.IceConnectionState.DISCONNECTED -> if (phase == CallPhase.ACTIVE) { note = "Reconnecting…"; scope.launch { delay(12_000); if (pc?.iceConnectionState() == PeerConnection.IceConnectionState.DISCONNECTED) finish("ended", true, false, "Connection lost") } }
+                        }; link?.onIce(IceEv.CONNECTED); link?.reapply() }
+                        // a bounded "Reconnecting…" window with ICE restarts (CallLink / ReconnectMachine) instead of ending the call at once
+                        PeerConnection.IceConnectionState.FAILED -> link?.onIce(IceEv.FAILED)
+                        PeerConnection.IceConnectionState.DISCONNECTED -> link?.onIce(IceEv.DISCONNECTED)
                         else -> {}
                     }
                 }
@@ -289,10 +294,16 @@ object Calls {
             override fun onIceGatheringChange(s: PeerConnection.IceGatheringState?) {}
             override fun onIceCandidate(c: IceCandidate) {
                 val k = key ?: return
-                val j = JSONObject().put("m", c.sdpMid).put("i", c.sdpMLineIndex).put("c", c.sdp).toString()
-                val sealed = Crypto.sealText(k, j)
-                if (caller && !callWritten) synchronized(pendingIce) { pendingIce.add(sealed) }     // the rules only accept candidates once the call exists
-                else Repo.db.getReference("calls/$callId/${if (caller) "ice_caller" else "ice_callee"}").push().setValue(sealed)
+                val id = callId
+                // sealing and writing happen on our own signalling thread, never on the WebRTC thread
+                CallSignal.io.execute {
+                    try {
+                        val j = JSONObject().put("m", c.sdpMid).put("i", c.sdpMLineIndex).put("c", c.sdp).toString()
+                        val sealed = Crypto.sealText(k, j)
+                        if (caller && !callWritten) synchronized(pendingIce) { pendingIce.add(sealed) }     // the rules only accept candidates once the call exists
+                        else Repo.db.getReference("calls/$id/${if (caller) "ice_caller" else "ice_callee"}").push().setValue(sealed)
+                    } catch (_: Exception) {}
+                }
             }
             override fun onIceCandidatesRemoved(c: Array<out IceCandidate>?) {}
             override fun onAddStream(s: MediaStream?) {}
@@ -309,6 +320,50 @@ object Calls {
         audioSource = f.createAudioSource(MediaConstraints())
         audioTrack = f.createAudioTrack("a0", audioSource).also { pc!!.addTrack(it, listOf("s0")) }
         if (withVideo) startVideoTrack()
+        link?.stop(); link = CallLink(app, caller, linkHost).also { it.start() }
+    }
+
+    // ------------------------------------------------------------------------------------------ call quality (see CallLink, CallQuality, CallReconnect, SdpTools)
+    private var link: CallLink? = null
+    private var rtcCfg: PeerConnection.RTCConfiguration? = null
+    private val recentIce = ArrayList<Pair<Long, IceCandidate>>()       // remote candidates of the last seconds: re-added after an ICE restart (they can arrive before the new offer is applied)
+    @Volatile private var restartSeq = 0
+    @Volatile private var awaitingRestart = -1
+    private var lastNegHandled = ""
+    private const val RESTART_BASE = 1_000_000                          // ICE-restart offers number from here, so they can never collide with enableVideo's negSeq
+
+    private val linkHost = object : CallLink.Host {
+        override fun pc() = this@Calls.pc
+        override fun rtcConfig() = rtcCfg
+        override suspend fun sendRestartOffer(relay: Boolean) = iceRestartOffer()
+        override fun hasLocalVideo() = videoTrack != null
+        override fun camOn() = this@Calls.camOn
+        override fun live() = phase == CallPhase.ACTIVE
+        override fun onReconnecting(on: Boolean) { if (on) { if (phase != CallPhase.IDLE) note = "Reconnecting…" } else if (note == "Reconnecting…") note = "" }
+        override fun giveUp() { finish(if (connectedAt > 0) "ended" else "missed", notifyPeer = true, remote = false, why = if (connectedAt > 0) "Connection lost" else "Connection failed") }
+    }
+
+    /** Caller only: an offer with IceRestart=true through the same calls/<id>/neg node as enableVideo (numbered from RESTART_BASE). */
+    private suspend fun iceRestartOffer() {
+        if (!caller) return
+        val p = pc ?: return; val k = key ?: return
+        var waited = 0
+        while (awaitingNeg != -1 && waited < 4000) { delay(200); waited += 200 }       // a video offer is still waiting for its answer: do not overwrite it
+        val mc = MediaConstraints().apply { mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true")) }
+        val offer = p.createOfferSuspend(mc); p.setLocalSuspend(offer)
+        restartSeq++; val n = RESTART_BASE + restartSeq; awaitingRestart = n
+        val id = callId
+        Repo.db.getReference("calls/$id/neg").setValue(hashMapOf("by" to Repo.uid, "kind" to "offer", "n" to n, "sdp" to Crypto.sealText(k, JSONObject().put("type", offer.type.canonicalForm()).put("sdp", offer.description).toString())))
+    }
+
+    /** A video offer must not overwrite a restart offer that has not been answered yet. */
+    private suspend fun awaitRestartIdle() { var w = 0; while (awaitingRestart != -1 && w < 4000) { delay(200); w += 200 } }
+
+    /** Candidates that arrived just before / after a renegotiation use the new ICE credentials: add the recent ones again (duplicates and stale ones are ignored by WebRTC). */
+    private fun readdRecentIce() {
+        val t = System.currentTimeMillis()
+        val list = synchronized(recentIce) { recentIce.removeAll { t - it.first > 30_000 }; recentIce.map { it.second } }
+        list.forEach { try { pc?.addIceCandidate(it) } catch (_: Exception) {} }
     }
 
     /** Opens the front camera and adds it to the call. */
@@ -335,6 +390,7 @@ object Calls {
         val p = pc ?: return
         if (videoTrack != null) { camOn = true; videoTrack?.setEnabled(true); video = true; return }
         startVideoTrack(); video = true; applySpeaker(true)
+        awaitRestartIdle()
         val offer = p.createOfferSuspend(); p.setLocalSuspend(offer)
         negSeq++; awaitingNeg = negSeq
         val k = key ?: return
@@ -351,16 +407,29 @@ object Calls {
                 val n = s.child("n").getValue(Long::class.java)?.toInt() ?: return
                 val j = try { JSONObject(Crypto.openText(k, s.child("sdp").getValue(String::class.java) ?: return)) } catch (_: Exception) { return }
                 val desc = SessionDescription(SessionDescription.Type.fromCanonicalForm(j.getString("type")), j.getString("sdp"))
+                val negKey = (s.child("by").getValue(String::class.java) ?: "") + ":" + n + ":" + kind
+                if (negKey == lastNegHandled) return                          // Firebase can deliver the same value again after a reconnect
+                lastNegHandled = negKey
                 scope.launch {
                     try {
                         val p = pc ?: return@launch
                         if (kind == "offer") {
+                            // both sides offered at once: the caller's offer wins, the callee drops its own and answers
+                            if (p.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER) {
+                                if (caller) return@launch
+                                p.setLocalSuspend(SessionDescription(SessionDescription.Type.ROLLBACK, ""))
+                                awaitingNeg = -1
+                            }
                             val sec = desc.description.substringAfter("m=video", "")
-                            if (sec.contains("a=sendrecv") || sec.contains("a=sendonly")) { video = true; applySpeaker(true) }
+                            if (!video && (sec.contains("a=sendrecv") || sec.contains("a=sendonly"))) { video = true; applySpeaker(true) }
                             p.setRemoteSuspend(desc)
                             val ans = p.createAnswerSuspend(); p.setLocalSuspend(ans)
                             Repo.db.getReference("calls/$callId/neg").setValue(hashMapOf("by" to Repo.uid, "kind" to "answer", "n" to n, "sdp" to Crypto.sealText(k, JSONObject().put("type", ans.type.canonicalForm()).put("sdp", ans.description).toString())))
-                        } else if (kind == "answer" && n == awaitingNeg) { awaitingNeg = -1; p.setRemoteSuspend(desc) }
+                            readdRecentIce(); link?.reapply()
+                        } else if (kind == "answer" && (n == awaitingNeg || n == awaitingRestart)) {
+                            if (n == awaitingRestart) awaitingRestart = -1 else awaitingNeg = -1
+                            p.setRemoteSuspend(desc); readdRecentIce(); link?.reapply()
+                        }
                     } catch (_: Exception) {}
                 }
             }
@@ -379,6 +448,7 @@ object Calls {
                 try {
                     val j = JSONObject(Crypto.openText(k, s.getValue(String::class.java) ?: return))
                     val c = IceCandidate(j.getString("m"), j.getInt("i"), j.getString("c"))
+                    synchronized(recentIce) { recentIce += System.currentTimeMillis() to c; if (recentIce.size > 80) recentIce.removeAt(0) }
                     if (remoteSet) pc?.addIceCandidate(c) else queuedIce += c
                 } catch (_: Exception) {}
             }
@@ -487,6 +557,7 @@ object Calls {
 
     private fun teardown() {
         timeout?.cancel(); stopRinging(); stopRingback(); cancelNotification()
+        link?.stop(); link = null; rtcCfg = null; awaitingRestart = -1; restartSeq = 0; lastNegHandled = ""; synchronized(recentIce) { recentIce.clear() }
         listeners.forEach { (q, l) -> try { if (l is ChildEventListener) q.removeEventListener(l) else if (l is ValueEventListener) q.removeEventListener(l) } catch (_: Exception) {} }
         listeners.clear()
         try { capturer?.stopCapture() } catch (_: Exception) {}
@@ -575,11 +646,13 @@ object Calls {
         override fun onCreateFailure(e: String?) = fail(e)
         override fun onSetFailure(e: String?) = fail(e)
     }
-    private suspend fun PeerConnection.createOfferSuspend(): SessionDescription = suspendCancellableCoroutine { c ->
-        createOffer(Sdp({ c.resume(it!!) }, { c.cancel(RuntimeException(it)) }), MediaConstraints())
+    // every local offer / answer (first call, video on, ICE restart) gets the Opus FEC / DTX / mono tuning before it is set and sent
+    private fun tuned(d: SessionDescription) = SessionDescription(d.type, SdpTools.tuneOpus(d.description))
+    private suspend fun PeerConnection.createOfferSuspend(mc: MediaConstraints = MediaConstraints()): SessionDescription = suspendCancellableCoroutine { c ->
+        createOffer(Sdp({ c.resume(tuned(it!!)) }, { c.cancel(RuntimeException(it)) }), mc)
     }
     private suspend fun PeerConnection.createAnswerSuspend(): SessionDescription = suspendCancellableCoroutine { c ->
-        createAnswer(Sdp({ c.resume(it!!) }, { c.cancel(RuntimeException(it)) }), MediaConstraints())
+        createAnswer(Sdp({ c.resume(tuned(it!!)) }, { c.cancel(RuntimeException(it)) }), MediaConstraints())
     }
     private suspend fun PeerConnection.setLocalSuspend(d: SessionDescription) = suspendCancellableCoroutine<Unit> { c ->
         setLocalDescription(Sdp({ c.resume(Unit) }, { c.cancel(RuntimeException(it)) }), d)

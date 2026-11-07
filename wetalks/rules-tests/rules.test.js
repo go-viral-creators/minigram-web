@@ -1033,3 +1033,28 @@ test('bans (channel): followers list is readable by owner and admins only', asyn
   await assertFails(get(ref(db(B), 'channel_subs/c1')));
   await assertFails(get(ref(db(C), 'channel_subs/c1')));
 });
+
+// ---- call quality: config/turn (extra TURN servers, read-only for the app) and ICE-restart offers on calls/<id>/neg ----
+test('config/turn: signed-in people can read it, nobody can write it from the app, anon cannot read', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => { await set(ref(ctx.database(), 'config/turn/t1'), { urls: 'turn:turn.example.org:3478', username: 'u', credential: 'c' }); });
+  await assertSucceeds(get(ref(db(A), 'config/turn')));
+  await assertSucceeds(get(ref(db(C), 'config/turn')));
+  await assertFails(get(ref(anon(), 'config/turn')));
+  await assertFails(set(ref(db(A), 'config/turn/t2'), { urls: 'turn:evil.example.org:3478', username: 'u', credential: 'c' }));
+  await assertFails(set(ref(db(A), 'config/turn/t1/urls'), 'turn:evil.example.org:3478'));
+  await assertFails(remove(ref(db(B), 'config/turn/t1')));
+  await assertFails(set(ref(anon(), 'config/turn/t3'), { urls: 'x' }));
+  await assertFails(set(ref(db(A), 'config/maintenance/on'), true));     // the neighbouring switch is unchanged
+});
+
+test('call renegotiation node (video on / ICE restart): only the two people on the call; a stranger cannot read or overwrite it', async () => {
+  const id = '-NqualityCall001';
+  await assertSucceeds(set(ref(db(A), `calls/${id}`), { from: A, to: B, ts: serverTimestamp(), state: 'ringing', video: false }));
+  await assertSucceeds(set(ref(db(A), `calls/${id}/neg`), { by: A, kind: 'offer', n: 1000001, sdp: 'sealed' }));      // caller's ICE-restart offer
+  await assertSucceeds(set(ref(db(B), `calls/${id}/neg`), { by: B, kind: 'answer', n: 1000001, sdp: 'sealed' }));     // callee answers
+  await assertSucceeds(get(ref(db(B), `calls/${id}/neg`)));
+  await assertFails(get(ref(db(C), `calls/${id}/neg`)));
+  await assertFails(set(ref(db(C), `calls/${id}/neg`), { by: C, kind: 'offer', n: 1000002, sdp: 'evil' }));
+  await assertFails(set(ref(anon(), `calls/${id}/neg`), { by: A, kind: 'offer', n: 5, sdp: 'evil' }));
+  await assertFails(set(ref(db(C), `calls/${id}/ice_caller/k1`), 'sealed'));
+});
