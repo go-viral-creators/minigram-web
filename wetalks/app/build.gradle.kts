@@ -41,6 +41,7 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    androidResources { noCompress += "tflite" }                         // the picture model is memory-mapped straight from the APK
     lint { checkReleaseBuilds = false; abortOnError = false }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
@@ -74,6 +75,7 @@ dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("io.getstream:stream-webrtc-android:1.3.10")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.24.3")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")           // sensitive-image check (groups and channels only), see NSFW_MODEL.md
     testImplementation("org.json:json:20240303")
     testImplementation("com.microsoft.onnxruntime:onnxruntime:1.24.3")
     implementation("com.google.zxing:core:3.5.3")

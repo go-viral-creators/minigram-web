@@ -49,6 +49,7 @@ fun PrivacyScreen() {
             var crash by remember { mutableStateOf(com.kafisir.wetalks.data.Crash.enabled(cc)) }
             Row2(Ic.Alert, "Send crash reports", "Helps fix crashes. No messages, names or numbers are sent", trailing = { Toggle(crash) { crash = it; com.kafisir.wetalks.data.Crash.setEnabled(cc, it) } })
             Row2(Ic.Check2, "Read receipts", "Show blue ticks when you read messages", trailing = { Toggle(me?.readReceipts ?: true) { Repo.setPrivacy("readReceipts", it) } })
+            NsfwLocalRow()
             SectionLabel("Key backup")
             val backedUp by produceState<Boolean?>(null, backupTick) { value = Repo.hasKeyBackup() }
             Row2(Ic.Key, "Back up encryption key", if (backedUp == true) "Backed up · tap to update the passphrase" else "Protects your old chats if you reinstall or change phone", onClick = { showBackup = true })

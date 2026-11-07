@@ -171,10 +171,12 @@ fun VideoCard(m: Msg, ref: ChatRef, onLong: () -> Unit) {
             } catch (e: Exception) { progress = -1f; Nav.say(e.message ?: "Could not open the video") }
         }
     }
-    Box(Modifier.width(254.dp).padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { if (selecting) onLong() else play() }, onLongClick = onLong)) {
+    val hidden = rememberNsfwHidden(ref, m, thumb)          // the preview picture only; groups and channels only
+    Box(Modifier.width(254.dp).padding(3.dp).clip(RoundedCornerShape(13.dp)).combinedClickable(onClick = { if (selecting) onLong() else if (hidden) NsfwRuntime.reveal(ref.id, m.id) else play() }, onLongClick = onLong)) {
         Box(Modifier.fillMaxWidth().aspectRatio(ratio).background(Color(0xFF16202E))) {
-            if (thumb != null) androidx.compose.foundation.Image(thumb, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-            Box(Modifier.align(Alignment.Center).size(54.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {
+            if (hidden && thumb != null) SensitiveCover(thumb, Modifier.fillMaxSize(), onReveal = { if (selecting) onLong() else NsfwRuntime.reveal(ref.id, m.id) }, onLong = onLong)
+            else if (thumb != null) androidx.compose.foundation.Image(thumb, null, Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+            if (!hidden) Box(Modifier.align(Alignment.Center).size(54.dp).clip(CircleShape).background(Color(0x99000000)), contentAlignment = Alignment.Center) {
                 if (out?.failed == true) Icon(Ic.Alert, Color.White, 26.dp)
                 else if (busy) androidx.compose.material3.CircularProgressIndicator(progress = { shown.coerceIn(0.04f, 1f) }, modifier = Modifier.size(38.dp), color = Color.White, strokeWidth = 3.dp, trackColor = Color(0x44FFFFFF))
                 else Icon(if (local || m.pending) Ic.Play else Ic.Download, Color.White, 28.dp)

@@ -955,7 +955,9 @@ private fun ImageBody(m: Msg, ref: ChatRef, mine: Boolean, read: Boolean, fg: Co
     Column(Modifier.width(236.dp)) {
         Box(Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = { if (selecting) onLong() else m.mediaId?.let { Nav.push(RImage(ref, it, all.ifEmpty { listOf(it) })) } }, onLongClick = onLong)) {
             val b = bmp ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
-            if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { if (selecting) onLong() else manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
+            val hidden = rememberNsfwHidden(ref, m, bmp)          // groups and channels only; false at once in private chats
+            if (hidden && b != null) SensitiveCover(b, Modifier.fillMaxWidth().aspectRatio(1f), onReveal = { if (selecting) onLong() else NsfwRuntime.reveal(ref.id, m.id) }, onLong = onLong)
+            else if (b == null && !allowed) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field).combinedClickable(onClick = { if (selecting) onLong() else manual = true }, onLongClick = onLong), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Ic.Download, We.primary, 30.dp); Text("Tap to download", color = We.text2, style = T.small) } }
             else if (b == null) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(We.field), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(26.dp), color = We.primary, strokeWidth = 2.dp) }
             else Image(b, null, Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)      // always square, centre-cropped: the chat stays short, tap to see the whole photo
             if (m.pending) SendingBadge(Modifier.align(Alignment.Center), Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.failed == true)
@@ -1012,7 +1014,9 @@ private fun AlbumBody(list: List<Msg>, ref: ChatRef, mine: Boolean, read: Boolea
         val b = rememberChatBitmap(ref, m.mediaId, allowed) ?: (if (m.pending) Repo.outgoing.firstOrNull { "out_" + it.id == m.id }?.thumb else null)
         Box(mod.clip(RoundedCornerShape(6.dp)).background(We.field).combinedClickable(
             onClick = { if (selecting) onLongOf(m) else if (b == null && !allowed) manual = true else m.mediaId?.let { Nav.push(RImage(ref, it, ids)) } }, onLongClick = { onLongOf(m) }), contentAlignment = Alignment.Center) {
-            if (b != null) Image(b, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            val hidden = rememberNsfwHidden(ref, m, b)
+            if (hidden && b != null) SensitiveCover(b, Modifier.matchParentSize(), compact = true, onReveal = { if (selecting) onLongOf(m) else NsfwRuntime.reveal(ref.id, m.id) }, onLong = { onLongOf(m) })
+            else if (b != null) Image(b, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
             else if (!allowed) Icon(Ic.Download, We.primary, 26.dp)
             else androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = We.primary, strokeWidth = 2.dp)
             if (m.pending) Box(Modifier.matchParentSize().background(Color(0x55000000)), contentAlignment = Alignment.Center) {
