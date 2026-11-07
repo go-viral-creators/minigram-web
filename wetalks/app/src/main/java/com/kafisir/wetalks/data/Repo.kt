@@ -202,15 +202,31 @@ object Repo {
         MutableStateFlow<Channel?>(null).also { f -> watch("channels/$id") { f.value = parseChannel(id, it) } }
     }
 
-    private fun watch(path: String, cb: (DataSnapshot) -> Unit) {
+    private fun watch(path: String, attempt: Int = 0, cb: (DataSnapshot) -> Unit) {
         val ref = db.getReference(path)
         val l = object : ValueEventListener {
             override fun onDataChange(s: DataSnapshot) = cb(s)
-            override fun onCancelled(e: DatabaseError) {}
+            // the server cancels a listener when it is refused (for example rules that were not deployed yet) and never revives it: try again later
+            override fun onCancelled(e: DatabaseError) {
+                listeners.removeAll { it.second === this }
+                android.util.Log.w("WeTalks", "listener $path cancelled: ${e.message}")
+                retryAfterCancel(attempt) { n -> watch(path, n, cb) }
+            }
         }
         ref.addValueEventListener(l)
         listeners.add(ref to l)
     }
+
+    private val retryDelays = longArrayOf(5_000, 15_000, 45_000, 120_000, 300_000)
+    /** Runs [again] after a growing pause (5 s, 15 s, 45 s, 2 min, 5 min), only while the same person is still signed in. */
+    fun retryAfterCancel(attempt: Int, again: (Int) -> Unit) {
+        if (attempt >= retryDelays.size || uid.isEmpty()) return
+        val u = uid
+        scope.launch { kotlinx.coroutines.delay(retryDelays[attempt]); if (uid == u) again(attempt + 1) }
+    }
+
+    /** The app came to the foreground: forget an old "rules are outdated" notice (the next refused save sets it again if it is still true). */
+    fun onAppForeground() { rulesOutdated.value = false }
 
     suspend fun userOnce(id: String): User? = parseUser(id, db.getReference("users/$id").get().await())
 
@@ -340,7 +356,7 @@ object Repo {
     private var callLogWatching = ""
     private var callLogQ: Pair<com.google.firebase.database.Query, ValueEventListener>? = null
     /** My call history (newest 300), live. Written by the call itself; also by the caller when I was unreachable. */
-    fun watchCallLog() {
+    fun watchCallLog(attempt: Int = 0) {
         if (uid.isEmpty() || callLogWatching == uid) return
         callLogWatching = uid
         val q = db.getReference("call_log/$uid").orderByChild("ts").limitToLast(300)
@@ -352,7 +368,12 @@ object Repo {
                     CallEntry(id, peer, c.str("dir") == "out", c.bool("video"), c.str("st"), c.lng("ts"), c.lng("dur").toInt())
                 }.sortedByDescending { it.ts }
             }
-            override fun onCancelled(e: DatabaseError) { explain(e.toException(), "Reading the call history") }
+            override fun onCancelled(e: DatabaseError) {
+                explain(e.toException(), "Reading the call history")
+                try { q.removeEventListener(this) } catch (_: Exception) {}
+                callLogQ = null; callLogWatching = ""           // let it attach again (the server never revives a refused listener)
+                retryAfterCancel(attempt) { n -> watchCallLog(n) }
+            }
         }
         q.addValueEventListener(l); callLogQ = q to l
     }
@@ -618,7 +639,7 @@ object Repo {
     val blockedUsers: StateFlow<Set<String>> get() = blocked
     fun watchBlocks() { watchLabels(); watchCallLog(); watchBlocksNow() }
     private fun watchBlocksNow() = watch("blocks/$uid") { s -> blocked.value = s.children.mapNotNull { it.key }.toSet() }
-    fun block(id: String, on: Boolean) { val r = db.getReference("blocks/$uid/$id"); if (on) r.setValue(true) else r.removeValue() }
+    fun block(id: String, on: Boolean) { val r = db.getReference("blocks/$uid/$id"); if (on) r.setValue(true) else r.removeValue(); BlockNotes.add(app, id, on) }
 
     // ------------------------------------------------------------------------------------------ chat list
     fun chats(): Flow<List<ChatItem>> = callbackFlow {

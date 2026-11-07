@@ -49,7 +49,7 @@ class WeTalksApp : Application() {
 }
 
 class MainActivity : androidx.fragment.app.FragmentActivity() {
-    override fun onStart() { super.onStart(); com.kafisir.wetalks.data.Calls.foreground = true }
+    override fun onStart() { super.onStart(); com.kafisir.wetalks.data.Calls.foreground = true; Repo.onAppForeground() }
     override fun onStop() { super.onStop(); com.kafisir.wetalks.data.Calls.foreground = false }
 
     // a volume button while a call is ringing only silences the ring (like the normal phone app)

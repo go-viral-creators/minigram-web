@@ -28,7 +28,7 @@ object Starred {
 
     fun count(chatId: String? = null) = if (chatId == null) entries.size else entries.count { it.cid == chatId }
 
-    fun watch() {
+    fun watch(attempt: Int = 0) {
         val u = Repo.uid
         if (u.isEmpty() || listening?.first == u) return
         stop()
@@ -40,7 +40,11 @@ object Starred {
                 list.sortByDescending { it.ts }
                 entries = list; ids = list.mapTo(HashSet()) { it.mid }
             }
-            override fun onCancelled(e: DatabaseError) {}
+            override fun onCancelled(e: DatabaseError) {
+                try { r.removeEventListener(this) } catch (_: Exception) {}
+                if (listening?.first == u) listening = null           // the server never revives a refused listener: attach again later
+                Repo.retryAfterCancel(attempt) { n -> watch(n) }
+            }
         }
         r.addValueEventListener(l)
         listening = u to (r to l)

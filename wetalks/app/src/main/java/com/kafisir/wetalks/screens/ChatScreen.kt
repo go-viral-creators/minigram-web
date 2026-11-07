@@ -186,7 +186,13 @@ fun ChatScreen(ref: ChatRef) {
     // a "sending" bubble disappears the moment its real message shows up (the message arrives before the upload work has finished returning)
     val outs = Repo.outgoing.filter { it.ref.id == ref.id && !(it.msgId.isNotEmpty() && it.msgId in realIds) }
     val outMsgs = outs.map { o -> Msg("out_" + o.id, me, o.ts, o.type, o.text, null, o.dur, null, false, false, emptyMap(), false, true, o.wave, null, "", o.w, o.h, name = o.name, size = o.size, album = o.album) }
-    val msgs = msgsRaw.filter { hideTick >= 0 && expTick >= 0 && !DisappearRules.isExpired(it.exp, Disappear.now()) && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs
+    val blockTick by com.kafisir.wetalks.data.BlockNotes.tick.collectAsState()
+    val msgs = (msgsRaw.filter { hideTick >= 0 && expTick >= 0 && !DisappearRules.isExpired(it.exp, Disappear.now()) && !it.deleted && !Repo.isHidden(it.id) && it.from !in blocked && (it.ts == 0L || it.ts > cut) } + outMsgs).let { base ->
+        // "You blocked this user" lines (kept on this phone only), in time order among the messages
+        if (ref.kind != Kind.DM || saved || ref.peer.isNullOrEmpty() || blockTick < 0) base
+        else { val notes = com.kafisir.wetalks.data.BlockNotes.events(Repo.app, ref.peer!!).map { (ts, on) -> Msg("blk_$ts", me, ts, "sys", if (on) "local:blocked" else "local:unblocked") }
+            if (notes.isEmpty()) base else (base + notes).sortedBy { if (it.ts == 0L) Long.MAX_VALUE else it.ts } }
+    }
     val typing by remember(ref) { Repo.typing(ref) }.collectAsState(emptyList())
     val pinIds by remember(ref) { Repo.pins(ref) }.collectAsState(emptyList())
     val peerUser = if (ref.kind == Kind.DM && !saved) Repo.user(ref.peer!!).collectAsState().value else null
@@ -602,7 +608,7 @@ fun ChatScreen(ref: ChatRef) {
                     if (m.type == "sys") {
                         Column {
                             if (older == null || dayLabel(older.ts) != dayLabel(m.ts)) DayChip(dayLabel(m.ts))
-                            SysLine(DisappearRules.systemTextFor(m.text, nameOf(m.from, ""), m.from == me))
+                            SysLine(if (m.text.startsWith("local:")) com.kafisir.wetalks.data.BlockNotes.text(m.text == "local:blocked") else DisappearRules.systemTextFor(m.text, nameOf(m.from, ""), m.from == me))
                             Spacer(Modifier.height(6.dp))
                         }
                         return@itemsIndexed
