@@ -46,6 +46,10 @@ object DataPrefs {
     // The chat then shows it from this file: no download, no decryption, no waiting, the same every time. Cleared by the cache limit / "Clear cache".
     private fun pf(id: String) = File(dir, "p_" + id.filter { it.isLetterOrDigit() || it == '-' || it == '_' })
     fun hasPlain(id: String) = ::app.isInitialized && pf(id).exists()
+    /** The plain file of a photo / voice note this phone holds (for the chat backup), or null. */
+    fun plainFile(id: String): File? = if (::app.isInitialized) pf(id).takeIf { it.exists() } else null
+    /** Ids of all plain media files held, newest first (for the chat backup). */
+    fun plainIds(): List<String> = dir.listFiles { x -> x.name.startsWith("p_") && !x.name.startsWith("p_tmp_") }?.sortedByDescending { it.lastModified() }?.map { it.name.removePrefix("p_") } ?: emptyList()
     fun getPlain(id: String): ByteArray? = try { pf(id).takeIf { it.exists() }?.also { it.setLastModified(System.currentTimeMillis()) }?.readBytes() } catch (e: Exception) { null }
     fun putPlain(id: String, bytes: ByteArray) { try { val t = File(dir, "p_tmp_" + System.nanoTime()); t.writeBytes(bytes); if (!t.renameTo(pf(id))) t.delete(); trim() } catch (_: Exception) {} }
     fun putDisk(id: String, s: String) { try { f(id).writeText(s); trim() } catch (_: Exception) {} }

@@ -203,6 +203,7 @@ fun StorageScreen() {
     Column(Modifier.fillMaxSize().background(We.bg)) {
         TopBar("Data & storage", onBack = { Nav.pop() })
         Column(Modifier.verticalScroll(rememberScrollState())) {
+            Row2(Ic.Database, "Chat backup", "Back up your messages, restore them on a new phone", onClick = { Nav.push(com.kafisir.wetalks.ui.RBackup) })
             SectionLabel("Storage on this phone")
             // usage bar
             val total = (media + other).coerceAtLeast(1L)
